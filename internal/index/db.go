@@ -947,3 +947,10 @@ func (d *Db) Load() ([]RawEntry, error) {
 	}
 	return out, nil
 }
+
+// Checkpoint folds the WAL into the main file (before sealing or copying
+// the database).
+func (d *Db) Checkpoint() error {
+	_, err := d.conn.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
+	return err
+}

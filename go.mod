@@ -7,6 +7,7 @@ require golang.org/x/text v0.44.0
 require (
 	github.com/RoaringBitmap/roaring/v2 v2.30.0
 	github.com/ebitengine/purego v0.11.3
+	github.com/ledongthuc/pdf v0.0.0-20261020125853-5e46805f718e
 	golang.org/x/sys v0.50.0
 	modernc.org/sqlite v1.62.0
 )
@@ -19,6 +20,7 @@ require (
 	github.com/mschoch/smat v0.2.0 // indirect
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
+	golang.org/x/crypto v0.58.0 // indirect
 	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -118,6 +119,14 @@ type Laserdot struct {
 	store  *index.Store
 	loadMS uint64
 	report OpenReport
+	// content: file contents (§2.4), in its own file next to the index.
+	content         *index.ContentIndex
+	contentSettings ContentSettings
+	// Attached drive indexes (§9), their mount folder, and passphrases
+	// entered this session (by drive id). Guarded by mu.
+	drives  []*drive
+	volumes VolumeConfig
+	keys    map[string]string
 }
 
 // DefaultDBPath is $LASERDOT_DB, else
@@ -148,7 +157,13 @@ func OpenAt(dbPath string, now time.Time) (*Laserdot, error) {
 	if err != nil {
 		return nil, err
 	}
-	ld := &Laserdot{dbPath: dbPath, db: db, report: OpenReport{Reindexed: []string{}, Purged: []string{}}}
+	ld := &Laserdot{dbPath: dbPath, db: db, report: OpenReport{Reindexed: []string{}, Purged: []string{}},
+		volumes: DefaultVolumeConfig(), keys: map[string]string{}}
+	if ld.content, err = index.OpenContent(contentPath(dbPath)); err != nil {
+		db.Close()
+		return nil, err
+	}
+	ld.loadContentSettings()
 	if rep.Quarantined != "" {
 		ld.report.Quarantined = &rep.Quarantined
 	}
@@ -170,8 +185,12 @@ func OpenAt(dbPath string, now time.Time) (*Laserdot, error) {
 	return ld, nil
 }
 
-// Close closes the database.
-func (ld *Laserdot) Close() error { return ld.db.Close() }
+// Close closes the databases.
+func (ld *Laserdot) Close() error {
+	ld.closeDrives()
+	ld.content.Close()
+	return ld.db.Close()
+}
 
 // DBPath is the database file.
 func (ld *Laserdot) DBPath() string { return ld.dbPath }
@@ -217,8 +236,10 @@ func (ld *Laserdot) ScanOptions() scan.Options {
 	if c, err := canonical(dir); err == nil {
 		dir = c
 	}
-	for _, suffix := range []string{"", "-wal", "-shm", "-journal", ".roots", ".snapshot", ".snapshot.tmp"} {
-		opts.ExcludedPaths = append(opts.ExcludedPaths, filepath.Join(dir, base+suffix))
+	for _, b := range []string{base, "content.db"} {
+		for _, suffix := range []string{"", "-wal", "-shm", "-journal", ".roots", ".snapshot", ".snapshot.tmp"} {
+			opts.ExcludedPaths = append(opts.ExcludedPaths, filepath.Join(dir, b+suffix))
+		}
 	}
 	return opts
 }
@@ -233,6 +254,18 @@ func (ld *Laserdot) Index(root string) (IndexStats, error) {
 	}
 	if fi, err := os.Stat(root); err != nil || !fi.IsDir() {
 		return IndexStats{}, fmt.Errorf("%s is not a folder", root)
+	}
+	ld.mu.RLock()
+	d := ld.driveFor(root)
+	ld.mu.RUnlock()
+	if d != nil {
+		// On an attached drive: refresh that drive's index in place.
+		u, err := ld.RefreshDrive(d.mount)
+		return IndexStats{Root: root, Incremental: true, Added: u.Added, Removed: u.Removed, Renamed: u.Renamed,
+			Modified: u.Modified, Pending: u.Pending, Probed: u.Probed}, err
+	}
+	if v, ok := ld.unindexedVolume(root); ok {
+		return IndexStats{}, fmt.Errorf("%s is on the drive %q, which keeps its own index — index the drive instead", root, v.Name)
 	}
 	ld.wmu.Lock()
 	roots, err := ld.db.Roots()
@@ -268,8 +301,38 @@ func (ld *Laserdot) Index(root string) (IndexStats, error) {
 // watcher package on macOS (FSEvents); none elsewhere.
 var currentEventID = func() (uint64, bool) { return 0, false }
 
-// ApplyChanges applies "something changed under this path" signals.
+// ApplyChanges applies "something changed under this path" signals;
+// changes on an attached drive go to that drive's index.
 func (ld *Laserdot) ApplyChanges(changes []Change) (UpdateStats, error) {
+	byDrive := map[string][]Change{}
+	var local []Change
+	ld.mu.RLock()
+	for _, c := range changes {
+		if d := ld.driveFor(c.Path); d != nil {
+			byDrive[d.mount] = append(byDrive[d.mount], c)
+		} else {
+			local = append(local, c)
+		}
+	}
+	ld.mu.RUnlock()
+	total := UpdateStats{OfflineRoots: []string{}}
+	for mount, cs := range byDrive {
+		u, err := ld.applyDrive(mount, cs, false)
+		total.Merge(u)
+		if err != nil {
+			return total, err
+		}
+	}
+	if len(local) == 0 && len(byDrive) > 0 {
+		return total, nil
+	}
+	u, err := ld.applyLocal(local)
+	total.Merge(u)
+	total.MS = u.MS
+	return total, err
+}
+
+func (ld *Laserdot) applyLocal(changes []Change) (UpdateStats, error) {
 	ld.wmu.Lock()
 	defer ld.wmu.Unlock()
 	ld.mu.Lock()
@@ -358,60 +421,173 @@ func (ld *Laserdot) Stats() Stats {
 	ld.mu.RLock()
 	defer ld.mu.RUnlock()
 	s := ld.store
-	return Stats{
+	st := Stats{
 		Entries: s.LiveCount(), Roots: s.Roots(), MemoryBytes: s.MemoryBytes(),
 		LoadMS: ld.loadMS, Overlay: s.OverlaySize(), Drives: []string{},
 	}
+	for _, d := range ld.drives {
+		st.Entries += d.store.LiveCount()
+		st.Roots = append(st.Roots, d.mount)
+		st.MemoryBytes += d.store.MemoryBytes()
+		st.Drives = append(st.Drives, d.name)
+	}
+	return st
 }
 
-// Search runs query against the index.
+// Search runs query against the index (names, then contents).
 func (ld *Laserdot) Search(q string, opts SearchOptions) (*SearchResults, error) {
 	ld.mu.RLock()
 	defer ld.mu.RUnlock()
-	return SearchStore(ld.store, q, opts)
+	if len(ld.drives) == 0 {
+		r, _, err := searchStoreKeyed(ld.store, ld.content, q, opts)
+		return r, err
+	}
+	// This Mac's index and every attached drive's, merged into one ranking.
+	t := time.Now()
+	want := opts.Page.Offset + opts.Page.Limit
+	sub := opts
+	sub.Page.Offset, sub.Page.Limit = 0, want
+	type keyed struct {
+		key index.RankKey
+		src int
+		hit Hit
+	}
+	var merged []keyed
+	out := &SearchResults{Hits: []Hit{}, Warnings: []query.Warning{}}
+	var firstErr error
+	ok := false
+	for n := 0; n <= len(ld.drives); n++ {
+		s, content := ld.store, ld.content
+		var volume *string
+		if n > 0 {
+			d := ld.drives[n-1]
+			s, content, volume = d.store, nil, &d.name // content search covers this Mac only
+		}
+		r, keys, err := searchStoreKeyed(s, content, q, sub)
+		if err != nil {
+			// e.g. an in: folder only one index has
+			if firstErr == nil {
+				firstErr = err
+			}
+			continue
+		}
+		ok = true
+		out.Total += r.Total
+		out.TypoFallback = out.TypoFallback || r.TypoFallback
+		if len(out.Warnings) == 0 {
+			out.Warnings = r.Warnings
+		}
+		for i, h := range r.Hits {
+			h.Volume = volume
+			merged = append(merged, keyed{keys[i], n, h})
+		}
+	}
+	if !ok {
+		return nil, firstErr
+	}
+	slices.SortStableFunc(merged, func(a, b keyed) int {
+		switch {
+		case a.key.Less(b.key):
+			return -1
+		case b.key.Less(a.key):
+			return 1
+		}
+		return a.src - b.src
+	})
+	for i := opts.Page.Offset; i < min(len(merged), want); i++ {
+		out.Hits = append(out.Hits, merged[i].hit)
+	}
+	out.ElapsedUS = uint64(time.Since(t).Microseconds())
+	return out, nil
 }
 
 // SearchStore runs a query against any store (also used by benchmarks).
 func SearchStore(s *index.Store, q string, opts SearchOptions) (*SearchResults, error) {
+	r, _, err := searchStoreKeyed(s, nil, q, opts)
+	return r, err
+}
+
+// contentRankBase: content hits rank after every name hit (§2.4.2), in
+// BM25 order.
+const contentRankBase = 1 << 48
+
+// searchStoreKeyed is a search plus each hit's sort key, for merging
+// across indexes. content may be nil (a drive's index has none).
+func searchStoreKeyed(s *index.Store, content *index.ContentIndex, q string, opts SearchOptions) (*SearchResults, []index.RankKey, error) {
 	t := time.Now()
 	parsed, err := query.Parse(q)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	res := &SearchResults{Hits: []Hit{}, Warnings: parsed.Warnings}
+	parts, err := splitContent(parsed)
+	if err != nil {
+		return nil, nil, err
+	}
+	pq := parts.query
+	res := &SearchResults{Hits: []Hit{}, Warnings: pq.Warnings}
 	if res.Warnings == nil {
 		res.Warnings = []query.Warning{}
 	}
-	if parsed.IsEmpty() {
+	if pq.IsEmpty() && len(parts.filters) == 0 {
 		res.ElapsedUS = uint64(time.Since(t).Microseconds())
-		return res, nil
+		return res, nil, nil
 	}
-	exact, err := query.Compile(parsed, false)
+	// content: terms: a set every result must (or must not) be in.
+	var must *roaring.Bitmap
+	mustNot := roaring.New()
+	for _, f := range parts.filters {
+		set := roaring.New()
+		if content != nil {
+			paths, err := content.Matching(f.expr)
+			if err != nil {
+				return nil, nil, err
+			}
+			set.AddMany(contentIDs(s, paths))
+		}
+		if f.negated {
+			mustNot.Or(set)
+		} else if must == nil {
+			must = set
+		} else {
+			must.And(set)
+		}
+	}
+	restrict := func(b *roaring.Bitmap) *roaring.Bitmap {
+		if must != nil {
+			b.And(must)
+		}
+		b.AndNot(mustNot)
+		return b
+	}
+	exact, err := query.Compile(pq, false)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	exactHits, err := s.Execute(exact)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+	exactHits = restrict(exactHits)
 	ranked := s.Rank(exactHits, exact, opts.Page, 0)
 	res.Total = exactHits.GetCardinality()
-	typoIDs := roaring.New()
-	if opts.TypoFallback && res.Total < TypoFallbackBelow && query.HasTypoCandidates(parsed) {
-		typo, err := query.Compile(parsed, true)
+	typoIDs, contentHit := roaring.New(), roaring.New()
+	nameHits := exactHits.Clone()
+	p := opts.Page
+	if opts.TypoFallback && res.Total < TypoFallbackBelow && query.HasTypoCandidates(pq) {
+		typo, err := query.Compile(pq, true)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		hits, err := s.Execute(typo)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		extra := roaring.AndNot(hits, exactHits)
+		extra := roaring.AndNot(restrict(hits), exactHits)
 		if !extra.IsEmpty() {
 			res.TypoFallback = true
 			res.Total += extra.GetCardinality()
+			nameHits.Or(extra)
 			// Exact matches fill the page first; typo matches follow.
-			p := opts.Page
 			shown := int(exactHits.GetCardinality())
 			remaining := max(p.Offset+p.Limit-shown, 0)
 			tp := index.Page{Sort: p.Sort, Reverse: p.Reverse, Offset: max(p.Offset-shown, 0), Limit: min(remaining, p.Limit)}
@@ -424,11 +600,61 @@ func SearchStore(s *index.Store, q string, opts SearchOptions) (*SearchResults, 
 			}
 		}
 	}
+	// Plain words also match contents (§2.4.2): entries that satisfy the
+	// rest of the query, ranked after every name match.
+	if expr, ok := index.FTSQuery(parts.words, true); content != nil && ok {
+		rest, err := query.Compile(parts.withoutWords, false)
+		if err != nil {
+			return nil, nil, err
+		}
+		allowed, err := s.Execute(rest)
+		if err != nil {
+			return nil, nil, err
+		}
+		allowed = roaring.AndNot(restrict(allowed), nameHits)
+		paths, err := content.Search(expr, ContentResults)
+		if err != nil {
+			return nil, nil, err
+		}
+		var cids []uint32
+		for _, id := range contentIDs(s, paths) {
+			if allowed.Contains(id) {
+				cids = append(cids, id)
+			}
+		}
+		if len(cids) > 0 {
+			shown := int(nameHits.GetCardinality())
+			offset := max(p.Offset-shown, 0)
+			room := min(max(p.Offset+p.Limit-shown, 0), p.Limit)
+			res.Total += uint64(len(cids))
+			var add []index.Ranked
+			if p.Sort == index.Relevance {
+				for i := offset; i < min(len(cids), offset+room); i++ {
+					add = append(add, index.Ranked{ID: cids[i], Key: index.RankKey{Num: contentRankBase + uint64(i)}})
+				}
+			} else {
+				set := roaring.New()
+				set.AddMany(cids)
+				add = s.Rank(set, rest, index.Page{Sort: p.Sort, Reverse: p.Reverse, Offset: offset, Limit: room}, 0)
+			}
+			for _, r := range add {
+				contentHit.Add(r.ID)
+			}
+			ranked = append(ranked, add...)
+			if len(ranked) > p.Limit {
+				ranked = ranked[:p.Limit]
+			}
+		}
+	}
+	keys := make([]index.RankKey, 0, len(ranked))
 	for _, r := range ranked {
-		res.Hits = append(res.Hits, hitOf(s, r.ID, typoIDs.Contains(r.ID)))
+		h := hitOf(s, r.ID, typoIDs.Contains(r.ID))
+		h.Content = contentHit.Contains(r.ID)
+		res.Hits = append(res.Hits, h)
+		keys = append(keys, r.Key)
 	}
 	res.ElapsedUS = uint64(time.Since(t).Microseconds())
-	return res, nil
+	return res, keys, nil
 }
 
 func hitOf(s *index.Store, id uint32, typo bool) Hit {
