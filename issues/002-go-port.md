@@ -78,3 +78,26 @@ Choices made by the owner (2026-11-10):
     root and `refresh` re-walks every root (G3 diffs in place and tracks renames); Finder tags; the daemon serves
     ping, status, search, index, forget, refresh, roots, stats and shutdown, and answers other ops with error code
     `unsupported`; the cheat sheet is English only until the Arabic descriptions (`i18n.rs`) are ported.
+- **G3 platform layer (2026-11-10):** `internal/scan` gains the shared `Change{Path, Recursive}` type; Finder tags
+  (hand-written, bounds-checked binary-plist reader for `com.apple.metadata:_kMDItemUserTags`, fuzz-tested;
+  `user.xdg.tags` comma list as the Linux fallback) wired into `Walk`, so `Entry.Tags` is filled; `IsNetworkVolume`
+  (statfs: smbfs/nfs/afpfs/webdav/cifs on macOS; NFS/SMB/CIFS/SMB2/AFS/Coda/9p magics and network FUSE subtypes
+  such as `fuse.sshfs` from `/proc/self/mounts` on Linux); `Volume`, `VolumeAt`, `ListVolumes`, `Estimate`; `Trash`.
+  New `internal/watch` ports laserdot-watch (`Options`, `WatchRoot`, `Backend`, `Batch`, `Watcher` with
+  `NextBatch`/`Replays`/`Close`, `CurrentEventID`) with the same coalescing (same-folder merge, recursive changes
+  swallow those beneath them, highest event id wins): inotify through `golang.org/x/sys/unix`, FSEvents without
+  cgo through `github.com/ebitengine/purego` (no network packages; netcheck green) on a locked OS thread running a
+  CFRunLoop, polling for network volumes. Rust watch/scan tests ported, plus lifecycle (create/modify/rename/
+  delete/new and renamed folders) tests for both native backends.
+  - **Deviations:** `WatchRoot.Since`/`Batch.EventID` use 0 for "none" instead of `Option<u64>`. Polling diffs
+    folder-listing snapshots and reports only folders that changed (Rust re-sent a recursive root change every
+    interval); the first poll still reports each root recursively. FSEvents uses `FileEvents` (file-level) and
+    maps item events to their folder, so `Change` keeps meaning "this folder changed". inotify also skips other
+    volumes, ignored and opaque-child folders when adding watches, re-watches every root after a queue overflow,
+    and drops the watches of folders moved out of the tree. The event queue is capped at 1M events, beyond which
+    it collapses to a recursive change per root. macOS `Trash` moves into `~/.Trash` (or `<volume>/.Trashes/<uid>`)
+    with Finder-style "name 2.ext" names and `RENAME_EXCL` (Rust used `NSFileManager trashItemAtURL:`, which needs
+    Objective-C): **no "Put Back"** metadata. Freedesktop `DeletionDate` is local time (the freedesktop spec) where
+    Rust wrote UTC.
+  - **Gaps:** nothing consumes `internal/watch` yet (update engine, `core` and daemon wiring are G3 work for
+    `internal/core`/`internal/index`); FSEvents and Finder-tag code is exercised only on the macOS CI runner.

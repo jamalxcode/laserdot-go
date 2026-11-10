@@ -6,6 +6,7 @@ require golang.org/x/text v0.44.0
 
 require (
 	github.com/RoaringBitmap/roaring/v2 v2.30.0
+	github.com/ebitengine/purego v0.11.3
 	golang.org/x/sys v0.50.0
 	modernc.org/sqlite v1.62.0
 )
