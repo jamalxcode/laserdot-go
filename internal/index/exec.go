@@ -525,7 +525,7 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 	}
 	keyed := make([]kv, len(ids))
 	parallel(len(ids), func(i int) { keyed[i] = kv{key(ids[i]).Num, ids[i]} })
-	slices.SortFunc(keyed, func(a, b kv) int {
+	cmp := func(a, b kv) int {
 		switch {
 		case a.k < b.k:
 			return -1
@@ -533,9 +533,47 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 			return 1
 		}
 		return int(a.id) - int(b.id)
-	})
-	for i := range ids {
+	}
+	if len(keyed) > want {
+		keyed = topK(keyed, want, cmp)
+	}
+	slices.SortFunc(keyed, cmp)
+	ids = ids[:len(keyed)]
+	for i := range keyed {
 		ids[i] = keyed[i].id
 	}
 	return window(ids)
+}
+
+// topK returns the k smallest items of v (unordered), with a bounded
+// max-heap: O(n log k) instead of sorting everything for one page.
+func topK[T any](v []T, k int, cmp func(a, b T) int) []T {
+	h := slices.Clone(v[:k])
+	less := func(i, j int) bool { return cmp(h[i], h[j]) > 0 } // max-heap
+	down := func(i int) {
+		for {
+			l, big := 2*i+1, i
+			if l < k && less(l, big) {
+				big = l
+			}
+			if r := l + 1; r < k && less(r, big) {
+				big = r
+			}
+			if big == i {
+				return
+			}
+			h[i], h[big] = h[big], h[i]
+			i = big
+		}
+	}
+	for i := k/2 - 1; i >= 0; i-- {
+		down(i)
+	}
+	for _, x := range v[k:] {
+		if cmp(x, h[0]) < 0 {
+			h[0] = x
+			down(0)
+		}
+	}
+	return h
 }

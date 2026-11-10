@@ -35,6 +35,14 @@ func TestNoNetworkPackages(t *testing.T) {
 	}
 }
 
+// exempt is the privacy gate's own test: it opens a TCP listener for the
+// sandboxed child to (fail to) reach.
+var exempt = filepath.Join("internal", "sandbox", "deny_test.go")
+
+// rawSocketPkgs may only create sockets inside internal/sandbox (its
+// IsEnforced probe).
+var rawSocketPkgs = map[string]bool{"unix": true, "syscall": true}
+
 // Our code dials and listens on Unix sockets only.
 func TestOnlyUnixSockets(t *testing.T) {
 	root := filepath.Join("..", "..")
@@ -45,9 +53,10 @@ func TestOnlyUnixSockets(t *testing.T) {
 		if d.IsDir() && (d.Name() == ".git" || d.Name() == "testdata") {
 			return filepath.SkipDir
 		}
-		if d.IsDir() || !strings.HasSuffix(path, ".go") {
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, exempt) {
 			return nil
 		}
+		inSandbox := strings.Contains(path, filepath.Join("internal", "sandbox")+string(filepath.Separator))
 		f, err := parser.ParseFile(token.NewFileSet(), path, nil, 0)
 		if err != nil {
 			return err
@@ -62,6 +71,9 @@ func TestOnlyUnixSockets(t *testing.T) {
 				return true
 			}
 			pkg, ok := sel.X.(*ast.Ident)
+			if ok && rawSocketPkgs[pkg.Name] && (sel.Sel.Name == "Socket" || sel.Sel.Name == "Connect") && !inSandbox {
+				t.Errorf("%s: %s.%s — raw sockets are only allowed in internal/sandbox", path, pkg.Name, sel.Sel.Name)
+			}
 			if !ok || pkg.Name != "net" {
 				return true
 			}

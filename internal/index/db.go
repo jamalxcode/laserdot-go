@@ -34,10 +34,16 @@ type Db struct {
 
 // RootInfo describes an indexed folder.
 type RootInfo struct {
-	Path      string
-	IndexedAt int64
-	Complete  bool
-	Offline   bool
+	ID   int64  `json:"id"`
+	Path string `json:"path"`
+	// LastEventID: last applied FSEvents id (macOS), for replay (G3).
+	LastEventID *uint64 `json:"last_event_id"`
+	// LastVerified: Unix seconds when the folder was last seen.
+	LastVerified int64 `json:"last_verified"`
+	// Offline: missing at the last refresh; entries kept until purged.
+	Offline bool `json:"offline"`
+	// Complete: the first full index finished.
+	Complete bool `json:"complete"`
 }
 
 // OpenReport says what Open had to repair.
@@ -186,7 +192,7 @@ func (d *Db) writeSideFile() error {
 
 // Roots are the indexed folders.
 func (d *Db) Roots() ([]RootInfo, error) {
-	rows, err := d.conn.Query("SELECT path, indexed_at, complete, offline FROM roots ORDER BY path")
+	rows, err := d.conn.Query("SELECT id, path, last_event_id, last_verified, offline, complete FROM roots ORDER BY path")
 	if err != nil {
 		return nil, err
 	}
@@ -194,8 +200,13 @@ func (d *Db) Roots() ([]RootInfo, error) {
 	var out []RootInfo
 	for rows.Next() {
 		var r RootInfo
-		if err := rows.Scan(&r.Path, &r.IndexedAt, &r.Complete, &r.Offline); err != nil {
+		var ev sql.NullInt64
+		if err := rows.Scan(&r.ID, &r.Path, &ev, &r.LastVerified, &r.Offline, &r.Complete); err != nil {
 			return nil, err
+		}
+		if ev.Valid {
+			v := uint64(ev.Int64)
+			r.LastEventID = &v
 		}
 		out = append(out, r)
 	}

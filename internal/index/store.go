@@ -517,3 +517,27 @@ func parallel(n int, f func(int)) {
 	}
 	wg.Wait()
 }
+
+// MemoryBytes estimates the heap held by the store.
+func (s *Store) MemoryBytes() uint64 {
+	n := uint64(s.Len())
+	b := uint64(len(s.names.buf)+len(s.folded.buf)) + n*(4*2*2)  // arenas + offsets
+	b += n * (4 + 4 + 2 + 8 + 8 + 8 + 1 + 1 + 4 + 4 + 8 + 8 + 4) // columns
+	b += uint64(len(s.childIDs))*4 + n*4*3                       // children + sort orders
+	bms := []*roaring.Bitmap{s.all, s.dirBM, s.hiddenBM, s.datalBM, s.rawBM, s.pending, s.dimsBM}
+	bms = append(bms, s.kindBM...)
+	bms = append(bms, s.resBM[:]...)
+	bms = append(bms, s.orientBM[:]...)
+	for _, m := range []map[string]*roaring.Bitmap{s.extBM, s.tagBM} {
+		for _, bm := range m {
+			bms = append(bms, bm)
+		}
+	}
+	for _, bm := range s.trigrams {
+		bms = append(bms, bm)
+	}
+	for _, bm := range bms {
+		b += bm.GetSizeInBytes()
+	}
+	return b
+}

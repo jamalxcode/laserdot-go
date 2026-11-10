@@ -14,13 +14,25 @@ in [`issues/002-go-port.md`](issues/002-go-port.md). The original Rust implement
 
 ## Status
 
-Porting. Phase **G1** (daemon and search) has started: Unicode folding is done.
+Porting. Phase **G1** (daemon and search) is done: name and file-filter search, the SQLite store, the CLI, and
+the daemon with the OS network sandbox. Next: **G2**, media parsing.
+
+| Phase | State |
+|---|---|
+| G1 daemon + search | done |
+| G2 media | next |
+| G3 live updates | — |
+| G4 drives, duplicates, content, snapshot, Tier 2, app | — |
 
 ## Build
 
 ```bash
 go build ./...
 go test ./...
+go run ./cmd/laserdot index ~/Documents
+go run ./cmd/laserdot search 'invoice march'
+go run ./cmd/laserdotd &            # optional: the CLI then goes through the daemon
+go run ./cmd/laserdot status
 ```
 
-Pure Go (no cgo), Go 1.24+.
+Pure Go (no cgo); the Go version is in `go.mod`.

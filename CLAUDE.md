@@ -44,10 +44,12 @@ When the spec and an issue disagree, flag it to the user rather than silently pi
 internal/fold     Unicode folding (§2.5) — single source of truth for index AND query folding
 internal/query    filter registry (§8.8), §2.7 parser, AST, regex compilation
 internal/scan     folder walk + ignore rules
+internal/media    file kinds (G2: Tier 1 header parsers)
 internal/index    SQLite durable store (modernc, pure Go), in-memory store, planner + execution
 internal/core     public API = test Seam 1
 internal/sandbox  OS-enforced no-network
-internal/ipc      daemon protocol (JSON lines over a Unix socket) + client
+internal/ipc      daemon protocol (JSON lines over a Unix socket) + client — the Rust wire format
+internal/daemon   the daemon's request handling (testable in-process)
 internal/netcheck the network-dependency check (pillar 1)
 cmd/laserdotd     the daemon: single writer of the index
 cmd/laserdot      the CLI (routes through the daemon when it runs)
@@ -69,6 +71,11 @@ go test ./...
 go vet ./...
 gofmt -l .                       # must print nothing
 go test ./internal/fold -fuzz FuzzFoldIdempotent -fuzztime 60s
+go test ./internal/index -run X -bench Search1M -benchtime 20x   # 1M-entry benchmark
+go run ./cmd/laserdot index ~/Movies                     # build/refresh the index
+go run ./cmd/laserdot search 'invoice march'
+go run ./cmd/laserdot help-syntax                       # cheat sheet from the registry
+go run ./cmd/laserdotd --db /tmp/x/index.db             # the daemon; `laserdot --db /tmp/x/index.db status`
 ```
 
 Run gofmt, vet and the full test suite before committing.
@@ -78,6 +85,9 @@ Run gofmt, vet and the full test suite before committing.
 - Test external behavior: query in, results out. Seam 1 is `internal/core` with real files in temp dirs.
 - Port the Rust tests for each feature (same fixtures, same expectations) before or with the code.
 - Parsers and the query translator: fuzz tests — any input yields a query or a positioned error, never a panic.
+- **Privacy gate (§15.5):** `internal/sandbox/deny_test.go` (child process: TCP/UDP blocked, IPC socket folder
+  allowed, inherited by children), the daemon binary's `status.network_denied` (`internal/daemon`), and
+  `internal/netcheck`. Every process calls `sandbox.DenyNetwork` first (on macOS it re-executes the process).
 
 ## Conventions
 

@@ -171,3 +171,20 @@ func TestResolveAndWithin(t *testing.T) {
 		t.Error("within")
 	}
 }
+
+// A page taken from many hits (the top-k path) equals the same window of
+// the fully sorted results.
+func TestPagedRankingMatchesFullSort(t *testing.T) {
+	lines := []string{"d/"}
+	for i := 0; i < 600; i++ {
+		lines = append(lines, "d/note"+strings.Repeat("x", (i*7919)%37)+itoa(i)+"|"+itoa((i*104729)%1000))
+	}
+	s := tree(t, lines...)
+	for _, srt := range []Sort{Relevance, BySize, ByName} {
+		all := search(t, s, "note", Page{Sort: srt, Limit: 1000})
+		got := search(t, s, "note", Page{Sort: srt, Offset: 40, Limit: 15})
+		if !reflect.DeepEqual(got, all[40:55]) {
+			t.Errorf("%v: %q\nwant %q", srt, got, all[40:55])
+		}
+	}
+}

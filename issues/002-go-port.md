@@ -59,3 +59,22 @@ Choices made by the owner (2026-11-10):
   characters (§2.2.3 sets only the minimum). Fuzzing showed a 4,000-character word expands into a regex too
   large to build quickly; the Rust build hit its regex size limit there and returned an error instead.
 
+- **G1 complete (2026-11-10):** walk (`internal/scan`: ignore rules, opaque bundles, no device crossing, hard
+  links listed once, birth times via `statx` on Linux), kind classification, the in-memory store (pre-order ids so
+  `in:` is a range, roaring bitmaps, byte-trigram index, pre-sorted size/date orders), cost-ordered execution with
+  the trigram prefilter, relevance ranking (top-k selection for a page), the modernc SQLite store (integrity check,
+  quarantine, side file of roots), `internal/core` with the Rust Seam 1 tests that need no media parsing, the IPC
+  protocol (the Rust wire format: protocol 5, `op`-tagged JSON lines, snake_case results), `laserdotd` and the
+  `laserdot` CLI (routes through the daemon when it answers). 1M synthetic entries: build 2.3 s, ~164 MiB; queries
+  0.03–12 ms on 4 cores (`go test ./internal/index -bench Search1M -run X`).
+  - **Sandbox:** Linux seccomp as in Rust. macOS re-executes the process under `/usr/bin/sandbox-exec -p <profile>`
+    (same Seatbelt profile; `sandbox_init` needs cgo). The process checks that the restriction holds with a
+    probe that connects an IPv4 UDP socket to the loopback discard port (connecting UDP sends nothing). The privacy
+    gate (`internal/sandbox/deny_test.go`: TCP and UDP blocked, IPC folder allowed, children inherit) and the
+    daemon's `status.network_denied` test run on both CI OSes. `internal/netcheck` now also allows raw
+    `unix.Socket`/`unix.Connect` only inside `internal/sandbox`, and exempts the privacy gate's control listener by
+    name.
+  - **Not yet:** media filters and track groups answer "not executable yet" (G2); re-indexing re-walks a whole
+    root and `refresh` re-walks every root (G3 diffs in place and tracks renames); Finder tags; the daemon serves
+    ping, status, search, index, forget, refresh, roots, stats and shutdown, and answers other ops with error code
+    `unsupported`; the cheat sheet is English only until the Arabic descriptions (`i18n.rs`) are ported.
