@@ -111,6 +111,22 @@ func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
 			}
 		}
 	}()
+	// Tier 2 at idle: a few files at a time, never on the indexing path.
+	go func() {
+		for {
+			select {
+			case <-s.done:
+				return
+			case <-time.After(2 * time.Minute):
+			}
+			st, err := s.ld.DeepProbe(20)
+			if err != nil {
+				log("deep probe failed: " + err.Error())
+			} else if st.Updated > 0 {
+				log(fmt.Sprintf("deep probe: %d files updated (%d left)", st.Updated, st.Remaining))
+			}
+		}
+	}()
 	if volumeEvery <= 0 {
 		return
 	}
@@ -344,6 +360,14 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		return ok(query.Completions(req.Query, req.Cursor, query.LangFromCode(req.Lang)))
 	case ipc.OpFilters:
 		return ok(query.FilterList(query.LangFromCode(req.Lang)))
+	case ipc.OpDeepProbe:
+		limit := 0
+		if req.Limit != nil {
+			limit = *req.Limit
+		}
+		return result(s.ld.DeepProbe(limit))
+	case ipc.OpLoudness:
+		return result(s.ld.Loudness(req.Path))
 	case ipc.OpCheatSheet:
 		return ok(query.CheatSheetIn(query.LangFromCode(req.Lang)))
 	}

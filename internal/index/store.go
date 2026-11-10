@@ -926,3 +926,25 @@ func parallel(n int, f func(int)) {
 }
 
 func numCPU() int { return runtime.GOMAXPROCS(0) }
+
+// ReplaceMedia gives entry id a new media record: the entry is replaced by
+// an identical one carrying rec (a fresh id keeps every bitmap exact).
+// Returns the new id.
+func (s *Store) ReplaceMedia(id uint32, rec *media.Record) uint32 {
+	var tags []string
+	for t, bm := range s.tagBM {
+		if bm.Contains(id) {
+			tags = append(tags, t)
+		}
+	}
+	e := RawEntry{
+		Name: s.Name(id), IsDir: s.IsDir(id), IsSymlink: s.IsSymlink(id), Dataless: s.IsDataless(id),
+		Size: s.size[id], Modified: s.modified[id], Created: s.created[id], Media: rec,
+		Width: rec.Width, Height: rec.Height, DBID: s.dbID[id], Tags: tags, Inode: s.inode[id],
+	}
+	parent := s.parent[id]
+	s.Kill(id)
+	nid := s.Append(parent, e)
+	s.RepairSiblings(parent)
+	return nid
+}

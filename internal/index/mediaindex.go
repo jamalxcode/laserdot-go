@@ -115,7 +115,7 @@ func hdrNames(hdr uint8) []string {
 	for _, h := range []struct {
 		bit  uint8
 		name string
-	}{{media.HDRHDR10, "hdr10"}, {media.HDRHLG, "hlg"}, {media.HDRDV, "dv"}} {
+	}{{media.HDRHDR10, "hdr10"}, {media.HDRHDR10Plus, "hdr10+"}, {media.HDRHLG, "hlg"}, {media.HDRDV, "dv"}} {
 		if hdr&h.bit != 0 {
 			out = append(out, h.name)
 		}
@@ -358,7 +358,7 @@ func (s *Store) evalMedia(f *query.CFilter, cand *roaring.Bitmap) (*roaring.Bitm
 	case query.FContainer, query.FArtist, query.FAlbum, query.FGenre, query.FTitle, query.FCamera, query.FLens:
 		return roaring.And(cand, m.facetUnion(f.ID, query.NoScope, &f.Value)), true
 	case query.FHdr:
-		anyHDR := m.facetUnion(query.FHdr, query.Video, &query.CValue{Enum: []string{"hdr10", "hlg", "dv"}})
+		anyHDR := m.facetUnion(query.FHdr, query.Video, &query.CValue{Enum: []string{"hdr10", "hdr10+", "hlg", "dv"}})
 		out := roaring.New()
 		for _, v := range f.Value.Enum {
 			switch v {
@@ -366,9 +366,7 @@ func (s *Store) evalMedia(f *query.CFilter, cand *roaring.Bitmap) (*roaring.Bitm
 				out.Or(anyHDR)
 			case "false":
 				out.Or(roaring.AndNot(m.flags[flagHasVideo], anyHDR))
-			case "hdr10+":
-				// HDR10+ lives in per-frame SEI data: not visible to Tier 1.
-			default:
+			default: // hdr10+ is set by Tier 2 (per-frame SEI data)
 				out.Or(m.facetUnion(query.FHdr, query.Video, &query.CValue{Enum: []string{v}}))
 			}
 		}

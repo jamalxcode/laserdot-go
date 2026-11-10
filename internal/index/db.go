@@ -282,6 +282,11 @@ func (d *Db) migrate() error {
 		}
 	}
 	if d.mount == "" {
+		// Tier 2 attempts (§3.1.1), so a file is deep-probed once per version.
+		if _, err = d.conn.Exec(`CREATE TABLE IF NOT EXISTS tier2 (
+			id INTEGER PRIMARY KEY, size INTEGER NOT NULL, mtime INTEGER NOT NULL)`); err != nil {
+			return err
+		}
 		// Duplicate-finder cache (§4.1). Only in this Mac's own index: a
 		// drive's index is untrusted, and a forged hash there could make a
 		// different file look like a copy.
@@ -1082,4 +1087,55 @@ func (d *Db) PutFingerprints(keys []string, fps []Fingerprint) error {
 		}
 	}
 	return tx.Commit()
+}
+
+// Tier2Done reports whether entry id was deep-probed at this version.
+func (d *Db) Tier2Done(id int64, size uint64, mtime int64) (bool, error) {
+	var s, m int64
+	err := d.conn.QueryRow("SELECT size, mtime FROM tier2 WHERE id = ?", id).Scan(&s, &m)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	return err == nil && uint64(s) == size && m == mtime, err
+}
+
+// SetTier2Done records a deep probe of entry id at this version.
+func (d *Db) SetTier2Done(id int64, size uint64, mtime int64) error {
+	_, err := d.conn.Exec("INSERT OR REPLACE INTO tier2 (id, size, mtime) VALUES (?, ?, ?)", id, int64(size), mtime)
+	return err
+}
+
+// SetMedia stores a new media record for entry id (Tier 2 results).
+func (d *Db) SetMedia(id int64, rec *media.Record) error {
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := invalidateSnapshot(tx); err != nil {
+		return err
+	}
+	if _, err := tx.Exec("UPDATE entries SET probe = ?, width = ?, height = ?, media = ? WHERE id = ?",
+		codeOK, rec.Width, rec.Height, rec.Encode(), id); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// Media is an entry's stored media record, or nil.
+func (d *Db) Media(id int64) (*media.Record, error) {
+	var code int
+	var blob []byte
+	err := d.conn.QueryRow("SELECT probe, media FROM entries WHERE id = ?", id).Scan(&code, &blob)
+	if errors.Is(err, sql.ErrNoRows) || code != codeOK {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	r, err := media.Decode(blob)
+	if err != nil {
+		return nil, nil
+	}
+	return r, nil
 }

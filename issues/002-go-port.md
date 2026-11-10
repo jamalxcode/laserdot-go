@@ -189,3 +189,9 @@ Choices made by the owner (2026-11-10):
     Strings from ffprobe are clipped to the record's 4 KiB string limit so every record encodes. Case-insensitive
     tag keys are tried in sorted order (serde_json's map order). Nothing schedules Tier 2 yet (idle-time queue,
     on-demand loudness and storing the results are core/daemon work).
+- **Tier 2 wired in (2026-11-10):** `core.DeepProbe` runs at idle in the daemon (20 files every 2 minutes) and on
+  demand (`laserdot deep`, op `deep_probe`): a full ffprobe read for video/audio files Tier 1 could not read, HDR10+
+  detection for HDR10 video, VFR from packet times for Matroska/AVI/TS/MPEG-PS/FLV. Each file version is deep-probed
+  once (a `tier2` table in this Mac's index; drives are not deep-probed). Results replace the entry's media record in
+  SQLite and in memory; `hdr:hdr10+` now matches. Loudness is on request only (`laserdot loudness FILE`, op
+  `loudness`). Without ffprobe, Tier 2 reports itself unavailable and nothing runs.

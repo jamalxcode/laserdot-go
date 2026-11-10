@@ -2,10 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"path/filepath"
 
 	"github.com/jamalxcode/laserdot-go/internal/core"
 	"github.com/jamalxcode/laserdot-go/internal/index"
 	"github.com/jamalxcode/laserdot-go/internal/ipc"
+	"github.com/jamalxcode/laserdot-go/internal/media"
 )
 
 // target is where commands go: the running daemon (the index's single
@@ -101,6 +103,18 @@ type moreTarget interface {
 	setContent(s core.ContentSettings) (core.ContentStatus, error)
 	updateContent() (core.ContentStats, error)
 	coach(q string) ([]core.Coaching, error)
+	deep(limit int) (core.DeepStats, error)
+	loudness(path string) (media.Loudness, error)
+}
+
+func (d *direct) deep(limit int) (core.DeepStats, error)    { return d.ld.DeepProbe(limit) }
+func (d *direct) loudness(p string) (media.Loudness, error) { return d.ld.Loudness(p) }
+func (r *remote) deep(limit int) (core.DeepStats, error) {
+	return call[core.DeepStats](r, &ipc.Request{Op: ipc.OpDeepProbe, Limit: &limit})
+}
+func (r *remote) loudness(p string) (media.Loudness, error) {
+	abs, _ := filepath.Abs(p)
+	return call[media.Loudness](r, &ipc.Request{Op: ipc.OpLoudness, Path: abs})
 }
 
 func (d *direct) drives() ([]core.DriveInfo, error)                  { return d.ld.Drives(), nil }

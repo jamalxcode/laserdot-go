@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -37,6 +38,8 @@ commands:
   dupes [QUERY]       find duplicates (a dry run; --trash or --move-to DIR to clean up)
       --exact-only --no-images --no-videos --min-size 1mb --image-distance N --yes --json
   content [ACTION]    content search folders: status, add, remove, max-size, update
+  deep [--limit N]    Tier 2: read legacy containers, HDR10+ and VFR with ffprobe (needs ffprobe)
+  loudness FILE       EBU R128 loudness of a file (needs ffmpeg)
   roots               indexed folders
   stats               index size and indexed folders
   status              is laserdotd running, and is its network access denied?
@@ -134,6 +137,30 @@ func run(args []string) error {
 		return dupesCmd(t, rest)
 	case "content":
 		return contentCmd(t, rest)
+	case "deep":
+		limit := 0
+		if len(rest) == 2 && rest[0] == "--limit" {
+			limit, _ = strconv.Atoi(rest[1])
+		}
+		st, err := t.deep(limit)
+		if err != nil {
+			return err
+		}
+		if st.Tool == "" {
+			return errors.New("ffprobe not found (set LASERDOT_FFPROBE or install ffmpeg)")
+		}
+		fmt.Printf("%d files read, %d updated, %d failed, %d left (%d ms) — %s\n", st.Probed, st.Updated, st.Failed, st.Remaining, st.MS, st.Tool)
+		return nil
+	case "loudness":
+		if len(rest) != 1 {
+			return errors.New("loudness needs a file")
+		}
+		l, err := t.loudness(rest[0])
+		if err != nil {
+			return err
+		}
+		fmt.Printf("integrated %.1f LUFS, true peak %.1f dBTP, range %.1f LU\n", l.Integrated, l.TruePeak, l.Range)
+		return nil
 	case "forget":
 		if len(rest) != 1 {
 			return errors.New("forget needs one folder")

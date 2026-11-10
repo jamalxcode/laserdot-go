@@ -61,6 +61,9 @@ const (
 	OpCompletions = "completions"
 	OpFilters     = "filters"
 	OpCheatSheet  = "cheat_sheet"
+	// Tier 2 (§3.1.1): deep probing now; loudness of one file (§3.6).
+	OpDeepProbe = "deep_probe"
+	OpLoudness  = "loudness"
 )
 
 // Request is one call. Op selects it; the other fields are per op and
