@@ -162,7 +162,7 @@ func TestMediaFiltersAndGroups(t *testing.T) {
 		"hdr:false":                       {"clip.mp4"},
 		"codec:hevc":                      {"movie.mkv"},
 		"lang:ar":                         {"clip.mp4", "movie.mkv"},
-		"lang:ara":                        {},
+		"lang:ara":                        {"clip.mp4", "movie.mkv"},
 		"a(lang:ar channels:5.1)":         {"clip.mp4"},
 		"a(lang:en channels:7.1)":         {"movie.mkv"},
 		"a(lang:ar atmos:true)":           {},
@@ -198,7 +198,7 @@ func TestMediaFiltersAndGroups(t *testing.T) {
 		!reflect.DeepEqual(sum.Subtitles, []string{"ar (forced)"}) || !reflect.DeepEqual(sum.HDR, []string{"hdr10"}) {
 		t.Errorf("%+v", sum)
 	}
-	if fv := s.FacetValues(query.FLang, query.Audio); len(fv) != 2 || fv[0].Value != "ar" || fv[0].Count != 2 {
+	if fv := s.FacetValues(query.FLang, query.Audio); len(fv) != 4 || fv[0].Value != "ar" || fv[0].Count != 2 {
 		t.Errorf("%+v", fv)
 	}
 }
