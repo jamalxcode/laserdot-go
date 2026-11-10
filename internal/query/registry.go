@@ -88,6 +88,11 @@ const (
 	VEnum
 )
 
+// IsInterval: values of this kind parse to an Interval.
+func (k ValueKind) IsInterval() bool {
+	return k == VSize || k == VDate || k == VDuration || k == VBitrate || k == VNumber
+}
+
 // ValueType is a filter's value type.
 type ValueType struct {
 	Kind   ValueKind
