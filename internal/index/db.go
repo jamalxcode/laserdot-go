@@ -2,6 +2,7 @@ package index
 
 import (
 	"database/sql"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
@@ -953,4 +954,132 @@ func (d *Db) Load() ([]RawEntry, error) {
 func (d *Db) Checkpoint() error {
 	_, err := d.conn.Exec("PRAGMA wal_checkpoint(TRUNCATE)")
 	return err
+}
+
+// Fingerprint flags.
+const (
+	FPImageFlat   uint8 = 1
+	FPImageFailed uint8 = 2
+	FPVideoFailed uint8 = 4
+)
+
+// Fingerprint is what the duplicate finder knows about one file (§4.1).
+type Fingerprint struct {
+	Size     uint64
+	Modified int64
+	Quick    *[32]byte // hash of size + first, middle and last 64 KiB
+	Full     *[32]byte // hash of the whole file
+	Image    *uint64   // image pHash
+	// Frames: pHashes of the frames at 10/50/90 %, and which are flat.
+	Frames *[3]uint64
+	Flat   uint8
+	Flags  uint8
+}
+
+// Equal compares two fingerprints by value.
+func (f Fingerprint) Equal(g Fingerprint) bool {
+	eqp := func(a, b *[32]byte) bool { return (a == nil) == (b == nil) && (a == nil || *a == *b) }
+	return f.Size == g.Size && f.Modified == g.Modified && eqp(f.Quick, g.Quick) && eqp(f.Full, g.Full) &&
+		(f.Image == nil) == (g.Image == nil) && (f.Image == nil || *f.Image == *g.Image) &&
+		(f.Frames == nil) == (g.Frames == nil) && (f.Frames == nil || *f.Frames == *g.Frames) &&
+		f.Flat == g.Flat && f.Flags == g.Flags
+}
+
+// FingerprintKey identifies a file to cache.
+type FingerprintKey struct {
+	Key      string
+	Size     uint64
+	Modified int64
+}
+
+// Fingerprints are the cached fingerprints by key; entries whose size or
+// mtime changed are left out (and so recomputed). Only this Mac's index
+// keeps them (a drive's index is untrusted).
+func (d *Db) Fingerprints(wanted []FingerprintKey) (map[string]Fingerprint, error) {
+	out := map[string]Fingerprint{}
+	if d.mount != "" {
+		return out, nil
+	}
+	stmt, err := d.conn.Prepare("SELECT size, mtime, quick, full, image, frames, flags FROM fingerprints WHERE key = ?")
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	for _, w := range wanted {
+		var size int64
+		var f Fingerprint
+		var quick, full, frames []byte
+		var image sql.NullInt64
+		err := stmt.QueryRow(w.Key).Scan(&size, &f.Modified, &quick, &full, &image, &frames, &f.Flags)
+		if errors.Is(err, sql.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		f.Size = uint64(size)
+		if f.Size != w.Size || f.Modified != w.Modified {
+			continue
+		}
+		if len(quick) == 32 {
+			f.Quick = (*[32]byte)(quick)
+		}
+		if len(full) == 32 {
+			f.Full = (*[32]byte)(full)
+		}
+		if image.Valid {
+			v := uint64(image.Int64)
+			f.Image = &v
+		}
+		if len(frames) == 25 {
+			var h [3]uint64
+			for i := range h {
+				h[i] = binary.LittleEndian.Uint64(frames[i*8:])
+			}
+			f.Frames, f.Flat = &h, frames[24]
+		}
+		out[w.Key] = f
+	}
+	return out, nil
+}
+
+// PutFingerprints caches fingerprints.
+func (d *Db) PutFingerprints(keys []string, fps []Fingerprint) error {
+	if d.mount != "" || len(keys) == 0 {
+		return nil
+	}
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	stmt, err := tx.Prepare(`INSERT OR REPLACE INTO fingerprints (key, size, mtime, quick, full, image, frames, flags)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for i, f := range fps {
+		var quick, full, frames []byte
+		var image any
+		if f.Quick != nil {
+			quick = f.Quick[:]
+		}
+		if f.Full != nil {
+			full = f.Full[:]
+		}
+		if f.Image != nil {
+			image = int64(*f.Image)
+		}
+		if f.Frames != nil {
+			for _, h := range f.Frames {
+				frames = binary.LittleEndian.AppendUint64(frames, h)
+			}
+			frames = append(frames, f.Flat)
+		}
+		if _, err := stmt.Exec(keys[i], int64(f.Size), f.Modified, quick, full, image, frames, f.Flags); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
