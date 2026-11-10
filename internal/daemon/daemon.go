@@ -17,6 +17,7 @@ import (
 	"github.com/jamalxcode/laserdot-go/internal/core"
 	"github.com/jamalxcode/laserdot-go/internal/index"
 	"github.com/jamalxcode/laserdot-go/internal/ipc"
+	"github.com/jamalxcode/laserdot-go/internal/query"
 	"github.com/jamalxcode/laserdot-go/internal/sandbox"
 )
 
@@ -329,6 +330,22 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		return ok(s.ld.Coach(req.Query))
 	case ipc.OpValueCounts:
 		return ok(s.ld.ValueCounts())
+	case ipc.OpHint:
+		if h := query.Hint(req.Query, req.Cursor, query.LangFromCode(req.Lang)); h != "" {
+			return ok(h)
+		}
+		return ok(nil)
+	case ipc.OpSectionAt:
+		if sec, found := query.SectionAt(req.Query, req.Cursor); found {
+			return ok(sec.Title())
+		}
+		return ok(nil)
+	case ipc.OpCompletions:
+		return ok(query.Completions(req.Query, req.Cursor, query.LangFromCode(req.Lang)))
+	case ipc.OpFilters:
+		return ok(query.FilterList(query.LangFromCode(req.Lang)))
+	case ipc.OpCheatSheet:
+		return ok(query.CheatSheetIn(query.LangFromCode(req.Lang)))
 	}
 	return fail(&ipc.RemoteError{
 		Message: fmt.Sprintf("`%s` is not supported by this laserdotd yet", req.Op),

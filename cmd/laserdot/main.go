@@ -40,7 +40,7 @@ commands:
   roots               indexed folders
   stats               index size and indexed folders
   status              is laserdotd running, and is its network access denied?
-  help-syntax         the query cheat sheet
+  help-syntax [ar]    the query cheat sheet (English or Arabic)
 
 --db     index database (default: $LASERDOT_DB or the per-user location)
 --local  open the index directly even if laserdotd is running
@@ -70,7 +70,11 @@ func run(args []string) error {
 
 	switch cmd {
 	case "help-syntax":
-		fmt.Print(query.CheatSheet())
+		lang := os.Getenv("LANG")
+		if len(rest) > 0 {
+			lang = rest[0]
+		}
+		fmt.Print(query.CheatSheetIn(query.LangFromCode(lang)))
 		return nil
 	case "help", "-h", "--help":
 		fmt.Print(usage)

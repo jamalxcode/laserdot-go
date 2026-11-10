@@ -54,6 +54,13 @@ const (
 	// Guidance (§8.3, §8.9.5).
 	OpCoach       = "coach"
 	OpValueCounts = "value_counts"
+	// Typing assistance, served by the daemon because the app has no
+	// in-process core (Go port; the Rust app called these through FFI).
+	OpHint        = "hint"
+	OpSectionAt   = "section_at"
+	OpCompletions = "completions"
+	OpFilters     = "filters"
+	OpCheatSheet  = "cheat_sheet"
 )
 
 // Request is one call. Op selects it; the other fields are per op and
@@ -69,6 +76,9 @@ type Request struct {
 	Typo    *bool  `json:"typo,omitempty"`
 	// index, forget
 	Path string `json:"path,omitempty"`
+	// hint, section_at, completions: caret position (runes); lang: en/ar.
+	Cursor int    `json:"cursor,omitempty"`
+	Lang   string `json:"lang,omitempty"`
 	// drive ops
 	Mount      string  `json:"mount,omitempty"`
 	Passphrase *string `json:"passphrase,omitempty"`

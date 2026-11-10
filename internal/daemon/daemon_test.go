@@ -109,6 +109,18 @@ func TestProtocol(t *testing.T) {
 	if err := c.Call(&ipc.Request{Op: ipc.OpCleanupPlan, Request: json.RawMessage(`{"groups":[],"dest":{"to":"trash"}}`)}, &plan); err != nil || plan["bytes"] != 0.0 {
 		t.Errorf("%v %v", plan, err)
 	}
+	var hint string
+	if err := c.Call(&ipc.Request{Op: ipc.OpHint, Query: "res:", Cursor: 4, Lang: "ar"}, &hint); err != nil || !strings.Contains(hint, "الدقة") {
+		t.Errorf("%q %v", hint, err)
+	}
+	var comps []map[string]any
+	if err := c.Call(&ipc.Request{Op: ipc.OpCompletions, Query: "res:1", Cursor: 5}, &comps); err != nil || len(comps) != 2 {
+		t.Errorf("%v %v", comps, err)
+	}
+	var section *string
+	if err := c.Call(&ipc.Request{Op: ipc.OpSectionAt, Query: "chan", Cursor: 4}, &section); err != nil || section == nil || *section != "Audio" {
+		t.Errorf("%v %v", section, err)
+	}
 	err = c.Call(&ipc.Request{Op: ipc.OpDriveAttach, Mount: dir}, nil)
 	if _, ok := err.(*ipc.RemoteError); !ok {
 		t.Errorf("attaching a folder with no index: %v", err)

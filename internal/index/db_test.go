@@ -19,7 +19,7 @@ func walk(t *testing.T, root string) []scan.Entry {
 }
 
 func TestDbRoundTrip(t *testing.T) {
-	dir := t.TempDir()
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
 	root := filepath.Join(dir, "files")
 	os.MkdirAll(filepath.Join(root, "sub"), 0o755)
 	os.WriteFile(filepath.Join(root, "sub", "invoice march.pdf"), []byte("x"), 0o644)
@@ -68,7 +68,7 @@ func TestDbRoundTrip(t *testing.T) {
 }
 
 func TestCorruptIndexIsQuarantined(t *testing.T) {
-	dir := t.TempDir()
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
 	root := filepath.Join(dir, "files")
 	os.MkdirAll(root, 0o755)
 	dbPath := filepath.Join(dir, "index.db")
