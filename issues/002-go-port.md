@@ -52,3 +52,10 @@ Choices made by the owner (2026-11-10):
   which found two idempotence bugs the Rust tests never covered: x/text folds Cherokee small letters to capitals
   and back (now folded to a fixed point), and invalid UTF-8 in a file name stopped decomposition of the next
   letter (now replaced with U+FFFD first, as Rust's lossy conversion did).
+- **Query language ported (2026-11-10):** registry (generated from the Rust table), §2.7 parser and regex
+  compilation, with the Rust tests and fuzz tests for both. Regexes are built as `regexp/syntax` trees and
+  serialized by the library (Go compiles regexes from text only). `re:` errors are positioned by locating the
+  offending sub-expression that Go reports. **Behavior note:** typo alternatives now apply to words of 4–40
+  characters (§2.2.3 sets only the minimum). Fuzzing showed a 4,000-character word expands into a regex too
+  large to build quickly; the Rust build hit its regex size limit there and returned an error instead.
+
