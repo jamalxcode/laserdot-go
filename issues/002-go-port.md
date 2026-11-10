@@ -78,3 +78,33 @@ Choices made by the owner (2026-11-10):
     root and `refresh` re-walks every root (G3 diffs in place and tracks renames); Finder tags; the daemon serves
     ping, status, search, index, forget, refresh, roots, stats and shutdown, and answers other ops with error code
     `unsupported`; the cheat sheet is English only until the Arabic descriptions (`i18n.rs`) are ported.
+- **G2 media parsers (2026-11-10):** `internal/media` now has the Tier 1 parsers, ported from `laserdot-media`:
+  `Probe(path, kind, foldedExt, fileSize) (ProbeStatus, *Record)` with the Rust `parser()` dispatch table
+  (`WantsProbe`) and `Record.Finish`; ISO BMFF (`moov` anywhere, rotation matrix, HDR10/HLG/Dolby Vision, fps
+  and VFR from `stts`, avcC/hvcC/av1C/vpcC profiles and `pix_fmt`, E-AC-3 Atmos, `udta`/`ilst` tags), Matroska
+  (EBML, Info, Tracks, Tags, SeekHead to elements after the clusters), images (dimensions by content for JPEG,
+  PNG, GIF, WebP, HEIF/AVIF, TIFF, BMP, PSD, DDS, QOI, EXR, Radiance HDR, JPEG XL, TGA; EXIF from the first MiB),
+  and `NormalizeLang`/`LangAliases`. The Rust golden corpus is in `internal/media/testdata` (with `dupes/`);
+  `seam2_test.go` ports every Seam 2 test with the same expectations, including `corrupt_inputs_never_panic`
+  (run through the parsers directly) and the ffprobe cross-check (skipped when ffprobe is absent; it passes
+  against ffprobe 6.1). Fuzz tests: `FuzzProbeISO`, `FuzzProbeMatroska`, `FuzzProbeAudio`, `FuzzProbeImage`.
+  The duplicate-finder fingerprints (`dupe.rs`) are ported with their tests: quick/full exact hash, Hamming,
+  `IsFlat`, DCT pHash, `Downscale`, `Orient`, `ImageGray` (EXIF orientation and the embedded thumbnail, stdlib
+  JPEG/PNG/GIF and `golang.org/x/image` WebP/TIFF/BMP), `VideoFrames` via ffmpeg and `VideoBackend`.
+  - **Hand-written instead of crates:** audio (Rust: `lofty`) reads MP3 (ID3v2.2–2.4 incl. unsynchronisation,
+    ID3v1, APEv2, Xing/Info/VBRI or CBR estimate), FLAC (STREAMINFO, Vorbis comments), Ogg Opus/Vorbis/Speex
+    (granule-based duration with Opus pre-skip), WAV (fmt, LIST/INFO, id3 chunk), AIFF/AIFC (COMM, ID3, NAME/AUTH),
+    APE, WavPack, ADTS AAC and Musepack SV7/SV8 headers, following lofty's rules for the primary tag, TCON genre
+    resolution and duration/bitrate formulas. EXIF (Rust: `kamadak-exif`) and image dimensions (Rust:
+    `imagesize`) are hand-written too. No new dependency besides `golang.org/x/image` (pure Go, no network).
+  - **Deviations:** the audio type is sniffed from content (lofty trusts the extension, so an Opus stream named
+    `.ogg` failed there); an MP4 audio file under an audio extension goes through the ISO parser. Exact hashes are
+    SHA-256 instead of BLAKE3 (they are only cached in this Mac's index, never in a drive's, so nothing needs to
+    agree with the Rust build). `Probe` also recovers from a panic as defence in depth (reported as Failed); the
+    tests and fuzzers call the parsers without it. JPEG decoding for pHash uses `image/jpeg` at full size, then
+    area-averages (Rust decoded at a reduced DCT scale); distances on the corpus stay within the Rust thresholds.
+  - **Gaps:** HEIC/AVIF/camera-RAW perceptual hashes (Rust used ImageIO on macOS) and AVFoundation video frames are
+    not available without cgo: `HashableImage` covers only the portable types, and video frames always need an
+    ffmpeg (`$LASERDOT_FFMPEG`, beside the executable, `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin`).
+    ID3v2 frames that are compressed or encrypted are skipped. Media columns, facets and the media filters
+    themselves are still to do (rest of G2).
