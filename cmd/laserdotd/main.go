@@ -127,6 +127,15 @@ func run() error {
 	}
 	defer ld.Close()
 	ld.SetVolumeConfig(vols)
+	how := "rebuilt from SQLite"
+	if ld.Stats().FromSnapshot {
+		how = "mapped from the snapshot"
+	}
+	fmt.Fprintf(os.Stderr, "laserdotd: index %s\n", how)
+	// Serve from the snapshot: file-backed columns, not dirty memory.
+	if err := ld.Remap(); err != nil {
+		fmt.Fprintln(os.Stderr, "laserdotd: could not write the snapshot:", err)
+	}
 	if q := ld.OpenReport().Quarantined; q != nil {
 		fmt.Fprintf(os.Stderr, "laserdotd: index was damaged; moved to %s and rebuilt\n", *q)
 	}
@@ -150,6 +159,22 @@ func run() error {
 		defer w.Stop()
 		srv.SetWatcher(w)
 	}
+	// Keep the snapshot current, so the next launch maps it.
+	go func() {
+		for {
+			select {
+			case <-srv.Done():
+				return
+			case <-time.After(time.Minute):
+			}
+			if wrote, err := ld.Checkpoint(); err != nil {
+				fmt.Fprintln(os.Stderr, "laserdotd: could not write the snapshot:", err)
+			} else if wrote {
+				fmt.Fprintln(os.Stderr, "laserdotd: snapshot written")
+			}
+		}
+	}()
+	defer ld.Checkpoint()
 	srv.RunBackground(volumeEvery, func(m string) { fmt.Fprintln(os.Stderr, "laserdotd:", m) })
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

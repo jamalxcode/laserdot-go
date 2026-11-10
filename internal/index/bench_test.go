@@ -3,6 +3,7 @@ package index
 import (
 	"fmt"
 	"math/rand/v2"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -35,6 +36,18 @@ func BenchmarkSearch1M(b *testing.B) {
 	t := time.Now()
 	s := Build(raw)
 	b.Logf("build %d entries: %v, ~%d MiB", s.Len(), time.Since(t), s.MemoryBytes()>>20)
+	snap := filepath.Join(b.TempDir(), "s.snapshot")
+	t = time.Now()
+	if err := WriteSnapshot(s, snap, 7); err != nil {
+		b.Fatal(err)
+	}
+	b.Logf("snapshot write: %v", time.Since(t))
+	t = time.Now()
+	if m, err := LoadSnapshot(snap, 7); err != nil || m == nil {
+		b.Fatal(err)
+	} else {
+		b.Logf("snapshot load (cold launch): %v, %d MiB mapped", time.Since(t), m.MappedBytes()>>20)
+	}
 	for _, q := range []string{"invoice march", "kind:video fsize:>500mb", "ext:pdf", "فاتوره", "report*", "re:^img_\\d+", "cafe 2024 -draft"} {
 		pq, _ := query.ParseAt(q, 0)
 		c, _ := query.Compile(pq, false)

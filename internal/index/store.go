@@ -148,7 +148,17 @@ type Store struct {
 	media                         *MediaIndex
 	// volume is the folded drive name this index covers ("" = this Mac).
 	volume string
+	// mapped: the snapshot this store was loaded from (kept mapped while
+	// the store lives).
+	mapped      *mapping
+	mappedBytes uint64
 }
+
+// FromSnapshot: loaded from a mapped snapshot.
+func (s *Store) FromSnapshot() bool { return s.mapped != nil }
+
+// MappedBytes: the size of the mapped snapshot (file-backed, §12.7).
+func (s *Store) MappedBytes() uint64 { return s.mappedBytes }
 
 func newStore() *Store {
 	s := &Store{

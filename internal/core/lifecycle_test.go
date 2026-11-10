@@ -300,6 +300,18 @@ func randomRun(t *testing.T, seed uint64) {
 			}
 		}
 		check("live", snapshotOf(ld, root))
+		// Every other round the live index switches to a memory-mapped
+		// snapshot of itself, so later rounds also apply live updates on
+		// mapped columns (copy-on-write pages, appended tails).
+		if round%2 == 1 {
+			if err := ld.Remap(); err != nil {
+				t.Fatal(err)
+			}
+			if !ld.Stats().FromSnapshot {
+				t.Fatalf("round %d: live index not mapped", round)
+			}
+			check("mapped", snapshotOf(ld, root))
+		}
 		// The durable store must agree too.
 		reopened, err := Open(filepath.Join(dir, "live.db"))
 		if err != nil {
