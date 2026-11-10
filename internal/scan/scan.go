@@ -75,7 +75,9 @@ type Entry struct {
 	// Dataless: an iCloud placeholder whose data is not on disk (§11). Never
 	// open these: reading one triggers a download.
 	Dataless bool
-	Tags     []string
+	// Tags: Finder tags (macOS) or user.xdg.tags (Linux), colour suffixes
+	// removed (ReadTags).
+	Tags []string
 }
 
 // Error is an unreadable entry: reported, not fatal.
@@ -261,6 +263,9 @@ func entryOf(path string, parent int, info os.FileInfo, stableInodes bool) Entry
 	}
 	if !stableInodes {
 		e.Inode = 0
+	}
+	if !e.IsSymlink {
+		e.Tags = ReadTags(path)
 	}
 	return e
 }
