@@ -1,5 +1,6 @@
 // Package core is laserdot's public API (test Seam 1): open an index,
-// index folders, search. The daemon, the CLI and the tests use only this.
+// index folders, keep it current, search. The daemon, the CLI and the tests
+// use only this.
 package core
 
 import (
@@ -10,7 +11,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/RoaringBitmap/roaring/v2"
@@ -26,6 +26,17 @@ const TypoFallbackBelow = 5
 
 // typoPenalty ranks typo-only matches after every exact match.
 const typoPenalty = 1 << 12
+
+// PurgeAfter: offline folders unverified this long are dropped (§2.6.2).
+const PurgeAfter = 30 * 24 * time.Hour
+
+// Re-exported types.
+type (
+	IndexStats  = index.IndexStats
+	UpdateStats = index.UpdateStats
+	RootInfo    = index.RootInfo
+	Change      = scan.Change
+)
 
 // SearchOptions for Search.
 type SearchOptions struct {
@@ -51,11 +62,11 @@ type Hit struct {
 	Height   *uint32 `json:"height"`
 	// Typo: matched only through a typo alternative.
 	Typo bool `json:"typo"`
-	// Media facts (G2); null until then.
-	Media any `json:"media"`
+	// Media: duration, codecs, audio tracks… when the file has them.
+	Media *index.MediaSummary `json:"media"`
 	// Volume: the removable drive it is on (nil = this Mac's index).
 	Volume *string `json:"volume"`
-	// Content: matched by its contents, not its name (G4).
+	// Content: matched by its contents, not its name (§2.4.2).
 	Content bool `json:"content"`
 }
 
@@ -72,51 +83,16 @@ type SearchResults struct {
 
 // Stats describes the loaded index.
 type Stats struct {
-	Entries      uint64   `json:"entries"`
-	Roots        []string `json:"roots"`
-	MemoryBytes  uint64   `json:"memory_bytes"`
-	MappedBytes  uint64   `json:"mapped_bytes"`
-	LoadMS       uint64   `json:"load_ms"`
-	FromSnapshot bool     `json:"from_snapshot"`
-	Overlay      uint64   `json:"overlay"`
-	Drives       []string `json:"drives"`
-}
-
-// IndexStats reports an index run.
-type IndexStats struct {
-	Root        string `json:"root"`
-	Files       uint64 `json:"files"`
-	Folders     uint64 `json:"folders"`
-	Probed      uint64 `json:"probed"`
-	Reused      uint64 `json:"reused"`
-	ProbeFailed uint64 `json:"probe_failed"`
-	Dataless    uint64 `json:"dataless"`
-	ScanErrors  uint64 `json:"scan_errors"`
-	ScanMS      uint64 `json:"scan_ms"`
-	ProbeMS     uint64 `json:"probe_ms"`
-	WriteMS     uint64 `json:"write_ms"`
-	// Incremental: a refresh of an indexed folder rather than a first index.
-	Incremental bool   `json:"incremental"`
-	Added       uint64 `json:"added"`
-	Removed     uint64 `json:"removed"`
-	Renamed     uint64 `json:"renamed"`
-	Modified    uint64 `json:"modified"`
-	Pending     uint64 `json:"pending"`
-}
-
-// UpdateStats reports a refresh.
-type UpdateStats struct {
-	DirsScanned  uint64   `json:"dirs_scanned"`
-	Added        uint64   `json:"added"`
-	Removed      uint64   `json:"removed"`
-	Renamed      uint64   `json:"renamed"`
-	Modified     uint64   `json:"modified"`
-	Probed       uint64   `json:"probed"`
-	ProbeFailed  uint64   `json:"probe_failed"`
-	Pending      uint64   `json:"pending"`
-	Reused       uint64   `json:"reused"`
-	OfflineRoots []string `json:"offline_roots"`
-	MS           uint64   `json:"ms"`
+	Entries     uint64   `json:"entries"`
+	Roots       []string `json:"roots"`
+	MemoryBytes uint64   `json:"memory_bytes"`
+	// MappedBytes: memory served from the mapped snapshot (§12.7).
+	MappedBytes  uint64 `json:"mapped_bytes"`
+	LoadMS       uint64 `json:"load_ms"`
+	FromSnapshot bool   `json:"from_snapshot"`
+	// Overlay: changes applied in memory since the last rebuild.
+	Overlay uint64   `json:"overlay"`
+	Drives  []string `json:"drives"`
 }
 
 // OpenReport says what Open did beyond opening.
@@ -125,18 +101,22 @@ type OpenReport struct {
 	Quarantined *string `json:"quarantined"`
 	// Reindexed: folders re-indexed after a quarantine.
 	Reindexed []string `json:"reindexed"`
-	// Purged: offline folders purged (G3).
+	// Purged: offline folders purged after 30 days unverified.
 	Purged []string `json:"purged"`
 }
 
-// Laserdot is an open index. Searches run concurrently with each other and
-// with indexing: writers build a new store and swap it in.
+// Laserdot is an open index.
+//
+// Locking: mu guards the in-memory store; searches take it shared, writers
+// exclusively while they change it. wmu serializes writers (the database
+// and the store change together).
 type Laserdot struct {
 	dbPath string
-	mu     sync.Mutex // serializes writers (the database and the swap)
+	wmu    sync.Mutex
 	db     *index.Db
-	store  atomic.Pointer[index.Store]
-	loadMS atomic.Uint64
+	mu     sync.RWMutex
+	store  *index.Store
+	loadMS uint64
 	report OpenReport
 }
 
@@ -158,8 +138,12 @@ func DefaultDBPath() string {
 }
 
 // Open opens (or creates) the index and loads it into memory. A corrupt
-// database is quarantined and its folders re-indexed (§2.6.4).
-func Open(dbPath string) (*Laserdot, error) {
+// database is quarantined and its folders re-indexed (§2.6.4); folders
+// offline for 30 days are purged.
+func Open(dbPath string) (*Laserdot, error) { return OpenAt(dbPath, time.Now()) }
+
+// OpenAt is Open with an explicit "now" (for purge tests).
+func OpenAt(dbPath string, now time.Time) (*Laserdot, error) {
 	db, rep, err := index.Open(dbPath)
 	if err != nil {
 		return nil, err
@@ -167,6 +151,10 @@ func Open(dbPath string) (*Laserdot, error) {
 	ld := &Laserdot{dbPath: dbPath, db: db, report: OpenReport{Reindexed: []string{}, Purged: []string{}}}
 	if rep.Quarantined != "" {
 		ld.report.Quarantined = &rep.Quarantined
+	}
+	if ld.report.Purged, err = db.PurgeOffline(now.Add(-PurgeAfter).Unix()); err != nil {
+		db.Close()
+		return nil, err
 	}
 	if err := ld.reload(); err != nil {
 		db.Close()
@@ -191,14 +179,19 @@ func (ld *Laserdot) DBPath() string { return ld.dbPath }
 // OpenReport is what Open had to do.
 func (ld *Laserdot) OpenReport() OpenReport { return ld.report }
 
+// reload rebuilds the store from SQLite and swaps it in. Callers hold wmu
+// (or are opening).
 func (ld *Laserdot) reload() error {
 	t := time.Now()
 	raw, err := ld.db.Load()
 	if err != nil {
 		return err
 	}
-	ld.store.Store(index.Build(raw))
-	ld.loadMS.Store(uint64(time.Since(t).Milliseconds()))
+	s := index.Build(raw)
+	ld.mu.Lock()
+	ld.store = s
+	ld.loadMS = uint64(time.Since(t).Milliseconds())
+	ld.mu.Unlock()
 	return nil
 }
 
@@ -212,84 +205,13 @@ func canonical(path string) (string, error) {
 }
 
 func within(path, root string) bool {
-	return path == root || strings.HasPrefix(path, strings.TrimSuffix(root, string(os.PathSeparator))+string(os.PathSeparator))
+	sep := string(os.PathSeparator)
+	return path == root || strings.HasPrefix(path, strings.TrimSuffix(root, sep)+sep)
 }
 
-// Index indexes a folder. A folder that is already indexed (or inside one)
-// is re-walked as a whole (G1; G3 diffs in place).
-func (ld *Laserdot) Index(root string) (IndexStats, error) {
-	root, err := canonical(root)
-	if err != nil {
-		return IndexStats{}, err
-	}
-	if fi, err := os.Stat(root); err != nil || !fi.IsDir() {
-		return IndexStats{}, fmt.Errorf("%s is not a folder", root)
-	}
-	ld.mu.Lock()
-	defer ld.mu.Unlock()
-	roots, err := ld.db.Roots()
-	if err != nil {
-		return IndexStats{}, err
-	}
-	target, incremental := root, false
-	for _, r := range roots {
-		if within(root, r.Path) {
-			target, incremental = r.Path, true
-			break
-		}
-	}
-	before := ld.store.Load().LiveCount()
-	st, err := ld.indexRoot(target)
-	if err != nil {
-		return st, err
-	}
-	if err := ld.reload(); err != nil {
-		return st, err
-	}
-	st.Root = root
-	if incremental {
-		st.Incremental = true
-		after := ld.store.Load().LiveCount()
-		if after > before {
-			st.Added = after - before
-		} else {
-			st.Removed = before - after
-		}
-	}
-	return st, nil
-}
-
-// indexRoot walks root and replaces its rows. Caller holds mu.
-func (ld *Laserdot) indexRoot(root string) (IndexStats, error) {
-	st := IndexStats{Root: root}
-	t := time.Now()
-	entries, errs, err := scan.Walk(root, ld.scanOptions())
-	if err != nil {
-		return st, err
-	}
-	st.ScanMS = uint64(time.Since(t).Milliseconds())
-	st.ScanErrors = uint64(len(errs))
-	for _, e := range entries[1:] {
-		if e.IsDir {
-			st.Folders++
-		} else {
-			st.Files++
-		}
-		if e.Dataless {
-			st.Dataless++
-		}
-	}
-	t = time.Now()
-	if err := ld.db.ReplaceRoot(root, entries); err != nil {
-		return st, err
-	}
-	st.WriteMS = uint64(time.Since(t).Milliseconds())
-	return st, nil
-}
-
-// scanOptions: the defaults, plus the index's own files (the index never
+// ScanOptions are the defaults plus the index's own files (the index never
 // indexes itself).
-func (ld *Laserdot) scanOptions() scan.Options {
+func (ld *Laserdot) ScanOptions() scan.Options {
 	opts := scan.DefaultOptions()
 	dir, base := filepath.Split(ld.dbPath)
 	if c, err := canonical(dir); err == nil {
@@ -301,39 +223,111 @@ func (ld *Laserdot) scanOptions() scan.Options {
 	return opts
 }
 
-// Refresh re-walks every indexed folder (G1: whole folders; G3 diffs).
-// Missing folders are kept and reported offline.
-func (ld *Laserdot) Refresh() (UpdateStats, error) {
-	t := time.Now()
-	ld.mu.Lock()
-	defer ld.mu.Unlock()
-	u := UpdateStats{OfflineRoots: []string{}}
-	roots, err := ld.db.Roots()
+// Index indexes a folder. A new folder is walked in bulk; a folder that is
+// already indexed (or inside one) is refreshed in place, so renames are
+// tracked and unchanged files are not touched.
+func (ld *Laserdot) Index(root string) (IndexStats, error) {
+	root, err := canonical(root)
 	if err != nil {
-		return u, err
+		return IndexStats{}, err
 	}
-	before := ld.store.Load().LiveCount()
+	if fi, err := os.Stat(root); err != nil || !fi.IsDir() {
+		return IndexStats{}, fmt.Errorf("%s is not a folder", root)
+	}
+	ld.wmu.Lock()
+	roots, err := ld.db.Roots()
+	ld.wmu.Unlock()
+	if err != nil {
+		return IndexStats{}, err
+	}
 	for _, r := range roots {
-		if fi, err := os.Stat(r.Path); err != nil || !fi.IsDir() {
-			u.OfflineRoots = append(u.OfflineRoots, r.Path)
-			continue
+		if within(root, r.Path) {
+			u, err := ld.ApplyChanges([]Change{{Path: root, Recursive: true}})
+			return IndexStats{
+				Root: root, Incremental: true, Added: u.Added, Removed: u.Removed, Renamed: u.Renamed,
+				Modified: u.Modified, Pending: u.Pending, Probed: u.Probed, Reused: u.Reused,
+				ProbeFailed: u.ProbeFailed, WriteMS: u.MS,
+			}, err
 		}
-		st, err := ld.indexRoot(r.Path)
-		if err != nil {
-			return u, err
+	}
+	ld.wmu.Lock()
+	defer ld.wmu.Unlock()
+	st, err := index.IndexRoot(ld.db, root, ld.ScanOptions(), index.BulkOptions{})
+	if err != nil {
+		return st, err
+	}
+	if id, ok := currentEventID(); ok {
+		if err := ld.db.SetEventID(st.Root, id); err != nil {
+			return st, err
 		}
-		u.DirsScanned += st.Folders + 1
 	}
-	if err := ld.reload(); err != nil {
-		return u, err
+	return st, ld.reload()
+}
+
+// currentEventID is the platform's change-journal position, set by the
+// watcher package on macOS (FSEvents); none elsewhere.
+var currentEventID = func() (uint64, bool) { return 0, false }
+
+// ApplyChanges applies "something changed under this path" signals.
+func (ld *Laserdot) ApplyChanges(changes []Change) (UpdateStats, error) {
+	ld.wmu.Lock()
+	defer ld.wmu.Unlock()
+	ld.mu.Lock()
+	u, err := index.Apply(ld.db, ld.store, changes, ld.ScanOptions())
+	compact := err == nil && ld.store.NeedsCompaction()
+	ld.mu.Unlock()
+	if u.OfflineRoots == nil {
+		u.OfflineRoots = []string{}
 	}
-	if after := ld.store.Load().LiveCount(); after > before {
-		u.Added = after - before
-	} else {
-		u.Removed = before - after
+	if compact {
+		err = ld.reload()
 	}
-	u.MS = uint64(time.Since(t).Milliseconds())
-	return u, nil
+	return u, err
+}
+
+// Refresh catches up on changes made while not watching: every indexed
+// folder is rescanned (recursively) and diffed in place.
+func (ld *Laserdot) Refresh() (UpdateStats, error) {
+	ld.wmu.Lock()
+	roots, err := ld.db.Roots()
+	ld.wmu.Unlock()
+	if err != nil {
+		return UpdateStats{OfflineRoots: []string{}}, err
+	}
+	var changes []Change
+	for _, r := range roots {
+		changes = append(changes, Change{Path: r.Path, Recursive: true})
+	}
+	return ld.ApplyChanges(changes)
+}
+
+// CheckPending re-examines files that were still being written; any that
+// are now stable get probed (§2.6.3).
+func (ld *Laserdot) CheckPending() (UpdateStats, error) {
+	ld.mu.RLock()
+	var changes []Change
+	seen := map[string]bool{}
+	it := ld.store.Pending().Iterator()
+	for it.HasNext() {
+		id := it.Next()
+		p := filepath.Dir(ld.store.Path(id))
+		if !seen[p] {
+			seen[p] = true
+			changes = append(changes, Change{Path: p})
+		}
+	}
+	ld.mu.RUnlock()
+	if len(changes) == 0 {
+		return UpdateStats{OfflineRoots: []string{}}, nil
+	}
+	return ld.ApplyChanges(changes)
+}
+
+// SetEventID records the last applied change-journal id of a root.
+func (ld *Laserdot) SetEventID(root string, id uint64) error {
+	ld.wmu.Lock()
+	defer ld.wmu.Unlock()
+	return ld.db.SetEventID(root, id)
 }
 
 // Forget removes an indexed folder. False when it was not indexed.
@@ -343,8 +337,8 @@ func (ld *Laserdot) Forget(root string) (bool, error) {
 	} else {
 		root = filepath.Clean(root)
 	}
-	ld.mu.Lock()
-	defer ld.mu.Unlock()
+	ld.wmu.Lock()
+	defer ld.wmu.Unlock()
 	ok, err := ld.db.RemoveRoot(root)
 	if err != nil {
 		return false, err
@@ -353,28 +347,28 @@ func (ld *Laserdot) Forget(root string) (bool, error) {
 }
 
 // Roots are the indexed folders with their state.
-func (ld *Laserdot) Roots() ([]index.RootInfo, error) {
-	ld.mu.Lock()
-	defer ld.mu.Unlock()
-	r, err := ld.db.Roots()
-	if r == nil {
-		r = []index.RootInfo{}
-	}
-	return r, err
+func (ld *Laserdot) Roots() ([]RootInfo, error) {
+	ld.wmu.Lock()
+	defer ld.wmu.Unlock()
+	return ld.db.Roots()
 }
 
 // Stats describes the loaded index.
 func (ld *Laserdot) Stats() Stats {
-	s := ld.store.Load()
+	ld.mu.RLock()
+	defer ld.mu.RUnlock()
+	s := ld.store
 	return Stats{
 		Entries: s.LiveCount(), Roots: s.Roots(), MemoryBytes: s.MemoryBytes(),
-		LoadMS: ld.loadMS.Load(), Drives: []string{},
+		LoadMS: ld.loadMS, Overlay: s.OverlaySize(), Drives: []string{},
 	}
 }
 
 // Search runs query against the index.
 func (ld *Laserdot) Search(q string, opts SearchOptions) (*SearchResults, error) {
-	return SearchStore(ld.store.Load(), q, opts)
+	ld.mu.RLock()
+	defer ld.mu.RUnlock()
+	return SearchStore(ld.store, q, opts)
 }
 
 // SearchStore runs a query against any store (also used by benchmarks).
@@ -441,6 +435,7 @@ func hitOf(s *index.Store, id uint32, typo bool) Hit {
 	h := Hit{
 		Path: s.Path(id), Name: s.Name(id), Kind: s.Kind(id).String(), IsDir: s.IsDir(id),
 		Size: s.Size(id), Modified: s.Modified(id), Created: s.Created(id), Typo: typo,
+		Media: s.MediaSummary(id),
 	}
 	if w, ht, ok := s.Dimensions(id); ok {
 		h.Width, h.Height = &w, &ht

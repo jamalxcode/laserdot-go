@@ -914,3 +914,5 @@ func parallel(n int, f func(int)) {
 	}
 	wg.Wait()
 }
+
+func numCPU() int { return runtime.GOMAXPROCS(0) }

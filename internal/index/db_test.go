@@ -29,11 +29,11 @@ func TestDbRoundTrip(t *testing.T) {
 	if err != nil || rep.Quarantined != "" {
 		t.Fatal(err, rep)
 	}
-	if err := db.ReplaceRoot(root, walk(t, root)); err != nil {
+	if err := db.ReplaceRoot(root, walk(t, root), nil); err != nil {
 		t.Fatal(err)
 	}
 	// Re-indexing replaces rather than duplicates.
-	if err := db.ReplaceRoot(root, walk(t, root)); err != nil {
+	if err := db.ReplaceRoot(root, walk(t, root), nil); err != nil {
 		t.Fatal(err)
 	}
 	db.Close()
@@ -73,7 +73,7 @@ func TestCorruptIndexIsQuarantined(t *testing.T) {
 	os.MkdirAll(root, 0o755)
 	dbPath := filepath.Join(dir, "index.db")
 	db, _, _ := Open(dbPath)
-	db.ReplaceRoot(root, walk(t, root))
+	db.ReplaceRoot(root, walk(t, root), nil)
 	db.Close()
 	os.WriteFile(dbPath, []byte("this is not a database, just garbage bytes......"), 0o600)
 	os.Remove(dbPath + "-wal")
