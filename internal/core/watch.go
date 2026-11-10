@@ -92,6 +92,12 @@ func (w *Watcher) run(ev WatchEvents) {
 			}
 			wr = append(wr, watch.WatchRoot{Path: r.Path, Since: since})
 		}
+		// Attached drives are watched too; their changes go to their index.
+		w.ld.mu.RLock()
+		for _, d := range w.ld.drives {
+			wr = append(wr, watch.WatchRoot{Path: d.mount})
+		}
+		w.ld.mu.RUnlock()
 		if len(wr) == 0 {
 			w.backend.Store("None")
 			for !w.stopped() && !w.restart.Load() {
@@ -119,7 +125,7 @@ func (w *Watcher) run(ev WatchEvents) {
 				report(w.ld.ApplyChanges(b.Changes))
 			}
 			if ok && b.EventID != 0 {
-				for _, r := range wr {
+				for _, r := range roots {
 					if err := w.ld.SetEventID(r.Path, b.EventID); err != nil {
 						report(UpdateStats{}, err)
 					}

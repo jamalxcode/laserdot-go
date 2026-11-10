@@ -349,7 +349,7 @@ func (ld *Laserdot) applyLocal(changes []Change) (UpdateStats, error) {
 }
 
 // Refresh catches up on changes made while not watching: every indexed
-// folder is rescanned (recursively) and diffed in place.
+// folder and every attached drive is rescanned and diffed in place.
 func (ld *Laserdot) Refresh() (UpdateStats, error) {
 	ld.wmu.Lock()
 	roots, err := ld.db.Roots()
@@ -361,7 +361,24 @@ func (ld *Laserdot) Refresh() (UpdateStats, error) {
 	for _, r := range roots {
 		changes = append(changes, Change{Path: r.Path, Recursive: true})
 	}
-	return ld.ApplyChanges(changes)
+	u, err := ld.applyLocal(changes)
+	if err != nil {
+		return u, err
+	}
+	ld.mu.RLock()
+	var mounts []string
+	for _, d := range ld.drives {
+		mounts = append(mounts, d.mount)
+	}
+	ld.mu.RUnlock()
+	for _, m := range mounts {
+		du, err := ld.RefreshDrive(m)
+		if err != nil {
+			return u, err
+		}
+		u.Merge(du)
+	}
+	return u, nil
 }
 
 // CheckPending re-examines files that were still being written; any that

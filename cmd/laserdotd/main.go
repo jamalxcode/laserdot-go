@@ -21,7 +21,7 @@ import (
 	"github.com/jamalxcode/laserdot-go/internal/watch"
 )
 
-const usage = "laserdotd [--db PATH] [--socket PATH] [--poll SECONDS] [--no-watch] [--no-sandbox]"
+const usage = "laserdotd [--db PATH] [--socket PATH] [--poll SECONDS] [--no-watch] [--volumes DIR] [--volumes-any] [--volume-interval SECONDS] [--no-sandbox]"
 
 func main() {
 	if err := run(); err != nil {
@@ -33,6 +33,8 @@ func main() {
 func run() error {
 	db, socket, noSandbox, noWatch := core.DefaultDBPath(), "", false, false
 	wopts := watch.DefaultOptions()
+	vols := core.DefaultVolumeConfig()
+	volumeEvery := 3 * time.Second
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		next := func() (string, error) {
@@ -56,6 +58,20 @@ func run() error {
 					wopts.ForcePoll, wopts.PollInterval = true, time.Duration(n)*time.Second
 				} else {
 					err = fmt.Errorf("--poll needs seconds")
+				}
+			}
+		case "--volumes": // where drives mount (default /Volumes); tests use a folder
+			vols.Dir, err = next()
+		case "--volumes-any":
+			vols.MountsOnly = false
+		case "--volume-interval":
+			var v string
+			if v, err = next(); err == nil {
+				var n int
+				if n, err = strconv.Atoi(v); err == nil && n > 0 {
+					volumeEvery = time.Duration(n) * time.Second
+				} else {
+					err = fmt.Errorf("--volume-interval needs seconds")
 				}
 			}
 		case "--no-watch":
@@ -110,6 +126,10 @@ func run() error {
 		return err
 	}
 	defer ld.Close()
+	ld.SetVolumeConfig(vols)
+	if q := ld.OpenReport().Quarantined; q != nil {
+		fmt.Fprintf(os.Stderr, "laserdotd: index was damaged; moved to %s and rebuilt\n", *q)
+	}
 	st := ld.Stats()
 	fmt.Fprintf(os.Stderr, "laserdotd: %d entries loaded in %d ms\n", st.Entries, st.LoadMS)
 
@@ -123,12 +143,14 @@ func run() error {
 			Started: func(b watch.Backend) { fmt.Fprintln(os.Stderr, "laserdotd: watching with", b) },
 			Error:   func(err error) { fmt.Fprintln(os.Stderr, "laserdotd: update failed:", err) },
 			Applied: func(u core.UpdateStats) {
+				srv.MarkContentDirty()
 				fmt.Fprintf(os.Stderr, "laserdotd: +%d −%d ~%d renamed %d (%d ms)\n", u.Added, u.Removed, u.Modified, u.Renamed, u.MS)
 			},
 		})
 		defer w.Stop()
 		srv.SetWatcher(w)
 	}
+	srv.RunBackground(volumeEvery, func(m string) { fmt.Fprintln(os.Stderr, "laserdotd:", m) })
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	go func() {

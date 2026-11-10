@@ -34,6 +34,26 @@ const (
 	OpRoots    = "roots"
 	OpStats    = "stats"
 	OpShutdown = "shutdown"
+	// Drives (§9.6).
+	OpDrives       = "drives"
+	OpDrivePlan    = "drive_plan"
+	OpDriveIndex   = "drive_index"
+	OpDriveAttach  = "drive_attach"
+	OpDriveDetach  = "drive_detach"
+	OpDriveRebuild = "drive_rebuild"
+	OpDriveDelete  = "drive_delete"
+	OpDriveEject   = "drive_eject"
+	// Duplicates (§4).
+	OpDupes       = "dupes"
+	OpCleanupPlan = "cleanup_plan"
+	OpCleanup     = "cleanup"
+	// Content search (§2.4).
+	OpContentStatus      = "content_status"
+	OpSetContentSettings = "set_content_settings"
+	OpUpdateContent      = "update_content"
+	// Guidance (§8.3, §8.9.5).
+	OpCoach       = "coach"
+	OpValueCounts = "value_counts"
 )
 
 // Request is one call. Op selects it; the other fields are per op and
@@ -49,6 +69,14 @@ type Request struct {
 	Typo    *bool  `json:"typo,omitempty"`
 	// index, forget
 	Path string `json:"path,omitempty"`
+	// drive ops
+	Mount      string  `json:"mount,omitempty"`
+	Passphrase *string `json:"passphrase,omitempty"`
+	// dupes: DupeOptions; cleanup_plan, cleanup: CleanupRequest;
+	// set_content_settings: ContentSettings (decoded by the daemon).
+	Options  json.RawMessage `json:"options,omitempty"`
+	Request  json.RawMessage `json:"request,omitempty"`
+	Settings json.RawMessage `json:"settings,omitempty"`
 }
 
 // LimitOr is the limit, or 100.
@@ -93,6 +121,10 @@ func ErrorOf(err error) *RemoteError {
 	var re *RemoteError
 	if errors.As(err, &re) {
 		return re
+	}
+	var coded interface{ Code() string }
+	if errors.As(err, &coded) {
+		return &RemoteError{Message: err.Error(), Code: coded.Code()}
 	}
 	return &RemoteError{Message: err.Error()}
 }

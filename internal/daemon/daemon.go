@@ -11,6 +11,8 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/core"
 	"github.com/jamalxcode/laserdot-go/internal/index"
@@ -28,6 +30,9 @@ const maxLine = 1 << 20
 // Server answers requests for one index.
 type Server struct {
 	ld *core.Laserdot
+	// contentDirty: files may have changed; the content index needs a look.
+	contentDirty atomic.Bool
+	contentMu    sync.Mutex // one content update at a time
 	// watcher keeps the index current (nil when not watching).
 	watcher *core.Watcher
 	socket  string
@@ -67,6 +72,66 @@ func (s *Server) rootsChanged() {
 	if s.watcher != nil {
 		s.watcher.RootsChanged()
 	}
+	s.contentDirty.Store(true)
+}
+
+// MarkContentDirty asks the content loop to look for changed documents.
+func (s *Server) MarkContentDirty() { s.contentDirty.Store(true) }
+
+// UpdateContent brings the content index up to date (one at a time).
+func (s *Server) UpdateContent() (core.ContentStats, error) {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+	return s.ld.UpdateContent()
+}
+
+// RunBackground starts the content and mount loops until Stop. log may be
+// nil.
+func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
+	if log == nil {
+		log = func(string) {}
+	}
+	s.contentDirty.Store(true)
+	go func() {
+		for {
+			select {
+			case <-s.done:
+				return
+			case <-time.After(2 * time.Second):
+			}
+			if !s.contentDirty.Swap(false) {
+				continue
+			}
+			st, err := s.UpdateContent()
+			if err != nil {
+				log("content update failed: " + err.Error())
+			} else if st.Indexed+st.Skipped+st.Removed > 0 {
+				log(fmt.Sprintf("content: %d indexed, %d skipped, %d removed in %d ms", st.Indexed, st.Skipped, st.Removed, st.MS))
+			}
+		}
+	}()
+	if volumeEvery <= 0 {
+		return
+	}
+	go func() {
+		for {
+			attached, gone := s.ld.SyncDrives()
+			for _, m := range attached {
+				log("attached drive " + m)
+			}
+			for _, m := range gone {
+				log("detached drive " + m)
+			}
+			if len(attached)+len(gone) > 0 {
+				s.rootsChanged()
+			}
+			select {
+			case <-s.done:
+				return
+			case <-time.After(volumeEvery):
+			}
+		}
+	}()
 }
 
 func (s *Server) watcherName() string {
@@ -149,6 +214,17 @@ func ok(v any) ipc.Response {
 
 func fail(e *ipc.RemoteError) ipc.Response { return ipc.Response{Error: e} }
 
+func badRequest(err error) ipc.Response {
+	return fail(&ipc.RemoteError{Message: "bad request: " + err.Error(), Code: "bad_request"})
+}
+
+func deref(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
 func result(v any, err error) ipc.Response {
 	if err != nil {
 		return fail(ipc.ErrorOf(err))
@@ -184,6 +260,7 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		defer s.rootsChanged()
 		return result(s.ld.Forget(req.Path))
 	case ipc.OpRefresh:
+		defer s.MarkContentDirty()
 		return result(s.ld.Refresh())
 	case ipc.OpRoots:
 		return result(s.ld.Roots())
@@ -191,6 +268,67 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		return ok(s.ld.Stats())
 	case ipc.OpShutdown:
 		return ok("bye")
+	case ipc.OpDrives:
+		return ok(s.ld.Drives())
+	case ipc.OpDrivePlan:
+		return result(s.ld.PlanDrive(req.Mount))
+	case ipc.OpDriveIndex:
+		defer s.rootsChanged()
+		return result(s.ld.CreateDriveIndex(req.Mount, core.DriveOptions{Passphrase: deref(req.Passphrase)}))
+	case ipc.OpDriveAttach:
+		defer s.rootsChanged()
+		return result(s.ld.AttachDrive(req.Mount, deref(req.Passphrase)))
+	case ipc.OpDriveDetach:
+		defer s.rootsChanged()
+		return ok(s.ld.DetachDrive(req.Mount))
+	case ipc.OpDriveRebuild:
+		defer s.rootsChanged()
+		return result(s.ld.RebuildDrive(req.Mount, core.DriveOptions{Passphrase: deref(req.Passphrase)}))
+	case ipc.OpDriveDelete:
+		defer s.rootsChanged()
+		return result(s.ld.DeleteDriveIndex(req.Mount))
+	case ipc.OpDriveEject:
+		defer s.rootsChanged()
+		if err := s.ld.EjectDrive(req.Mount); err != nil {
+			return fail(ipc.ErrorOf(err))
+		}
+		return ok("ejected")
+	case ipc.OpDupes:
+		opts := core.DefaultDupeOptions()
+		if len(req.Options) > 0 {
+			if err := json.Unmarshal(req.Options, &opts); err != nil {
+				return badRequest(err)
+			}
+		}
+		return result(s.ld.FindDuplicates(opts))
+	case ipc.OpCleanupPlan, ipc.OpCleanup:
+		var cr core.CleanupRequest
+		if err := json.Unmarshal(req.Request, &cr); err != nil {
+			return badRequest(err)
+		}
+		if req.Op == ipc.OpCleanupPlan {
+			return ok(s.ld.PlanCleanup(cr))
+		}
+		defer s.MarkContentDirty()
+		return result(s.ld.ApplyCleanup(cr))
+	case ipc.OpContentStatus:
+		return result(s.ld.ContentStatus())
+	case ipc.OpSetContentSettings:
+		var cs core.ContentSettings
+		if err := json.Unmarshal(req.Settings, &cs); err != nil {
+			return badRequest(err)
+		}
+		if err := s.ld.SetContentSettings(cs); err != nil {
+			return fail(ipc.ErrorOf(err))
+		}
+		s.MarkContentDirty()
+		return result(s.ld.ContentStatus())
+	case ipc.OpUpdateContent:
+		return result(s.UpdateContent())
+	case ipc.OpCoach:
+		return ok(s.ld.Coach(req.Query))
+	case ipc.OpValueCounts:
+		return ok(s.ld.ValueCounts())
 	}
 	return fail(&ipc.RemoteError{
 		Message: fmt.Sprintf("`%s` is not supported by this laserdotd yet", req.Op),

@@ -80,9 +80,38 @@ func TestProtocol(t *testing.T) {
 	if err := c.Call(&ipc.Request{Op: ipc.OpStatus}, &status); err != nil || status.Protocol != ipc.ProtocolVersion || status.Entries != 2 {
 		t.Errorf("%+v %v", status, err)
 	}
-	err = c.Call(&ipc.Request{Op: "dupes"}, nil)
+	err = c.Call(&ipc.Request{Op: "frobnicate"}, nil)
 	if re, ok := err.(*ipc.RemoteError); !ok || re.Code != "unsupported" {
 		t.Errorf("%v", err)
+	}
+	// The G4 ops, with the Rust wire shapes.
+	var coach []map[string]any
+	if err := c.Call(&ipc.Request{Op: ipc.OpCoach, Query: "invoice res:8k"}, &coach); err != nil || coach[0]["kind"] != "relax" || coach[0]["query"] != "invoice" {
+		t.Errorf("%v %v", coach, err)
+	}
+	var counts []map[string]any
+	if err := c.Call(&ipc.Request{Op: ipc.OpValueCounts}, &counts); err != nil || len(counts) < 50 {
+		t.Errorf("%d %v", len(counts), err)
+	}
+	var drives []map[string]any
+	if err := c.Call(&ipc.Request{Op: ipc.OpDrives}, &drives); err != nil {
+		t.Error(err)
+	}
+	var dupes map[string]any
+	if err := c.Call(&ipc.Request{Op: ipc.OpDupes, Options: json.RawMessage(`{"images":false}`)}, &dupes); err != nil || dupes["files"] != 1.0 {
+		t.Errorf("%v %v", dupes, err)
+	}
+	var cst map[string]any
+	if err := c.Call(&ipc.Request{Op: ipc.OpSetContentSettings, Settings: json.RawMessage(`{"roots":["` + filepath.Join(dir, "files") + `"],"max_bytes":1000}`)}, &cst); err != nil || cst["settings"] == nil {
+		t.Errorf("%v %v", cst, err)
+	}
+	var plan map[string]any
+	if err := c.Call(&ipc.Request{Op: ipc.OpCleanupPlan, Request: json.RawMessage(`{"groups":[],"dest":{"to":"trash"}}`)}, &plan); err != nil || plan["bytes"] != 0.0 {
+		t.Errorf("%v %v", plan, err)
+	}
+	err = c.Call(&ipc.Request{Op: ipc.OpDriveAttach, Mount: dir}, nil)
+	if _, ok := err.(*ipc.RemoteError); !ok {
+		t.Errorf("attaching a folder with no index: %v", err)
 	}
 }
 
