@@ -10,15 +10,18 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/core"
 	"github.com/jamalxcode/laserdot-go/internal/daemon"
 	"github.com/jamalxcode/laserdot-go/internal/ipc"
 	"github.com/jamalxcode/laserdot-go/internal/sandbox"
+	"github.com/jamalxcode/laserdot-go/internal/watch"
 )
 
-const usage = "laserdotd [--db PATH] [--socket PATH] [--no-sandbox]"
+const usage = "laserdotd [--db PATH] [--socket PATH] [--poll SECONDS] [--no-watch] [--no-sandbox]"
 
 func main() {
 	if err := run(); err != nil {
@@ -28,7 +31,8 @@ func main() {
 }
 
 func run() error {
-	db, socket, noSandbox := core.DefaultDBPath(), "", false
+	db, socket, noSandbox, noWatch := core.DefaultDBPath(), "", false, false
+	wopts := watch.DefaultOptions()
 	args := os.Args[1:]
 	for i := 0; i < len(args); i++ {
 		next := func() (string, error) {
@@ -44,6 +48,18 @@ func run() error {
 			db, err = next()
 		case "--socket":
 			socket, err = next()
+		case "--poll": // poll every N seconds instead of using file events
+			var v string
+			if v, err = next(); err == nil {
+				var n int
+				if n, err = strconv.Atoi(v); err == nil && n > 0 {
+					wopts.ForcePoll, wopts.PollInterval = true, time.Duration(n)*time.Second
+				} else {
+					err = fmt.Errorf("--poll needs seconds")
+				}
+			}
+		case "--no-watch":
+			noWatch = true
 		case "--no-sandbox": // for debugging only; the app never passes it
 			noSandbox = true
 		case "--version":
@@ -101,6 +117,17 @@ func run() error {
 	srv, err := daemon.Listen(ld, socket)
 	if err != nil {
 		return err
+	}
+	if !noWatch {
+		w := ld.Watch(wopts, core.WatchEvents{
+			Started: func(b watch.Backend) { fmt.Fprintln(os.Stderr, "laserdotd: watching with", b) },
+			Error:   func(err error) { fmt.Fprintln(os.Stderr, "laserdotd: update failed:", err) },
+			Applied: func(u core.UpdateStats) {
+				fmt.Fprintf(os.Stderr, "laserdotd: +%d −%d ~%d renamed %d (%d ms)\n", u.Added, u.Removed, u.Modified, u.Renamed, u.MS)
+			},
+		})
+		defer w.Stop()
+		srv.SetWatcher(w)
 	}
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)

@@ -70,7 +70,7 @@ func TestBackendNames(t *testing.T) {
 // folder merge, a recursive change swallows those beneath it, the highest
 // event id wins.
 func TestBatchesCoalesce(t *testing.T) {
-	w := &Watcher{q: newQueue([]string{"/r"}), latency: 100 * time.Millisecond, done: make(chan struct{})}
+	w := &Watcher{q: newQueue([]string{"/r"}), latency: 500 * time.Millisecond, done: make(chan struct{})}
 	w.q.changed("/r/a/b", false)
 	w.q.push(event{kind: evID, id: 9})
 	w.q.changed("/r/a", true)

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
+	"github.com/jamalxcode/laserdot-go/internal/watch"
 )
 
 func allOpts(limit int) SearchOptions {
@@ -439,4 +440,44 @@ func TestCorruptDatabaseIsQuarantinedAndRebuilt(t *testing.T) {
 	if got := lnames(t, ld, "invoice"); !reflect.DeepEqual(got, []string{"invoice.pdf"}) {
 		t.Error(got)
 	}
+}
+
+func TestLiveWatcherKeepsTheIndexCurrent(t *testing.T) {
+	dir := t.TempDir()
+	root := filepath.Join(dir, "w")
+	writeAged(t, filepath.Join(root, "old.txt"), []byte("x"))
+	root, _ = filepath.EvalSymlinks(root)
+	ld, _ := Open(filepath.Join(dir, "i.db"))
+	defer ld.Close()
+	ld.Index(root)
+	w := ld.Watch(watch.Options{Latency: 50 * time.Millisecond, PollInterval: 200 * time.Millisecond}, WatchEvents{})
+	defer w.Stop()
+	waitFor := func(q string, want []string) {
+		t.Helper()
+		deadline := time.Now().Add(10 * time.Second)
+		for {
+			got := lnames(t, ld, q)
+			if reflect.DeepEqual(got, want) {
+				return
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("%s: %q, want %q (backend %s)", q, got, want, w.Backend())
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+	time.Sleep(300 * time.Millisecond) // let the watcher start
+	writeAged(t, filepath.Join(root, "sub", "fresh.txt"), []byte("y"))
+	waitFor("fresh", []string{"fresh.txt"})
+	os.Rename(filepath.Join(root, "old.txt"), filepath.Join(root, "renamed.txt"))
+	waitFor("renamed", []string{"renamed.txt"})
+	waitFor("old", []string{})
+	// A folder indexed later is watched too.
+	other := filepath.Join(dir, "other")
+	writeAged(t, filepath.Join(other, "a.txt"), []byte("a"))
+	ld.Index(other)
+	w.RootsChanged()
+	time.Sleep(700 * time.Millisecond)
+	writeAged(t, filepath.Join(other, "later.txt"), []byte("b"))
+	waitFor("later", []string{"later.txt"})
 }

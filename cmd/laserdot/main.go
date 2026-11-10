@@ -8,8 +8,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/core"
@@ -17,6 +19,7 @@ import (
 	"github.com/jamalxcode/laserdot-go/internal/ipc"
 	"github.com/jamalxcode/laserdot-go/internal/query"
 	"github.com/jamalxcode/laserdot-go/internal/sandbox"
+	"github.com/jamalxcode/laserdot-go/internal/watch"
 )
 
 const usage = `laserdot — private, media-aware file search
@@ -28,6 +31,7 @@ commands:
   search QUERY        search — see 'laserdot help-syntax'
       --sort relevance|name|size|modified|created  --reverse
       --limit N  --offset N  --paths (-0)  --json  --no-typo
+  watch [--poll N]    keep the index current as files change (no daemon needed)
   forget FOLDER       stop indexing a folder
   roots               indexed folders
   stats               index size and indexed folders
@@ -75,6 +79,9 @@ func run(args []string) error {
 	// socket, so that folder stays reachable.
 	if _, err := sandbox.DenyNetwork(filepath.Dir(ipc.SocketFor(*db))); err != nil {
 		return err
+	}
+	if cmd == "watch" {
+		return watchCmd(*db, rest)
 	}
 	t, err := open(*db, *local)
 	if err != nil {
@@ -290,4 +297,37 @@ func humanSize(b uint64) string {
 		i++
 	}
 	return fmt.Sprintf("%.1f %s", f, [...]string{"B", "kB", "MB", "GB", "TB"}[i])
+}
+
+func watchCmd(db string, args []string) error {
+	fs := flag.NewFlagSet("watch", flag.ContinueOnError)
+	poll := fs.Int("poll", 0, "")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if c := ipc.ConnectLive(ipc.SocketFor(db)); c != nil {
+		c.Close()
+		return errors.New("laserdotd is running and already keeps the index current")
+	}
+	ld, err := core.Open(db)
+	if err != nil {
+		return err
+	}
+	defer ld.Close()
+	opts := watch.DefaultOptions()
+	if *poll > 0 {
+		opts.ForcePoll, opts.PollInterval = true, time.Duration(*poll)*time.Second
+	}
+	w := ld.Watch(opts, core.WatchEvents{
+		Started: func(b watch.Backend) { fmt.Fprintln(os.Stderr, "watching with", b, "— Ctrl-C to stop") },
+		Error:   func(err error) { fmt.Fprintln(os.Stderr, "update failed:", err) },
+		Applied: func(u core.UpdateStats) {
+			fmt.Printf("+%d −%d ~%d renamed %d (%d ms)\n", u.Added, u.Removed, u.Modified, u.Renamed, u.MS)
+		},
+	})
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
+	<-sig
+	w.Stop()
+	return nil
 }

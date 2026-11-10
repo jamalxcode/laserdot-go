@@ -27,12 +27,14 @@ const maxLine = 1 << 20
 
 // Server answers requests for one index.
 type Server struct {
-	ld     *core.Laserdot
-	socket string
-	ln     net.Listener
-	once   sync.Once
-	done   chan struct{}
-	conns  sync.WaitGroup
+	ld *core.Laserdot
+	// watcher keeps the index current (nil when not watching).
+	watcher *core.Watcher
+	socket  string
+	ln      net.Listener
+	once    sync.Once
+	done    chan struct{}
+	conns   sync.WaitGroup
 }
 
 // Listen opens the socket (owner-only) for ld. An existing live daemon on
@@ -55,6 +57,23 @@ func Listen(ld *core.Laserdot, socket string) (*Server, error) {
 		return nil, err
 	}
 	return &Server{ld: ld, socket: socket, ln: ln, done: make(chan struct{})}, nil
+}
+
+// SetWatcher attaches the watcher (status reports its backend, roots
+// changes restart it).
+func (s *Server) SetWatcher(w *core.Watcher) { s.watcher = w }
+
+func (s *Server) rootsChanged() {
+	if s.watcher != nil {
+		s.watcher.RootsChanged()
+	}
+}
+
+func (s *Server) watcherName() string {
+	if s.watcher == nil {
+		return "None"
+	}
+	return s.watcher.Backend()
 }
 
 // Serve accepts connections until Stop (or a shutdown request).
@@ -145,7 +164,7 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 	case ipc.OpStatus:
 		return ok(ipc.Status{
 			Protocol: ipc.ProtocolVersion, Version: Version, PID: os.Getpid(),
-			NetworkDenied: sandbox.IsEnforced(), Watcher: "None",
+			NetworkDenied: sandbox.IsEnforced(), Watcher: s.watcherName(),
 			DB: s.ld.DBPath(), Entries: s.ld.Stats().Entries,
 		})
 	case ipc.OpSearch:
@@ -159,8 +178,10 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		}
 		return result(s.ld.Search(req.Query, opts))
 	case ipc.OpIndex:
+		defer s.rootsChanged()
 		return result(s.ld.Index(req.Path))
 	case ipc.OpForget:
+		defer s.rootsChanged()
 		return result(s.ld.Forget(req.Path))
 	case ipc.OpRefresh:
 		return result(s.ld.Refresh())
