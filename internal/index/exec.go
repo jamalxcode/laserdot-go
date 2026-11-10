@@ -128,8 +128,16 @@ func (s *Store) Execute(q *query.Compiled) (*roaring.Bitmap, error) {
 					return nil, err
 				}
 			case query.CGroup:
-				// Track groups need per-track media records (G2).
-				return nil, &query.Error{Message: "track groups are not executable yet", Span: t.Span}
+				// File-level versions of each filter narrow the pool, then
+				// tracks are checked one by one.
+				pool := cand
+				for k := range t.Group {
+					var err error
+					if pool, err = s.filter(&t.Group[k], pool); err != nil {
+						return nil, err
+					}
+				}
+				m = s.group(t.Scope, t.Group, pool)
 			}
 			if t.Negated {
 				m = roaring.AndNot(cand, m)
@@ -324,6 +332,9 @@ func (s *Store) filter(f *query.CFilter, cand *roaring.Bitmap) (*roaring.Bitmap,
 			return float64(s.width[id]) * float64(s.height[id]) / 1e6
 		}), nil
 	}
+	if r, ok := s.evalMedia(f, cand); ok {
+		return r, nil
+	}
 	return nil, &query.Error{
 		Message: fmt.Sprintf("`%s:` is not executable yet", query.ByID(f.ID).Key),
 		Span:    f.Span,
@@ -490,18 +501,57 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 		case ByCreated:
 			order = s.byCreated
 		}
-		ids := make([]uint32, 0, want)
-		for i := range order {
-			id := order[i]
+		// Base ids come from the pre-sorted order; ids appended since the
+		// build are few, so they are sorted here and merged in.
+		colKey := func(id uint32) uint64 {
+			v := s.colKey(srt, id)
 			if desc {
-				id = order[len(order)-1-i]
+				v = ^v
 			}
-			if hits.Contains(id) {
-				ids = append(ids, id)
-				if len(ids) == want {
+			return v
+		}
+		var added []uint32
+		if int(s.baseLen) < s.Len() {
+			it := hits.Iterator()
+			it.AdvanceIfNeeded(s.baseLen)
+			for it.HasNext() {
+				added = append(added, it.Next())
+			}
+			slices.SortFunc(added, func(a, b uint32) int {
+				ka, kb := colKey(a), colKey(b)
+				switch {
+				case ka < kb:
+					return -1
+				case ka > kb:
+					return 1
+				}
+				return int(a) - int(b)
+			})
+		}
+		ids := make([]uint32, 0, want)
+		i := 0
+		for len(ids) < want {
+			var base uint32 = None
+			for ; i < len(order); i++ {
+				id := order[i]
+				if desc {
+					id = order[len(order)-1-i]
+				}
+				if hits.Contains(id) {
+					base = id
 					break
 				}
 			}
+			if len(added) > 0 && (base == None || colKey(added[0]) < colKey(base)) {
+				ids = append(ids, added[0])
+				added = added[1:]
+				continue
+			}
+			if base == None {
+				break
+			}
+			ids = append(ids, base)
+			i++
 		}
 		return window(ids)
 	}
