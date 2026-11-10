@@ -2,7 +2,7 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.14 (draft)
+**Version:** 1.15 (draft)
 **Date:** 2026-11-10
 **Target platform:** macOS 14+, Apple Silicon
 **Distribution:** Direct download, signed + notarized, non-sandboxed
@@ -320,7 +320,7 @@ white       = " " | "\t" | "\n" ;
 - **7.6** Published audit page: every path written, every process spawned
 - **7.7** Thumbnails come from embedded images first (EXIF thumbnail, HEIC thumbnail item, MP4 `covr`, MKV attachments), falling back to a VideoToolbox-decoded frame; cached as small HEIC files in a size-capped LRU cache. The cache is stored in `~/Library/Caches/<bundle-id>`, excluded from Time Machine and from the app's own index (no recursive indexing of own artifacts)
 - **7.8** Diagnostics export: user-triggered local log bundle (last N sessions, index stats, no file contents) for bug reports — the telemetry-free replacement for crash reporting
-- **7.9** Removable-drive indexes (see 9.x) may contain sensitive filenames; encrypted index option (SQLCipher) offered per drive, and the exposure documented in the audit page
+- **7.9** Removable-drive indexes (see 9.x) may contain sensitive filenames; encrypted index option (a sealed AES-256-GCM container, §9.8) offered per drive, and the exposure documented in the audit page
 
 ---
 
@@ -391,7 +391,8 @@ white       = " " | "\t" | "\n" ;
 - **9.7** Stale detection: unplugged mid-index → resume from queue checkpoint on next mount
   - *As built (M5):* the first index is written in chunks of 20,000 entries, each committed with its probes; the root stays marked incomplete until the last chunk. On the next mount an incomplete index is finished by diff, reusing every probe already written, and ends equal to a fresh index
 - **9.8** Encrypted index option per drive (SQLCipher); plaintext exposure documented in audit page
-  - *As built (M5):* SQLCipher is compiled in (rusqlite `bundled-sqlcipher`; CommonCrypto on macOS, the system libcrypto on Linux — no networking or OpenSSL crate). The passphrase is never written to disk; the daemon holds it in memory for the session, so a drive unplugged and plugged back in reattaches without asking. After a restart the drive shows as locked until unlocked. A wrong passphrase leaves the index untouched. Unencrypted: the drive's `index.db` and `volume.json` (the drive's name and a random id) are plaintext; encrypted: only `volume.json` is
+  - *Go port (v1.15, replaces SQLCipher):* the core is pure Go (no cgo), so SQLCipher is not available. An encrypted drive index is a sealed container in place of `index.db`: AES-256-GCM in 1 MiB chunks, key from the passphrase with scrypt (N=2^15, r=8, p=1, random salt), each chunk's nonce and authenticated data binding its position and whether it is the last, so reordering, dropping or truncating chunks fails the open. On attach the container is decrypted into an owner-only working copy in this Mac's data folder (`drives/work-<id>.db`), which SQLite uses; it is sealed back to the drive after every write and on detach, and deleted on detach. A wrong passphrase fails authentication of the first chunk and never touches the file. Exposure is the same as before on the drive (only `volume.json` is plaintext); on this Mac the working copy exists while the drive is attached (inside the user's own data folder, mode 0600).
+  - *As built (M5, Rust):* SQLCipher is compiled in (rusqlite `bundled-sqlcipher`; CommonCrypto on macOS, the system libcrypto on Linux — no networking or OpenSSL crate). The passphrase is never written to disk; the daemon holds it in memory for the session, so a drive unplugged and plugged back in reattaches without asking. After a restart the drive shows as locked until unlocked. A wrong passphrase leaves the index untouched. Unencrypted: the drive's `index.db` and `volume.json` (the drive's name and a random id) are plaintext; encrypted: only `volume.json` is
 
 ---
 

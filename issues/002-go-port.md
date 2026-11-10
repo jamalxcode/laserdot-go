@@ -147,3 +147,28 @@ Choices made by the owner (2026-11-10):
   `Contents/MacOS`. The CI `app` job (macos-latest) builds, runs the Swift tests against the Go daemon
   (status `network_denied`, search, positioned errors, drives, dupes, cleanup dry run, content, coach, counts;
   ops answering `unsupported` are skipped) and uploads `Laserdot-unsigned.zip`.
+- **G2–G4 integration (2026-11-10):**
+  - **Index:** the store is mutable as in Rust (append / kill / in-place rename-move, `dead` and `moved` overlay,
+    `in:` walks up for unstable ids, compaction past the threshold); the media index (columns per media row,
+    facets, flags, every media filter, track groups, summaries, duplicate quality); sibling pairing (Live Photos,
+    sidecars, screenshots). Pre-sorted orders merge appended ids. Probing during bulk index (chunked, resumable,
+    probe reuse by size + mtime, files modified in the last 10 s deferred). The update engine is a direct port
+    (inode pairing, ext-change probe reuse, followup rescans for reused inodes). The randomized lifecycle test
+    (12 seeds × 25 rounds, every other round on a mapped snapshot) and all lifecycle stories pass.
+  - **Core:** `ApplyChanges` routes changes to drive indexes; `Refresh` covers drives; `core.Watch` replays
+    FSEvents history (or refreshes), records event ids, restarts on root changes and probes files once stable.
+    Content search (FTS5 contentless table in `content.db`; PDF text via the pure-Go `github.com/ledongthuc/pdf`,
+    recovered on panic), coaching and live counts, drives (portable, resumable, read-only drives indexed on this
+    Mac, merged ranking across indexes), the duplicate finder and cleanup, the snapshot.
+  - **Behavior change: encrypted drive indexes** (spec §9.8 updated, v1.15): a sealed AES-256-GCM container keyed
+    with scrypt replaces SQLCipher; the working copy is decrypted into this Mac's data folder while attached.
+  - **Snapshot:** one checksummed (CRC32C) file of 8-byte-aligned sections mapped `MAP_PRIVATE` read-write, so
+    live updates write copy-on-write pages; bitmaps are roaring `FromBuffer` views. 1M entries: written in
+    0.29 s, loaded in 36 ms.
+  - **Daemon/CLI:** every protocol-5 op with the Rust wire shapes, plus `hint`, `section_at`, `completions`,
+    `filters` and `cheat_sheet` (the Rust app computed these in-process through FFI); content and mount loops; a
+    checkpoint every minute. CLI: `watch`, `drives`, `dupes`, `content`, coaching for empty results,
+    `help-syntax ar`.
+  - **i18n:** every filter has an Arabic description (enforced by a test); hints, completions and the cheat
+    sheet in both languages.
+

@@ -43,10 +43,12 @@ When the spec and an issue disagree, flag it to the user rather than silently pi
 ```
 internal/fold     Unicode folding (§2.5) — single source of truth for index AND query folding
 internal/query    filter registry (§8.8), §2.7 parser, AST, regex compilation
-internal/scan     folder walk + ignore rules
-internal/media    file kinds (G2: Tier 1 header parsers)
-internal/index    SQLite durable store (modernc, pure Go), in-memory store, planner + execution
-internal/core     public API = test Seam 1
+internal/scan     folder walk + ignore rules, shared Change type, Finder tags, volumes, Trash
+internal/watch    FSEvents (purego, no cgo) / inotify / polling → Changes
+internal/media    file kinds, Tier 1 header parsers, Tier 2 (ffprobe/ffmpeg), duplicate hashing
+internal/index    SQLite durable store (modernc), mutable in-memory store + media index, update engine,
+                  execution + ranking, content (FTS5), snapshot, sealed drive-index container
+internal/core     public API = test Seam 1 (index, watch, search, drives, dupes, cleanup, content, guidance)
 internal/sandbox  OS-enforced no-network
 internal/ipc      daemon protocol (JSON lines over a Unix socket) + client — the Rust wire format
 internal/daemon   the daemon's request handling (testable in-process)
@@ -62,6 +64,12 @@ app/scripts/      build-go.sh (laserdotd, CLI, Registry.generated.swift), bundle
   filters never hit SQLite at query time.
 - **Filter registry:** every filter is declared once in `internal/query`; parser, hints, completions, cheat sheet
   and CLI help derive from it.
+- **Drive indexes are untrusted input:** open them through `index.OpenDrive` (schema whitelist, name validation,
+  mount-relative paths). The system index never crosses into a volume. Fingerprints live only in this Mac's index.
+- **Snapshot:** `internal/index/snapshot.go` writes every `Store`/`MediaIndex` field in order; a new field must be
+  added there (and `snapshotVersion` bumped). Every `Db` write calls `invalidateSnapshot` in its transaction.
+- **Duplicate cleanup never deletes:** moves to the Trash or a folder after a dry run; a group is skipped unless
+  every kept copy is unchanged.
 - macOS-only code goes behind build tags (`//go:build darwin`) with a portable fallback, so everything builds and
   tests on Linux.
 
@@ -78,6 +86,11 @@ go run ./cmd/laserdot index ~/Movies                     # build/refresh the ind
 go run ./cmd/laserdot search 'invoice march'
 go run ./cmd/laserdot help-syntax                       # cheat sheet from the registry
 go run ./cmd/laserdotd --db /tmp/x/index.db             # the daemon; `laserdot --db /tmp/x/index.db status`
+go run ./cmd/laserdot watch                             # keep the index current without the daemon
+go run ./cmd/laserdot drives                            # plan/index/unlock/detach/rebuild/delete/eject
+go run ./cmd/laserdot dupes 'kind:video'                # duplicate finder (dry run; --trash / --move-to DIR)
+go run ./cmd/laserdot content add ~/Docs                # content search folders (status/add/remove/max-size/update)
+LASERDOT_STRESS_SEEDS=200 go test ./internal/core -run TestRandom   # longer lifecycle stress run
 # macOS only — the app:
 app/scripts/build-go.sh            # app/build/go/{laserdotd,laserdot} + the registry (`universal` for arm64+amd64)
 (cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)

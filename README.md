@@ -14,15 +14,16 @@ in [`issues/002-go-port.md`](issues/002-go-port.md). The original Rust implement
 
 ## Status
 
-Porting. Phase **G1** (daemon and search) is done: name and file-filter search, the SQLite store, the CLI, and
-the daemon with the OS network sandbox. Next: **G2**, media parsing.
+The port is feature-complete against the Rust build: search (names, media, contents), live updates, portable drive
+indexes (encrypted ones too), the duplicate finder, guidance in English and Arabic, the memory-mapped snapshot,
+the daemon, the CLI and the SwiftUI app. See Issue 002 for the deviations from the Rust build.
 
 | Phase | State |
 |---|---|
 | G1 daemon + search | done |
-| G2 media | next |
-| G3 live updates | — |
-| G4 drives, duplicates, content, snapshot, Tier 2, app | — |
+| G2 media (Tier 1 parsers, media filters, track groups) | done |
+| G3 live updates (watchers, update engine, lifecycle) | done |
+| G4 drives, duplicates, content, guidance, snapshot, Tier 2, app | done |
 
 ## Build
 
