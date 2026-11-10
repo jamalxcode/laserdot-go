@@ -173,4 +173,19 @@ Choices made by the owner (2026-11-10):
     `help-syntax ar`.
   - **i18n:** every filter has an Arabic description (enforced by a test); hints, completions and the cheat
     sheet in both languages.
-
+- **Tier 2 (media side) (2026-11-10):** `internal/media/tier2.go` ports `tier2.rs` (§3.1.1): `Tool`,
+  `Tier2Available`, `Tier2Probe`/`FromFFprobe` (AVI, MPEG-TS, ASF, FLV, MPEG-PS and files Tier 1 failed on),
+  `HDR10Plus`/`HasHDR10Plus`, `DetectVFR`/`IsVFR`/`ParsePTS`, `MeasureLoudness`/`ParseLoudnorm` with the
+  `Loudness` struct and `GainTo`. Each step is an ffprobe/ffmpeg subprocess (os/exec, stdin null, both pipes
+  drained, killed after 30 s / 600 s for loudness, `-protocol_whitelist file` and absolute `file:` inputs, the
+  last stderr line as the error). New `HDRHDR10Plus = 8` flag (the HDR byte is already a varint, so the record
+  encoding is unchanged). The duplicate finder's ffmpeg lookup now goes through `Tool` (adds "next to
+  `$LASERDOT_FFPROBE`", as in Rust). Corpus in `testdata/tier2` (Rust `generate.sh`); `tests/tier2.rs` ported
+  with the same expectations (skipped without ffprobe/ffmpeg), and the same checks run on committed canned
+  outputs (`testdata/tier2/canned.sh`: ffprobe JSON, packet timestamps, frames, loudnorm stderr) so CI covers the
+  parsing without the tools; `FuzzFromFFprobe`.
+  - **Deviations:** the Rust `loudness()` function is `MeasureLoudness` (Go cannot have a function and a type both
+    named `Loudness`). `vfr()`'s `None` is `ErrVFRUnknown` from `DetectVFR` (`IsVFR` returns `(vfr, ok)`).
+    Strings from ffprobe are clipped to the record's 4 KiB string limit so every record encodes. Case-insensitive
+    tag keys are tried in sorted order (serde_json's map order). Nothing schedules Tier 2 yet (idle-time queue,
+    on-demand loudness and storing the results are core/daemon work).

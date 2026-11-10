@@ -30,7 +30,6 @@ import (
 	"math/bits"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -434,26 +433,8 @@ func isFile(p string) bool {
 	return err == nil && st.Mode().IsRegular()
 }
 
-// ffmpegPath: $LASERDOT_FFMPEG, next to this program, or a standard place.
-func ffmpegPath() string {
-	if p, ok := os.LookupEnv("LASERDOT_FFMPEG"); ok {
-		if isFile(p) {
-			return p
-		}
-		return ""
-	}
-	var candidates []string
-	if exe, err := os.Executable(); err == nil {
-		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "ffmpeg"))
-	}
-	candidates = append(candidates, "/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg")
-	for _, c := range candidates {
-		if isFile(c) {
-			return c
-		}
-	}
-	return ""
-}
+// ffmpegPath is ffmpeg, found the same way as for Tier 2 (see Tool).
+func ffmpegPath() string { return Tool("ffmpeg") }
 
 func ffmpegFrame(exe, path string, secs float64) (Gray, error) {
 	var g Gray

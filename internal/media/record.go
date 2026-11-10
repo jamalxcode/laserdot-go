@@ -21,6 +21,9 @@ const (
 	HDRHDR10 uint8 = 1
 	HDRHLG   uint8 = 2
 	HDRDV    uint8 = 4
+	// HDRHDR10Plus: HDR10+ dynamic metadata (found by Tier 2: it is
+	// per-frame, not in headers).
+	HDRHDR10Plus uint8 = 8
 )
 
 // Track is one stream of a media file (spec §3.2–3.5).
