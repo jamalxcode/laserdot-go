@@ -118,6 +118,14 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(
             try wire(.setContentSettings(settings: Wire.ContentSettings(roots: ["/d"], maxBytes: 5))),
             #"{"op":"set_content_settings","settings":{"max_bytes":5,"roots":["/d"]}}"#)
+        XCTAssertEqual(
+            try wire(.hint(query: "res:", cursor: 4, lang: "ar")), #"{"cursor":4,"lang":"ar","op":"hint","query":"res:"}"#)
+        XCTAssertEqual(try wire(.sectionAt(query: "chan", cursor: 4)), #"{"cursor":4,"op":"section_at","query":"chan"}"#)
+        XCTAssertEqual(
+            try wire(.completions(query: "res:4", cursor: 5, lang: "en")),
+            #"{"cursor":5,"lang":"en","op":"completions","query":"res:4"}"#)
+        XCTAssertEqual(try wire(.filters(lang: "en")), #"{"lang":"en","op":"filters"}"#)
+        XCTAssertEqual(try wire(.cheatSheet(lang: "en")), #"{"lang":"en","op":"cheat_sheet"}"#)
     }
 
     /// Results in the Rust shapes decode (serde's tagged enums included).
@@ -145,6 +153,14 @@ final class EngineTests: XCTestCase {
             {"total":0,"hits":null,"typo_fallback":false,"warnings":null,"elapsed_us":12}
             """.utf8))
         XCTAssertTrue(results.hits.isEmpty)
+        let completion = try d.decode([Completion].self, from: Data("""
+            [{"label":"4k","detail":"resolution class by long edge","insert":"res:4k","replace_start":0,"replace_end":5}]
+            """.utf8))
+        XCTAssertEqual(completion.first?.replaceEnd, 5)
+        let filter = try d.decode([FilterInfo].self, from: Data("""
+            [{"key":"res","section":"الفيديو","section_id":"Video","description":"d","example":"res:4k","values":["4k"]}]
+            """.utf8))
+        XCTAssertEqual(filter.first?.sectionId, "Video")
     }
 
     func testWithoutADaemonTheEngineReportsUnavailable() throws {
@@ -182,6 +198,17 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(byName.hits.map(\.name), ["invoice-march.pdf", "فاتورة ٢٠٢٤.txt"])
         let reversed = try engine.search(query: "kind:document", limit: 10, sort: .name, reverse: true)
         XCTAssertEqual(reversed.hits.map(\.name), ["فاتورة ٢٠٢٤.txt", "invoice-march.pdf"])
+
+        // Query guidance (spec §8.1, §8.2, §8.9) from the daemon, or the
+        // bundled registry when it does not have those ops yet.
+        XCTAssertTrue(engine.hint(query: "res:", cursor: 4, lang: "ar")?.contains("الدقة") ?? false)
+        print("guidance answered by \(engine.guidanceFromDaemon ? "laserdotd" : "the bundled registry")")
+        XCTAssertNil(engine.sectionAt(query: "invoice", cursor: 3))
+        XCTAssertEqual(engine.sectionAt(query: "chan", cursor: 4), "Audio")
+        XCTAssertEqual(engine.completions(query: "res:4", cursor: 5, lang: "en").first?.insert, "res:4k")
+        XCTAssertTrue(engine.completions(query: "hello world", cursor: 3, lang: "en").isEmpty)
+        XCTAssertTrue(engine.filters(lang: "ar").contains { $0.key == "res" && $0.section == "الفيديو" && $0.sectionId == "Video" })
+        XCTAssertTrue(engine.cheatSheet(lang: "en").contains("TRACK GROUPS"))
 
         // A bad query comes back positioned, with a fix (spec §8.1).
         XCTAssertThrowsError(try engine.search(query: "res:4l", limit: 10)) { error in

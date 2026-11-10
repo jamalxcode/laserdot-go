@@ -88,6 +88,14 @@ public final class DaemonClient {
 
     /// Sends `request` and decodes the result as `T`.
     public func call<T: Decodable>(_ request: DaemonRequest, as type: T.Type = T.self) throws -> T {
+        guard let result = try callNullable(request, as: T.self) else {
+            throw DaemonClientError.malformed("\(request.op): malformed response")
+        }
+        return result
+    }
+
+    /// `call` for ops whose result may be `null` (`hint`, `section_at`).
+    public func callNullable<T: Decodable>(_ request: DaemonRequest, as type: T.Type = T.self) throws -> T? {
         let line = try callRaw(request)
         let envelope: Envelope<T>
         do {
@@ -95,8 +103,8 @@ public final class DaemonClient {
         } catch {
             throw DaemonClientError.malformed("\(request.op): \(error)")
         }
-        if envelope.ok, let result = envelope.result {
-            return result
+        if envelope.ok {
+            return envelope.result
         }
         if !envelope.ok, let error = envelope.error {
             throw DaemonClientError.remote(error)

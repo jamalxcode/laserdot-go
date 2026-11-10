@@ -97,9 +97,11 @@ Run gofmt, vet and the full test suite before committing.
 - **App:** the app reaches the daemon only through `app/Sources/LaserdotKit/DaemonClient.swift` (a Unix socket,
   JSON lines; no TCP, no URLSession) and applies the same Seatbelt profile to itself at launch. Its Codable types
   mirror the protocol-5 wire shapes; a feature whose op answers `unsupported` is hidden or disabled. Guidance
-  (hints, completions, cheat sheet) comes from `Registry.generated.swift`: rerun `app/scripts/build-go.sh` after
-  changing the registry (CI fails on a stale file) and add the filter's Arabic description in `Guidance.swift`
-  (a Swift test enforces it). Swift compiles only on macOS: the CI `app` job builds, tests and bundles it.
+  (hints, completions, sections, filter list, cheat sheet) comes from the daemon's `hint`, `section_at`,
+  `completions`, `filters` and `cheat_sheet` ops on a connection of its own; when the daemon is not running or lacks
+  them, `Guidance.swift` answers from `Registry.generated.swift`. Rerun `app/scripts/build-go.sh` after changing the
+  registry (CI fails on a stale file) and add the filter's Arabic description in `Guidance.swift` too (a Swift test
+  enforces it). Swift compiles only on macOS: the CI `app` job builds, tests and bundles it.
 
 ## Conventions
 

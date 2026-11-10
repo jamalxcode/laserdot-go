@@ -1,14 +1,16 @@
 import Foundation
 
 // Live guidance for the query box (spec §8.1–8.2, §8.9): the hint line,
-// autocomplete, the cheat sheet and its sections. Everything derives from
-// the filter registry (§8.8), which app/scripts/registry exports from the Go
-// core into Registry.generated.swift, so the UI cannot drift from the
-// parser. This is the Rust `assist` module ported to Swift; query errors
-// themselves come from the daemon (the search response carries their span).
+// autocomplete, the cheat sheet and its sections. The app asks laserdotd
+// first (`Engine.hint` …: the `hint`, `section_at`, `completions`, `filters`
+// and `cheat_sheet` ops). These functions are the fallback for when the
+// daemon is not running yet or does not have those ops: the Rust `assist`
+// module ported to Swift over the filter registry (§8.8), which
+// app/scripts/registry exports from the Go core into
+// Registry.generated.swift, so neither path drifts from the parser.
 
 /// One filter for the cheat sheet.
-public struct FilterInfo: Hashable, Sendable {
+public struct FilterInfo: Hashable, Sendable, Decodable {
     /// As written in queries, with a scope prefix where the example uses one
     /// (`s.lang`).
     public var key: String
@@ -20,16 +22,43 @@ public struct FilterInfo: Hashable, Sendable {
     public var example: String
     /// Allowed values for enumerated (and true/false) filters.
     public var values: [String]
+
+    enum CodingKeys: String, CodingKey {
+        case key, section, sectionId = "section_id", description, example, values
+    }
+
+    init(key: String, section: String, sectionId: String, description: String, example: String, values: [String]) {
+        self.key = key
+        self.section = section
+        self.sectionId = sectionId
+        self.description = description
+        self.example = example
+        self.values = values
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        key = try c.decode(String.self, forKey: .key)
+        section = try c.value(.section, or: "")
+        sectionId = try c.value(.sectionId, or: section)
+        description = try c.value(.description, or: "")
+        example = try c.value(.example, or: "")
+        values = try c.value(.values, or: [])
+    }
 }
 
 /// One autocomplete suggestion: replace Unicode-scalar range
 /// `replaceStart..<replaceEnd` with `insert`.
-public struct Completion: Hashable, Sendable {
+public struct Completion: Hashable, Sendable, Decodable {
     public var label: String
     public var detail: String
     public var insert: String
     public var replaceStart: Int
     public var replaceEnd: Int
+
+    enum CodingKeys: String, CodingKey {
+        case label, detail, insert, replaceStart = "replace_start", replaceEnd = "replace_end"
+    }
 }
 
 /// The registry as exported from the Go core.

@@ -249,6 +249,11 @@ public final class Engine: @unchecked Sendable {
     private let logLock = NSLock()
     /// Ops this daemon answered `unsupported`; forgotten on reconnect.
     private var unsupported = Set<String>()
+    /// Guidance runs on a connection of its own, so typing never waits for
+    /// an index or a scan on the shared one.
+    private let guideLock = NSLock()
+    private var guideClient: DaemonClient?
+    private var guideUnsupported = Set<String>()
 
     /// `dbPath`: index location (default: the per-user one).
     /// `daemonPath`: the bundled `laserdotd`, started if none is running.
@@ -262,8 +267,11 @@ public final class Engine: @unchecked Sendable {
     /// Whether the daemon has not (yet) refused `op` as unsupported.
     public func supports(_ op: String) -> Bool {
         lock.lock()
-        defer { lock.unlock() }
-        return !unsupported.contains(op)
+        let shared = !unsupported.contains(op)
+        lock.unlock()
+        guideLock.lock()
+        defer { guideLock.unlock() }
+        return shared && !guideUnsupported.contains(op)
     }
 
     /// Connect to the daemon, starting it if needed.
@@ -380,6 +388,74 @@ public final class Engine: @unchecked Sendable {
     public func valueCounts() throws -> [ValueCountInfo] {
         try call(.valueCounts, as: [Wire.ValueCount].self).map {
             ValueCountInfo(key: $0.key, value: $0.value, count: $0.count)
+        }
+    }
+
+    // MARK: query guidance (spec §8.1, §8.2, §8.9)
+
+    // Cheap enough to call on every keystroke. Answered by the daemon; when
+    // it is not running (it is never started for these) or does not have
+    // the op, the bundled registry copy answers instead (Guidance.swift).
+
+    /// The hint line under the query box; `cursor` in Unicode scalars.
+    public func hint(query: String, cursor: Int, lang: String) -> String? {
+        if let answer = guide(.hint(query: query, cursor: cursor, lang: lang), as: String.self) { return answer }
+        return LaserdotKit.hint(query: query, cursor: cursor, lang: lang)
+    }
+
+    /// The cheat-sheet section id (`File`, `Video`, …) under the caret.
+    public func sectionAt(query: String, cursor: Int) -> String? {
+        if let answer = guide(.sectionAt(query: query, cursor: cursor), as: String.self) { return answer }
+        return LaserdotKit.sectionAt(query: query, cursor: cursor)
+    }
+
+    /// Autocomplete for the token under the caret.
+    public func completions(query: String, cursor: Int, lang: String) -> [Completion] {
+        if let answer = guide(.completions(query: query, cursor: cursor, lang: lang), as: [Completion].self) {
+            return answer ?? [] // null: nothing to complete
+        }
+        return LaserdotKit.completions(query: query, cursor: cursor, lang: lang)
+    }
+
+    /// Every filter, for the cheat sheet, in `lang`.
+    public func filters(lang: String) -> [FilterInfo] {
+        if let answer = guide(.filters(lang: lang), as: [FilterInfo].self), let list = answer { return list }
+        return LaserdotKit.filters(lang: lang)
+    }
+
+    /// The plain-text cheat sheet.
+    public func cheatSheet(lang: String) -> String {
+        if let answer = guide(.cheatSheet(lang: lang), as: String.self), let text = answer { return text }
+        return LaserdotKit.cheatSheet(lang: lang)
+    }
+
+    /// Whether the last guidance call was answered by the daemon (not the
+    /// bundled fallback).
+    public private(set) var guidanceFromDaemon = false
+
+    /// The daemon's answer, as `.some(value)` (the value may be null), or
+    /// nil to fall back to the bundled registry.
+    private func guide<T: Decodable>(_ request: DaemonRequest, as type: T.Type) -> T?? {
+        guideLock.lock()
+        defer { guideLock.unlock() }
+        guidanceFromDaemon = false
+        if guideUnsupported.contains(request.op) { return nil }
+        if guideClient == nil {
+            guard let c = DaemonClient.connectLive(socketPath: socketPath) else { return nil }
+            c.setTimeout(5)
+            guideClient = c
+            guideUnsupported.removeAll()
+        }
+        do {
+            let value = try guideClient?.callNullable(request, as: T.self)
+            guidanceFromDaemon = true
+            return .some(value)
+        } catch DaemonClientError.remote(let e) {
+            if e.code == "unsupported" { guideUnsupported.insert(request.op) }
+            return nil
+        } catch {
+            guideClient = nil // broken: reconnect next time
+            return nil
         }
     }
 
