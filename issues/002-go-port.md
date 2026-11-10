@@ -131,3 +131,19 @@ Choices made by the owner (2026-11-10):
     ffmpeg (`$LASERDOT_FFMPEG`, beside the executable, `/opt/homebrew/bin`, `/usr/local/bin`, `/usr/bin`).
     ID3v2 frames that are compressed or encrypted are skipped. Media columns, facets and the media filters
     themselves are still to do (rest of G2).
+- **App (2026-11-10):** the SwiftUI app moved to `app/` and talks to the Go `laserdotd` directly; the UniFFI shim
+  and bindings are gone. `LaserdotKit` is pure Swift: `DaemonClient` (POSIX `AF_UNIX` socket, one JSON line per
+  request and response, Codable `DaemonRequest` covering every op of the Rust `Request` enum, `RemoteError` with
+  span, suggestion and code), `Engine` (the old FFI surface: shared connection, reconnect once, starts the bundled
+  `laserdotd` when nothing answers, remembers ops answered `unsupported`), `Paths` (default db path and the
+  `ipc.SocketFor` rule, FNV-1a fallback included) and `Sandbox` (the app applies the same Seatbelt profile to
+  itself through `sandbox_init`, looked up with `dlsym`). The Drives and Content menus are hidden and the
+  Duplicates item disabled when the daemon answers `unsupported`. **Mechanism change:** hints, completions and
+  the cheat sheet came from the linked Rust registry; now `app/scripts/registry` exports the Go registry into
+  `Registry.generated.swift` (CI fails if it is stale) and `Guidance.swift` ports the Rust `assist` logic plus the
+  Arabic descriptions (a Swift test requires one per filter). The hint line no longer parses the query itself;
+  query errors come from the daemon's search response, as before. `app/scripts/build-go.sh` builds `laserdotd`
+  and `laserdot` with `CGO_ENABLED=0` (host or `universal` via lipo); `bundle.sh` puts `laserdotd` in
+  `Contents/MacOS`. The CI `app` job (macos-latest) builds, runs the Swift tests against the Go daemon
+  (status `network_denied`, search, positioned errors, drives, dupes, cleanup dry run, content, coach, counts;
+  ops answering `unsupported` are skipped) and uploads `Laserdot-unsigned.zip`.

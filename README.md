@@ -36,3 +36,11 @@ go run ./cmd/laserdot status
 ```
 
 Pure Go (no cgo); the Go version is in `go.mod`.
+
+The menu-bar app (macOS only) talks to `laserdotd` over its Unix socket:
+
+```bash
+app/scripts/build-go.sh             # laserdotd + laserdot into app/build/go, and the app's registry
+(cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
+app/scripts/bundle.sh               # → app/build/Laserdot.app (unsigned; CI uploads Laserdot-unsigned.zip)
+```
