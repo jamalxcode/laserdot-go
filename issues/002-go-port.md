@@ -138,11 +138,13 @@ Choices made by the owner (2026-11-10):
   `laserdotd` when nothing answers, remembers ops answered `unsupported`), `Paths` (default db path and the
   `ipc.SocketFor` rule, FNV-1a fallback included) and `Sandbox` (the app applies the same Seatbelt profile to
   itself through `sandbox_init`, looked up with `dlsym`). The Drives and Content menus are hidden and the
-  Duplicates item disabled when the daemon answers `unsupported`. **Mechanism change:** hints, completions and
-  the cheat sheet came from the linked Rust registry; now `app/scripts/registry` exports the Go registry into
-  `Registry.generated.swift` (CI fails if it is stale) and `Guidance.swift` ports the Rust `assist` logic plus the
-  Arabic descriptions (a Swift test requires one per filter). The hint line no longer parses the query itself;
-  query errors come from the daemon's search response, as before. `app/scripts/build-go.sh` builds `laserdotd`
+  Duplicates item disabled when the daemon answers `unsupported`. **Mechanism change:** hints, completions,
+  sections, the filter list and the cheat sheet came from the linked Rust core over FFI; now they are daemon ops
+  (`hint`, `section_at`, `completions`, `filters`, `cheat_sheet`), called per keystroke on a guidance connection
+  of its own (and off the main thread) so typing never waits behind an index or a scan. While the daemon is not
+  running yet (or lacks those ops) `Guidance.swift` answers instead: the Rust `assist` logic ported to Swift over
+  `Registry.generated.swift`, which `app/scripts/registry` exports from the Go registry (CI fails if it is stale),
+  with the Arabic descriptions (a Swift test requires one per filter). `app/scripts/build-go.sh` builds `laserdotd`
   and `laserdot` with `CGO_ENABLED=0` (host or `universal` via lipo); `bundle.sh` puts `laserdotd` in
   `Contents/MacOS`. The CI `app` job (macos-latest) builds, runs the Swift tests against the Go daemon
   (status `network_denied`, search, positioned errors, drives, dupes, cleanup dry run, content, coach, counts;

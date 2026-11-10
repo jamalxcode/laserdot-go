@@ -37,8 +37,14 @@ final class SearchModel: ObservableObject {
     @Published var cheatFilter = "" {
         didSet { cheatIndex = 0 }
     }
-    /// Every filter, in the app's language.
-    private let allFilters = filters(lang: appLang)
+    /// Every filter, in the app's language: the bundled registry until the
+    /// daemon answers.
+    @Published private var allFilters = filters(lang: appLang)
+    /// The cheat-sheet section for the token under the caret (§8.9.6).
+    @Published private(set) var currentSection: String?
+    /// Guidance calls (hint, section, filters) go to the daemon on a queue of
+    /// their own, so they never wait behind a search.
+    private let guideQueue = DispatchQueue(label: "laserdot.guide", qos: .userInitiated)
 
     /// Cheat-sheet entries shown, in order.
     var cheatEntries: [FilterInfo] {
@@ -105,7 +111,9 @@ final class SearchModel: ObservableObject {
             } catch {
                 status = engine.status()
             }
+            let list = engine.filters(lang: appLang)
             DispatchQueue.main.async {
+                if !list.isEmpty { self?.allFilters = list }
                 self?.networkBlocked = Sandbox.isEnforced && status.networkDenied
                 self?.unavailable = status.running ? nil : L("daemon.starting")
                 self?.onStatus?(status)
@@ -117,10 +125,19 @@ final class SearchModel: ObservableObject {
         if historyIndex >= 0 && (historyIndex >= history.count || history[historyIndex] != query) {
             historyIndex = -1
         }
-        hint = LaserdotKit.hint(query: query, cursor: cursor, lang: appLang)
         generation += 1
         let gen = generation
         let q = query
+        let (engine, caret) = (self.engine, cursor)
+        guideQueue.async { [weak self] in
+            let h = engine.hint(query: q, cursor: caret, lang: appLang)
+            let section = engine.sectionAt(query: q, cursor: caret)
+            DispatchQueue.main.async {
+                guard let self, gen == self.generation else { return }
+                self.hint = h
+                self.currentSection = section
+            }
+        }
         selection = 0
         if q.trimmingCharacters(in: .whitespaces).isEmpty {
             results = []
@@ -130,7 +147,6 @@ final class SearchModel: ObservableObject {
             coaching = []
             return
         }
-        let engine = self.engine
         queue.async { [weak self] in
             let outcome = Result { try engine.search(query: q, limit: 100) }
             DispatchQueue.main.async {
@@ -186,7 +202,7 @@ final class SearchModel: ObservableObject {
 
     /// Tab: take the first completion for the word under the caret (§8.2).
     func acceptCompletion() {
-        guard let c = completions(query: query, cursor: cursor, lang: appLang).first else { return }
+        guard let c = engine.completions(query: query, cursor: cursor, lang: appLang).first else { return }
         replace(Int(c.replaceStart), Int(c.replaceEnd), with: c.insert)
     }
 
@@ -240,8 +256,6 @@ final class SearchModel: ObservableObject {
         }
     }
 
-    /// The cheat-sheet section for the token under the caret (§8.9.6).
-    var currentSection: String? { sectionAt(query: query, cursor: cursor) }
 
     // MARK: history and pins (spec §8.6)
 

@@ -40,6 +40,16 @@ public enum DaemonRequest: Encodable, Sendable {
     case coach(query: String)
     /// Live counts for the cheat sheet (spec §8.9.5).
     case valueCounts
+    /// The hint line for the caret at `cursor` (Unicode scalars) — string or null (spec §8.1).
+    case hint(query: String, cursor: Int, lang: String)
+    /// The cheat-sheet section id under the caret — string or null (spec §8.9.6).
+    case sectionAt(query: String, cursor: Int)
+    /// Autocomplete for the token under the caret (spec §8.2).
+    case completions(query: String, cursor: Int, lang: String)
+    /// Every filter, for the cheat sheet (spec §8.9).
+    case filters(lang: String)
+    /// The plain-text cheat sheet.
+    case cheatSheet(lang: String)
 
     /// The `op` tag.
     public var op: String {
@@ -69,11 +79,16 @@ public enum DaemonRequest: Encodable, Sendable {
         case .updateContent: return "update_content"
         case .coach: return "coach"
         case .valueCounts: return "value_counts"
+        case .hint: return "hint"
+        case .sectionAt: return "section_at"
+        case .completions: return "completions"
+        case .filters: return "filters"
+        case .cheatSheet: return "cheat_sheet"
         }
     }
 
     private enum Key: String, CodingKey {
-        case op, query, sort, reverse, offset, limit, typo, path, mount, passphrase, options, request, settings
+        case op, query, sort, reverse, offset, limit, typo, path, mount, passphrase, options, request, settings, cursor, lang
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -102,6 +117,15 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(settings, forKey: .settings)
         case let .coach(query):
             try c.encode(query, forKey: .query)
+        case let .hint(query, cursor, lang), let .completions(query, cursor, lang):
+            try c.encode(query, forKey: .query)
+            try c.encode(cursor, forKey: .cursor)
+            try c.encode(lang, forKey: .lang)
+        case let .sectionAt(query, cursor):
+            try c.encode(query, forKey: .query)
+            try c.encode(cursor, forKey: .cursor)
+        case let .filters(lang), let .cheatSheet(lang):
+            try c.encode(lang, forKey: .lang)
         case .ping, .status, .refresh, .roots, .stats, .shutdown, .drives, .contentStatus, .updateContent, .valueCounts:
             break
         }
