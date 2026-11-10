@@ -53,6 +53,8 @@ internal/daemon   the daemon's request handling (testable in-process)
 internal/netcheck the network-dependency check (pillar 1)
 cmd/laserdotd     the daemon: single writer of the index
 cmd/laserdot      the CLI (routes through the daemon when it runs)
+app/              SwiftUI menu-bar app (SwiftPM): LaserdotKit = pure-Swift daemon client + registry-driven guidance
+app/scripts/      build-go.sh (laserdotd, CLI, Registry.generated.swift), bundle.sh, registry/ (the generator)
 ```
 
 - **Pure Go, no cgo.** SQLite is `modernc.org/sqlite`. Dependencies must not speak a network protocol.
@@ -76,6 +78,10 @@ go run ./cmd/laserdot index ~/Movies                     # build/refresh the ind
 go run ./cmd/laserdot search 'invoice march'
 go run ./cmd/laserdot help-syntax                       # cheat sheet from the registry
 go run ./cmd/laserdotd --db /tmp/x/index.db             # the daemon; `laserdot --db /tmp/x/index.db status`
+# macOS only — the app:
+app/scripts/build-go.sh            # app/build/go/{laserdotd,laserdot} + the registry (`universal` for arm64+amd64)
+(cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
+app/scripts/bundle.sh              # → app/build/Laserdot.app (laserdotd in Contents/MacOS)
 ```
 
 Run gofmt, vet and the full test suite before committing.
@@ -88,6 +94,12 @@ Run gofmt, vet and the full test suite before committing.
 - **Privacy gate (§15.5):** `internal/sandbox/deny_test.go` (child process: TCP/UDP blocked, IPC socket folder
   allowed, inherited by children), the daemon binary's `status.network_denied` (`internal/daemon`), and
   `internal/netcheck`. Every process calls `sandbox.DenyNetwork` first (on macOS it re-executes the process).
+- **App:** the app reaches the daemon only through `app/Sources/LaserdotKit/DaemonClient.swift` (a Unix socket,
+  JSON lines; no TCP, no URLSession) and applies the same Seatbelt profile to itself at launch. Its Codable types
+  mirror the protocol-5 wire shapes; a feature whose op answers `unsupported` is hidden or disabled. Guidance
+  (hints, completions, cheat sheet) comes from `Registry.generated.swift`: rerun `app/scripts/build-go.sh` after
+  changing the registry (CI fails on a stale file) and add the filter's Arabic description in `Guidance.swift`
+  (a Swift test enforces it). Swift compiles only on macOS: the CI `app` job builds, tests and bundles it.
 
 ## Conventions
 

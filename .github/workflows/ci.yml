@@ -18,3 +18,34 @@ jobs:
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - run: go vet ./...
       - run: go test -race ./...
+
+  app:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build laserdotd, the CLI and the app's registry
+        run: app/scripts/build-go.sh
+      - name: The committed registry is current
+        run: git diff --exit-code app/Sources/LaserdotKit/Registry.generated.swift
+      - name: Build the app
+        working-directory: app
+        run: swift build
+      - name: Swift tests (Swift → Unix socket → laserdotd, network denied)
+        working-directory: app
+        env:
+          LASERDOTD: ${{ github.workspace }}/app/build/go/laserdotd
+        run: swift test
+      - name: Bundle Laserdot.app
+        run: |
+          app/scripts/bundle.sh
+          test -x app/build/Laserdot.app/Contents/MacOS/Laserdot
+          test -x app/build/Laserdot.app/Contents/MacOS/laserdotd
+          plutil -lint app/build/Laserdot.app/Contents/Info.plist
+          ditto -c -k --keepParent app/build/Laserdot.app Laserdot-unsigned.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Laserdot-unsigned
+          path: Laserdot-unsigned.zip
