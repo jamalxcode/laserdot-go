@@ -33,6 +33,10 @@ commands:
       --limit N  --offset N  --paths (-0)  --json  --no-typo
   watch [--poll N]    keep the index current as files change (no daemon needed)
   forget FOLDER       stop indexing a folder
+  drives [ACTION]     removable drives: plan, index, unlock, detach, rebuild, delete, eject
+  dupes [QUERY]       find duplicates (a dry run; --trash or --move-to DIR to clean up)
+      --exact-only --no-images --no-videos --min-size 1mb --image-distance N --yes --json
+  content [ACTION]    content search folders: status, add, remove, max-size, update
   roots               indexed folders
   stats               index size and indexed folders
   status              is laserdotd running, and is its network access denied?
@@ -120,6 +124,12 @@ func run(args []string) error {
 		return nil
 	case "search":
 		return search(t, rest)
+	case "drives":
+		return drivesCmd(t, rest)
+	case "dupes":
+		return dupesCmd(t, rest)
+	case "content":
+		return contentCmd(t, rest)
 	case "forget":
 		if len(rest) != 1 {
 			return errors.New("forget needs one folder")
@@ -218,7 +228,17 @@ func search(t target, args []string) error {
 	q := strings.Join(words, " ")
 	res, err := t.search(q, index.Page{Sort: srt, Reverse: *reverse, Offset: *offset, Limit: *limit}, !*noTypo)
 	if err != nil {
-		return queryError(q, err)
+		if qe := queryError(q, err); qe != err {
+			if cs, cerr := t.coach(q); cerr == nil {
+				for _, c := range cs {
+					if c.Kind == core.CoachIndexFolder {
+						return fmt.Errorf("%v — index it: laserdot index %s", qe, c.Path)
+					}
+				}
+			}
+			return qe
+		}
+		return err
 	}
 	for _, w := range res.Warnings {
 		s := ""
@@ -226,6 +246,12 @@ func search(t target, args []string) error {
 			s = " — did you mean `" + w.Suggestion + "`?"
 		}
 		fmt.Fprintf(os.Stderr, "note: %s%s\n", w.Message, s)
+	}
+	if res.Total == 0 && !*asJSON && !*paths {
+		if cs, err := t.coach(q); err == nil {
+			fmt.Fprintln(os.Stderr, "nothing found. try:")
+			printCoaching(cs)
+		}
 	}
 	switch {
 	case *asJSON:
@@ -242,6 +268,32 @@ func search(t target, args []string) error {
 		extra := ""
 		if h.Width != nil && h.Height != nil {
 			extra = fmt.Sprintf("  %d×%d", *h.Width, *h.Height)
+		}
+		if m := h.Media; m != nil {
+			var parts []string
+			if m.VideoCodec != nil {
+				parts = append(parts, strings.Join(append([]string{*m.VideoCodec}, m.HDR...), " "))
+			}
+			if len(m.Audio) > 0 {
+				a := m.Audio[0]
+				if len(m.Audio) > 1 {
+					a += fmt.Sprintf(" +%d", len(m.Audio)-1)
+				}
+				parts = append(parts, a)
+			}
+			if m.DurationMS != nil && *m.DurationMS >= 1000 {
+				s := *m.DurationMS / 1000
+				parts = append(parts, fmt.Sprintf("%d:%02d:%02d", s/3600, s/60%60, s%60))
+			}
+			if len(parts) > 0 {
+				extra += "  " + strings.Join(parts, " · ")
+			}
+		}
+		if h.Volume != nil {
+			extra += "  [" + *h.Volume + "]"
+		}
+		if h.Content {
+			extra += "  (contents)"
 		}
 		if h.Typo {
 			extra += "  (typo match)"
