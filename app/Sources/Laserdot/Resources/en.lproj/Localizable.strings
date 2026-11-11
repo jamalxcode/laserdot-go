@@ -120,3 +120,15 @@
 "move.text" = "Laserdot is running from a disk image or the Downloads folder. In Applications it can update itself.";
 "move.move" = "Move to Applications";
 "menu.showWindow" = "Show Laserdot Window";
+"menu.fullDiskAccess" = "Full Disk Access…";
+"fda.title" = "Allow Laserdot to see all your files";
+"fda.launch" = "Laserdot needs Full Disk Access to search and open files in Documents, Desktop, Downloads, Pictures and on drives. macOS asks you to turn it on yourself.";
+"fda.open" = "macOS stopped Laserdot from opening “%@” because Laserdot does not have Full Disk Access yet.";
+"fda.steps" = "In System Settings → Privacy & Security → Full Disk Access, turn on Laserdot (use + to add it if it is not listed). Laserdot will offer to restart when it sees the change.";
+"fda.openSettings" = "Open System Settings";
+"fda.tryAnyway" = "Try Anyway";
+"fda.dontAsk" = "Don’t ask again";
+"fda.already" = "Laserdot already has Full Disk Access.";
+"fda.grantedTitle" = "Full Disk Access is on";
+"fda.grantedText" = "Restart Laserdot so macOS applies it.";
+"fda.restart" = "Restart Laserdot";

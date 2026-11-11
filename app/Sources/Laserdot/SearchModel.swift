@@ -311,7 +311,7 @@ final class SearchModel: ObservableObject {
     func open(_ hit: Hit? = nil) {
         guard let h = hit ?? selected else { return }
         remember()
-        NSWorkspace.shared.open(URL(fileURLWithPath: h.path))
+        DiskAccessPrompt.shared.open(URL(fileURLWithPath: h.path))
     }
 
     func reveal(_ hit: Hit? = nil) {

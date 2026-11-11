@@ -52,6 +52,7 @@ struct StatusMenu: View {
         }
         Button(L("menu.checkUpdates")) { updates.check(interactive: true) }
             .disabled(updates.checking)
+        Button(L("menu.fullDiskAccess")) { DiskAccessPrompt.shared.askFromMenu() }
         Divider()
         Text(delegate.statusLine)
         Text(delegate.networkLine)
@@ -108,6 +109,7 @@ struct LaserdotCommands: Commands {
             if let r = updates.ready {
                 Button(String(format: L("update.button"), r.latest ?? "")) { updates.offerInstall() }
             }
+            Button(L("menu.fullDiskAccess")) { DiskAccessPrompt.shared.askFromMenu() }
         }
         CommandGroup(replacing: .newItem) {
             Button(L("menu.search")) { delegate.toggleOverlay() }
@@ -190,6 +192,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         probeDuplicates()
         updates.stopDaemon = { [weak engine] in engine?.shutdown() }
         updates.offerMoveToApplications()
+        DiskAccessPrompt.shared.checkAtLaunch()
         updates.startDailyChecks()
     }
 

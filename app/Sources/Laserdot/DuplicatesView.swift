@@ -251,7 +251,7 @@ struct DuplicatesView: View {
             Button(L("action.reveal")) {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: f.path)])
             }
-            Button(L("action.open")) { NSWorkspace.shared.open(URL(fileURLWithPath: f.path)) }
+            Button(L("action.open")) { DiskAccessPrompt.shared.open(URL(fileURLWithPath: f.path)) }
         }
     }
 }
