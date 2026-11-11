@@ -96,7 +96,10 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
     func close() {
         // close(), not orderOut: the panel then ends its controller properly,
         // so the next Space can open it again.
-        if isVisible { QLPreviewPanel.shared().close() }
+        if isVisible, let panel = QLPreviewPanel.shared() {
+            panel.close()
+            if panel.isVisible { panel.orderOut(nil) } // close() can be ignored mid-animation
+        }
         onClose?()
     }
 

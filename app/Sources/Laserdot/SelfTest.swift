@@ -18,6 +18,7 @@ final class SelfTestRunner {
     private let out: URL
     private var steps: [[String: Any]] = []
     private var shots: [String] = []
+    private var closeAttempts = 0
 
     init(app: AppDelegate, out: URL) {
         self.app = app
@@ -95,7 +96,14 @@ final class SelfTestRunner {
             mainWindowAndSettings(model: model, overlay: overlay)
             return
         }
-        QuickLook.shared.close()
+        // Start each step with Quick Look really closed.
+        guard !QuickLook.shared.isVisible || closeAttempts > 10 else {
+            closeAttempts += 1
+            QuickLook.shared.close()
+            after(0.3) { self.runSteps(steps, model: model, overlay: overlay) }
+            return
+        }
+        closeAttempts = 0
         model.query = ""
         after(0.5) {
             step.before?()
