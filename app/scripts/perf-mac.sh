@@ -25,7 +25,7 @@ print(f"{n} files")
 PY
 go build -o "$d/laserdot" ./cmd/laserdot
 start=$(python3 -c 'import time; print(time.time())')
-"$d/laserdot" --db "$d/data/index.db" index "$d/files" > /dev/null
+"$d/laserdot" --db "$d/data/index.db" index "$d/files" | tail -1
 end=$(python3 -c 'import time; print(time.time())')
 rate=$(python3 -c "print(int(100000 / ($end - $start)))")
 echo "indexed 100000 files in $(python3 -c "print(round($end - $start, 2))") s: $rate files/s"

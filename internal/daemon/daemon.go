@@ -364,6 +364,8 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		return result(s.UpdateContent())
 	case ipc.OpCoach:
 		return ok(s.ld.Coach(req.Query))
+	case ipc.OpUnreadable:
+		return result(s.ld.Unreadable())
 	case ipc.OpSnippet:
 		return ok(s.ld.Snippet(req.Path, strings.Fields(req.Query)))
 	case ipc.OpStorage:

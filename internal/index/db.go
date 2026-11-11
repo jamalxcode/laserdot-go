@@ -916,9 +916,15 @@ func (d *Db) PurgeOffline(before int64) ([]string, error) {
 
 // Load reads every entry in tree order (roots first, then breadth-first),
 // ready for Build. On a drive, rows with unsafe names or paths are skipped.
-func (d *Db) Load() ([]RawEntry, error) {
+func (d *Db) Load() ([]RawEntry, error) { return d.load("") }
+
+// LoadExcept is Load without one root's entries (the caller has them).
+func (d *Db) LoadExcept(root string) ([]RawEntry, error) { return d.load(root) }
+
+func (d *Db) load(except string) ([]RawEntry, error) {
 	rows, err := d.conn.Query(`SELECT id, parent, name, is_dir, is_symlink, dataless, size, mtime, ctime,
-		width, height, media, tags, probe, inode FROM entries ORDER BY id`)
+		width, height, media, tags, probe, inode FROM entries
+		WHERE ?1 = '' OR root NOT IN (SELECT id FROM roots WHERE path = ?1) ORDER BY id`, d.stored(except))
 	if err != nil {
 		return nil, err
 	}

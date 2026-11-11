@@ -78,6 +78,8 @@ const (
 	OpStorage = "storage"
 	// OpSnippet: the passage of Path where the words of Query were found.
 	OpSnippet = "snippet"
+	// OpUnreadable: what the last full index of each folder could not read.
+	OpUnreadable = "unreadable"
 	// OpBackground pauses or resumes background work (Paused): the app pauses
 	// it on battery, when the Mac is hot, or in Low Power Mode.
 	OpBackground = "background"

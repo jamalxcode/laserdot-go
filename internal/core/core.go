@@ -369,11 +369,16 @@ func (ld *Laserdot) Index(root string) (IndexStats, error) {
 	ld.wmu.Lock()
 	defer ld.wmu.Unlock()
 	defer ld.progress.Store(nil)
+	var fresh []index.RawEntry
+	var unreadable []scan.Error
 	st, err := index.IndexRoot(ld.db, root, ld.ScanOptions(), index.BulkOptions{
 		Progress: func(phase string, done, total uint64) {
 			ld.progress.Store(&IndexProgress{Root: root, Phase: phase, Done: done, Total: total})
 		},
+		Raw:    &fresh,
+		Errors: &unreadable,
 	})
+	ld.noteUnreadable(st.Root, unreadable)
 	if err != nil {
 		return st, err
 	}
@@ -382,7 +387,34 @@ func (ld *Laserdot) Index(root string) (IndexStats, error) {
 			return st, err
 		}
 	}
-	return st, ld.reload()
+	return st, ld.reloadWith(st.Root, fresh)
+}
+
+// reloadWith rebuilds the in-memory store from the other roots in the
+// database plus a root just written (its entries are in memory already, so
+// they are not read back).
+func (ld *Laserdot) reloadWith(root string, fresh []index.RawEntry) error {
+	if len(fresh) == 0 {
+		return ld.reload()
+	}
+	t := time.Now()
+	raw, err := ld.db.LoadExcept(root)
+	if err != nil {
+		return err
+	}
+	off := len(raw)
+	for _, r := range fresh {
+		if r.Parent >= 0 {
+			r.Parent += off
+		}
+		raw = append(raw, r)
+	}
+	s := index.Build(raw)
+	ld.mu.Lock()
+	ld.store = s
+	ld.loadMS = uint64(time.Since(t).Milliseconds())
+	ld.mu.Unlock()
+	return nil
 }
 
 // currentEventID is the platform's change-journal position, set by the

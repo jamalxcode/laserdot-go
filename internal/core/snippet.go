@@ -1,7 +1,10 @@
 package core
 
 import (
+	"os"
 	"strings"
+	"sync"
+	"time"
 	"unicode/utf8"
 
 	"github.com/jamalxcode/laserdot-go/internal/fold"
@@ -22,7 +25,7 @@ func (ld *Laserdot) Snippet(path string, words []string) string {
 	if kind == index.ContentNone {
 		return ""
 	}
-	text, ok := index.RawText(path, kind)
+	text, ok := snippetText(path, kind)
 	if !ok {
 		return ""
 	}
@@ -84,4 +87,97 @@ func around(line string, at, n int) string {
 		out += "…"
 	}
 	return out
+}
+
+// Reading a big PDF or Word file can take a while, and arrowing through
+// results asks for one passage after another: the text of the last few
+// documents is kept in memory (by path, size and date), and a document not
+// read within snippetWait gives no passage this time — its reading goes on,
+// so selecting it again shows the passage at once.
+const (
+	snippetWait      = 400 * time.Millisecond
+	snippetCacheDocs = 8
+	snippetCacheMax  = 16 << 20 // bytes of text
+)
+
+type snippetKey struct {
+	path  string
+	size  int64
+	mtime int64
+}
+
+type snippetDoc struct {
+	text string
+	ok   bool
+	used time.Time
+}
+
+var snippetCache = struct {
+	sync.Mutex
+	docs    map[snippetKey]*snippetDoc
+	reading map[snippetKey]chan struct{}
+}{docs: map[snippetKey]*snippetDoc{}, reading: map[snippetKey]chan struct{}{}}
+
+func snippetText(path string, kind index.ContentType) (string, bool) {
+	fi, err := os.Stat(path)
+	if err != nil || fi.IsDir() {
+		return "", false
+	}
+	key := snippetKey{path, fi.Size(), fi.ModTime().UnixNano()}
+	c := &snippetCache
+	c.Lock()
+	if d, ok := c.docs[key]; ok {
+		d.used = time.Now()
+		c.Unlock()
+		return d.text, d.ok
+	}
+	done, busy := c.reading[key]
+	if !busy {
+		done = make(chan struct{})
+		c.reading[key] = done
+		go func() {
+			text, ok := index.RawText(path, kind)
+			c.Lock()
+			defer c.Unlock()
+			delete(c.reading, key)
+			if len(text) <= snippetCacheMax {
+				c.docs[key] = &snippetDoc{text: text, ok: ok, used: time.Now()}
+				trimSnippetCache()
+			}
+			close(done)
+		}()
+	}
+	c.Unlock()
+	select {
+	case <-done:
+	case <-time.After(snippetWait):
+		return "", false
+	}
+	c.Lock()
+	defer c.Unlock()
+	if d, ok := c.docs[key]; ok {
+		return d.text, d.ok
+	}
+	return "", false
+}
+
+// trimSnippetCache drops the least recently used documents beyond the
+// limits. The lock is held.
+func trimSnippetCache() {
+	c := &snippetCache
+	for {
+		total := 0
+		var oldest snippetKey
+		var oldestAt time.Time
+		for k, d := range c.docs {
+			total += len(d.text)
+			if oldestAt.IsZero() || d.used.Before(oldestAt) {
+				oldest, oldestAt = k, d.used
+			}
+		}
+		if len(c.docs) <= snippetCacheDocs && total <= snippetCacheMax {
+			return
+		}
+		delete(c.docs, oldest)
+	}
 }

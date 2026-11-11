@@ -132,7 +132,8 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 	// Level by level: every directory of a level is read in parallel, and
 	// its children are appended in name order, so output is deterministic.
 	level := []int{0}
-	workers := max(4, runtime.GOMAXPROCS(0)*2)
+	// Reading folders waits on the disk, not the CPU: more readers than cores.
+	workers := max(8, runtime.GOMAXPROCS(0)*4)
 	for len(level) > 0 {
 		results := make([][]Entry, len(level))
 		failures := make([][]Error, len(level))

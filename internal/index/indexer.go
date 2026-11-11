@@ -46,6 +46,11 @@ type BulkOptions struct {
 	// Progress, when set, hears the phase ("scanning", then "saving") and,
 	// while saving, how many of the found entries are done.
 	Progress func(phase string, done, total uint64)
+	// Raw, when set, receives the root's entries as Load would return them
+	// (so the caller can build the in-memory store without reading them back).
+	Raw *[]RawEntry
+	// Errors, when set, receives what could not be read.
+	Errors *[]scan.Error
 }
 
 // ErrInterrupted: indexing stopped before the end (StopAfterChunks).
@@ -141,20 +146,58 @@ func IndexRoot(db *Db, root string, opts scan.Options, bulk BulkOptions) (IndexS
 	if bulk.Chunk == 0 {
 		chunk = 20_000
 	}
-	for n, start := 0, 0; start < len(entries); n, start = n+1, start+chunk {
+	if bulk.Errors != nil {
+		*bulk.Errors = errs
+	}
+	var raw []RawEntry
+	if bulk.Raw != nil {
+		raw = make([]RawEntry, len(entries))
+	}
+	// Probing (parallel reads) of the next chunk overlaps writing this one.
+	type probedChunk struct {
+		start, end int
+		probes     []Probe
+		ms         uint64
+	}
+	ready := make(chan probedChunk, 1)
+	stop := make(chan struct{})
+	defer close(stop)
+	go func() {
+		defer close(ready)
+		for start := 0; start < len(entries); start += chunk {
+			end := min(start+chunk, len(entries))
+			t := time.Now()
+			ps := probeAll(entries[start:end], reuse, &probed, &reusedN, &failed)
+			select {
+			case ready <- probedChunk{start, end, ps, uint64(time.Since(t).Milliseconds())}:
+			case <-stop:
+				return
+			}
+		}
+	}()
+	n := 0
+	for c := range ready {
 		if bulk.StopAfterChunks > 0 && n >= bulk.StopAfterChunks {
 			return st, ErrInterrupted
 		}
-		end := min(start+chunk, len(entries))
+		n++
+		st.ProbeMS += c.ms
 		t := time.Now()
-		probes := probeAll(entries[start:end], reuse, &probed, &reusedN, &failed)
-		st.ProbeMS += uint64(time.Since(t).Milliseconds())
-		t = time.Now()
-		if err := db.InsertChunk(rootID, base, entries, start, probes); err != nil {
+		if err := db.InsertChunk(rootID, base, entries, c.start, c.probes); err != nil {
 			return st, err
 		}
 		st.WriteMS += uint64(time.Since(t).Milliseconds())
-		progress("saving", uint64(end), uint64(len(entries)))
+		if raw != nil {
+			for i := c.start; i < c.end; i++ {
+				r := rawOf(&entries[i], c.probes[i-c.start], base+int64(i))
+				r.Parent = entries[i].Parent
+				if r.Parent < 0 {
+					r.Name = root
+				}
+				raw[i] = r
+			}
+		}
+		progress("saving", uint64(c.end), uint64(len(entries)))
 	}
 	if err := db.FinishRoot(root); err != nil {
 		return st, err
@@ -174,9 +217,11 @@ func IndexRoot(db *Db, root string, opts scan.Options, bulk BulkOptions) (IndexS
 		}
 	}
 	st.Probed, st.Reused, st.ProbeFailed = probed.Load(), reusedN.Load(), failed.Load()
+	if bulk.Raw != nil {
+		*bulk.Raw = raw
+	}
 	return st, nil
 }
-
 func within(path, root string) bool {
 	sep := string(os.PathSeparator)
 	return path == root || len(path) > len(root) && path[:len(root)] == root &&
