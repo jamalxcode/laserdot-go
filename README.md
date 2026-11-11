@@ -52,15 +52,19 @@ downloads.
 | ↑ ↓ | move through results (⇧↑ ⇧↓ or ⌘-click select several) |
 | Return / ⌘1–⌘9 | open the selected / the numbered result |
 | Space (after ↑↓ or a click), or Space twice | Quick Look: pictures large, videos and songs playing |
-| ⌘K | actions: Open with…, Show in Finder, Copy file or path, Share, Rename, Move to Trash |
+| ⌘K | actions: Open with…, Show in Finder, Copy file, path or link, Share, Compress, Move to…, Open in Terminal, Rename, Move to Trash |
 | ⌘↩ / ⌘⇧C | Show in Finder / copy the path |
 | ⌘D | pin the search (pins show on the empty box) |
-| Tab | complete a filter |
+| Tab / ⌥1–⌥9 | complete a filter / press a suggestion chip |
 | Esc | close actions, the cheat sheet, then the window |
 
 The preview pane on the right shows a large thumbnail, plays videos and songs, and pages through PDFs.
 
-**Settings** (⌘,): the search shortcut, open at login, automatic updates, **Folders** (what is indexed, and folders
+**Library ▸ Storage** (⇧⌘S) shows what fills your disk, folder by folder, and the largest files. The sort menu
+(arrows next to the pin) orders results by name, size or date. `laserdot://search?q=…` links open a search (use them
+in Shortcuts with **Open URL**).
+
+**Settings** (⌘,): the search shortcut, open at login, pausing background work on battery, automatic updates, **Folders** (what is indexed, and folders
 that are never indexed), **Content Search**, **Drives**, and **Clear History**. **Help** has the search syntax, the
 welcome tour, What's New, and **Save Diagnostics** (a file for a bug report, with every path removed).
 
@@ -79,6 +83,9 @@ a drive and can encrypt the index with a passphrase that is never written down. 
 new or changed files are read again. A **read-only** drive cannot hold its index, so it is kept on this Mac in
 `…/laserdot/drives/` — and deleted as soon as that drive is no longer connected (checked at start, every minute,
 when a drive leaves, and on quit).
+
+Media details come from Laserdot's own readers, and for the rest from the **bundled ffmpeg/ffprobe** — built from
+FFmpeg's source under the LGPL, without any network support (license in `Laserdot.app/Contents/Resources/FFmpeg`).
 
 ## Privacy
 

@@ -156,6 +156,30 @@ Design Decision Log).
 Found on the way by the new checks: Quick Look sometimes stayed open when asked to close, and would not reopen
 after being closed with Space; both fixed.
 
+## 9. A crash, and the third critique (0.6.1, 0.7.0)
+
+**Reported:** Laserdot quit (a crash report). It crashed drawing the preview's video player: SwiftUI's `VideoPlayer`
+does not work in an app built the way Laserdot is. **Decided:** AppKit's player, created only when **Play** is
+clicked — arrowing through videos stays fast and never takes the keyboard. The self-test now previews a video and a
+song (it would have caught the crash). Released at once as 0.6.1.
+
+**Asked:** "do 1 to 12" of the third critique.
+
+| # | Critique | Decided |
+|---|---|---|
+| 1 | No way to sort | A sort menu (best match, name, size, dates; reversed); sorted results are one list |
+| 2 | No "what fills my disk" | Library ▸ Storage: folders by size with bars, drill down; the largest files — from the index, no disk reads |
+| 3 | Media details need ffmpeg | ffmpeg and ffprobe are built into the app — compiled from source without any network code (LGPL) |
+| 4 | Fixed-size window | The ⌥Space window resizes from its edges and remembers |
+| 5 | Works hard on battery | Background work pauses on battery (setting), when hot, or in Low Power Mode |
+| 6 | Content index size unknown | Its size is shown; source code can be skipped |
+| 7 | Speed not measured on a Mac | CI indexes 100,000 real files on a Mac and times searches |
+| 8 | No Shortcuts | `laserdot://` links (Shortcuts' Open URL) |
+| 9 | Few ⌘K actions | Open in Terminal, Copy as Link, Compress, Move to… |
+| 10 | Untested screens | The self-test now covers sorting, multi-select, Move to Trash, links, Storage, Duplicates, Settings tabs |
+| 11 | Mouse-only buttons | ⌥1–⌥9 for chips, ⌘→ for Show all |
+| 12 | Generic menu-bar icon | A drawn laser-dot icon |
+
 ---
 
 ## How the work was done

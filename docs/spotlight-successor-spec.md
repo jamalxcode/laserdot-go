@@ -2,7 +2,7 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.23 (draft)
+**Version:** 1.24 (draft)
 **Date:** 2026-11-11 — v1.18–v1.22 record the owner's decisions while using the app; the conversation behind them is
 in `docs/design-conversation.md`
 **Target platform:** macOS 14+, Apple Silicon
@@ -448,6 +448,7 @@ white       = " " | "\t" | "\n" ;
 - **13.3** Bundled: LGPL ffmpeg libraries/binaries (Tier 2 and actions only), built without network protocols. No exiftool — EXIF is parsed in Rust
 - **13.4** CLI sharing the same index and query syntax for scripting
 - **13.5** URL scheme `laserdot://search?q=...` and Shortcuts actions (search, open result, start index)
+- **13.6c** *The third critique (v1.24):* results can be sorted (name, size, date; reversed) — sorted results are one list, not sections; Library ▸ Storage lists a folder's entries by total size from the index alone (`storage` op; no disk reads) and the largest files; the bundled `ffmpeg`/`ffprobe` (Tier 2) are built in CI from FFmpeg's source, LGPL only, with `--disable-network` and only the `file` and `pipe` protocols (CI checks the protocol list), and run under laserdotd's sandbox; background work (contents, Tier 2) pauses on battery (a setting, on by default), when the Mac is hot or in Low Power Mode (`background` op, sent by the app); Content Search shows its size and can skip source code (`skip_code`); `laserdot://search?q=…`, `laserdot://storage`, `laserdot://duplicates`, `laserdot://settings` open Laserdot (for Shortcuts' Open URL); the overlay resizes from its edges and remembers its size; media previews load a player only on Play (selecting a video must never take the keyboard from the query)
 - **13.6b** *Folders and exclusions (v1.23, the owner's critique):* Settings ▸ Folders lists every indexed folder (add, remove) and the folders never indexed. An excluded folder is skipped by every walk and rescan, and excluding a folder removes what was indexed there (an indexed folder inside it is forgotten); the list lives in this Mac's index settings (`exclude`, `include`, `exclusions` ops). Words inside files are searched in the whole home folder by default (Documents, Desktop and Downloads before). Settings ▸ General ▸ Clear History forgets recent searches and the open history (`clear_opens`); pins stay. Laserdot opens at login by default (asked once, for the copy in Applications) so the index stays current after a restart
 - **13.6a** *Default scope (v1.20, the owner's critique):* nothing to set up. The app indexes the apps and the home folder once, without asking (no first-run prompt). In `~/Library` only `Mobile Documents` (iCloud Drive) is indexed (`OnlyChildren`); the rest is app data and caches. Indexing runs on its own connection to the daemon, so searches are never held up
 - **13.6** User-configurable index scopes and ignore patterns (node_modules, .venv, caches), with churn detection auto-excluding hot directories; auto-excluded directories can be permanently re-included
