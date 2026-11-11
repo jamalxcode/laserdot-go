@@ -112,12 +112,13 @@ final class SelfTestRunner {
             if let main = NSApp.windows.first(where: { !($0 is NSPanel) && $0.isVisible && $0.title == "Laserdot" }) {
                 self.capture("main", model: model, window: main)
             }
-            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            self.app.showSettings()
             self.after(1.5) {
                 // The Settings window: visible, not the main window, not the
                 // menu-bar icon's tiny status window.
                 if let settings = NSApp.windows.first(where: {
-                    $0.isVisible && !($0 is NSPanel) && $0.title != "Laserdot" && $0.frame.width > 300
+                    $0.isVisible && ($0.identifier?.rawValue.contains("Settings") == true
+                        || (!($0 is NSPanel) && $0.title != "Laserdot" && $0.frame.width > 300))
                 }) {
                     self.screenshot(settings, name: "settings")
                 }

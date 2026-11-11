@@ -59,7 +59,7 @@ struct StatusMenu: View {
         }
         Button(L("menu.checkUpdates")) { updates.check(interactive: true) }
             .disabled(updates.checking)
-        SettingsLink { Text(L("menu.settings")) }
+        Button(L("menu.settings")) { delegate.showSettings() }
             .keyboardShortcut(",")
         Divider()
         Text(delegate.statusLine)
@@ -75,6 +75,7 @@ struct StatusMenu: View {
 struct MainWindow: View {
     @ObservedObject var delegate: AppDelegate
     @ObservedObject var updates: UpdateController
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         VStack(spacing: 0) {
@@ -111,6 +112,9 @@ struct MainWindow: View {
             .padding(.vertical, 6)
         }
         .frame(minWidth: 640, minHeight: 420)
+        // SwiftUI's way to open Settings, kept for the menu-bar menu, `>`
+        // commands and the app menu.
+        .onAppear { delegate.openSettingsAction = { openSettings() } }
     }
 }
 
@@ -236,6 +240,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     private var selfTest: SelfTestRunner?
 
+    /// Set by the main window (SwiftUI's openSettings).
+    var openSettingsAction: (() -> Void)?
+
+    /// Settings, in front and active — also from the menu-bar icon, when
+    /// Laserdot is not the active app (it would open behind other windows).
+    func showSettings() {
+        NSApp.activate(ignoringOtherApps: true)
+        if let open = openSettingsAction {
+            open()
+        } else {
+            NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+        }
+        // Bring it forward once it exists (it may be created a moment later).
+        for delay in [0.05, 0.3] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard let w = NSApp.windows.first(where: { $0.identifier?.rawValue.contains("Settings") == true && $0.isVisible })
+                else { return }
+                NSApp.activate(ignoringOtherApps: true)
+                w.makeKeyAndOrderFront(nil)
+                w.orderFrontRegardless()
+            }
+        }
+    }
+
     // Quick Look's controller (the app delegate is at the end of every
     // responder chain): the panel gets its items from QuickLook.shared.
     override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool { true }
@@ -256,8 +284,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                 self?.model?.showCheatSheet = true
             },
             ActionItem(id: "settings", title: L("menu.settings"), symbol: "gearshape", shortcut: "⌘,") {
-                NSApp.activate(ignoringOtherApps: true)
-                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+                self.showSettings()
             },
             ActionItem(id: "updates", title: L("menu.checkUpdates"), symbol: "arrow.down.circle") { [weak self] in
                 self?.updates.check(interactive: true)

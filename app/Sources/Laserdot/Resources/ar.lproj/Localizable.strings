@@ -199,3 +199,6 @@
 "index.home" = "مجلد المنزل";
 "index.progress" = "جارٍ فهرسة %@… %lld%%";
 "index.scanning" = "جارٍ استعراض %@…";
+"settings.index" = "الفهرس";
+"settings.indexFile" = "مكان الحفظ";
+"settings.indexHelp" = "فهرس واحد لهذا الجهاز: index.db (الأسماء والأحجام والتواريخ وتفاصيل الوسائط) وcontent.db (الكلمات داخل المستندات) وindex.db.snapshot (نسخة للبدء السريع). تحتفظ الأقراص بفهرسها الخاص عليها في مجلد مخفي ‎.laserdot. لا يُرسل أي شيء إلى أي مكان.";

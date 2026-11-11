@@ -97,5 +97,6 @@ else:
     check(not report["layout_rtl"], "English lays out left-to-right")
     check("Top Hit" in titles, f"English section titles (got {titles})")
 
+check("settings.png" in report["screenshots"], "Settings opened and came to the front")
 check(len(report["screenshots"]) >= 8, f"screenshots saved (got {report['screenshots']})")
 sys.exit(1 if failures else 0)

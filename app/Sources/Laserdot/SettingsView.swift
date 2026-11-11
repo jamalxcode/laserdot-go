@@ -59,6 +59,20 @@ struct GeneralSettings: View {
                         .disabled(updates.checking)
                 }
             }
+            Section(L("settings.index")) {
+                LabeledContent(L("settings.indexFile")) {
+                    HStack {
+                        Text("~/Library/Application Support/laserdot/index.db")
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                        Button(L("action.reveal")) {
+                            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: Paths.defaultDbPath)])
+                        }
+                    }
+                }
+                Text(L("settings.indexHelp")).font(.caption).foregroundStyle(.secondary)
+            }
             Section(L("settings.privacy")) {
                 LabeledContent(L("settings.network"), value: delegate.networkLine)
                 LabeledContent(L("settings.fullDiskAccess")) {

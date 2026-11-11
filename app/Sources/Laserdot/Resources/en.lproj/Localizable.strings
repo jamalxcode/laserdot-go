@@ -199,3 +199,6 @@
 "index.home" = "your home folder";
 "index.progress" = "Indexing %@… %lld%%";
 "index.scanning" = "Looking through %@…";
+"settings.index" = "Index";
+"settings.indexFile" = "Stored in";
+"settings.indexHelp" = "One index for this Mac: index.db (names, sizes, dates, media details), content.db (words inside documents) and index.db.snapshot (a fast-start copy). Drives keep their own index on the drive, in a hidden .laserdot folder. Nothing is ever sent anywhere.";
