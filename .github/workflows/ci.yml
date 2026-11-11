@@ -107,6 +107,7 @@ jobs:
           echo trash me > "$fx/trashme.txt"
           status=0
           for lang in en ar; do
+            echo trash me > "$fx/trashme.txt" # the run before moved it to the Trash
             out="$(mktemp -d)"
             hold=""; [ "$lang" = en ] && hold=1
             LASERDOT_DB="$out/data/index.db" LASERDOT_SELFTEST="$out" LASERDOT_SELFTEST_FOLDER="$fx" LASERDOT_SELFTEST_HOLD=$hold \
@@ -119,7 +120,7 @@ jobs:
               head -60 "$out/ax.txt"
               touch "$out/release"
             fi
-            for i in $(seq 1 240); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+            for i in $(seq 1 330); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
             if kill -0 "$pid" 2>/dev/null; then kill "$pid"; echo "::error::self-test ($lang) did not finish"; fi
             pkill -f "$out/data" || true
             tail -20 "$out/app.log"

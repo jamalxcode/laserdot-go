@@ -301,6 +301,7 @@ final class SelfTestRunner {
         r["selected_count"] = model.selectedHits.count
         r["section_ids"] = model.sections.map(\.id)
         steps.append(r)
+        writeReport(error: "unfinished: last step \(name)") // so a hang still shows where
         screenshot(window, name: name)
     }
 
@@ -324,12 +325,17 @@ final class SelfTestRunner {
     }
 
     private func finish(error: String?) {
+        writeReport(error: error ?? "")
+        NSApp.terminate(nil)
+    }
+
+    private func writeReport(error: String) {
         var report: [String: Any] = extra
         let base: [String: Any] = [
             "lang": appLang,
             "layout_rtl": appLayoutDirection == .rightToLeft,
             "appkit_rtl": NSApp.userInterfaceLayoutDirection == .rightToLeft,
-            "error": error ?? "",
+            "error": error,
             "steps": steps,
             "screenshots": shots,
         ]
@@ -337,6 +343,5 @@ final class SelfTestRunner {
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: out.appendingPathComponent("report.json"))
         }
-        NSApp.terminate(nil)
     }
 }
