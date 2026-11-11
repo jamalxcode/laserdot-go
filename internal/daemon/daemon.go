@@ -35,7 +35,10 @@ type Server struct {
 	ld *core.Laserdot
 	// contentDirty: files may have changed; the content index needs a look.
 	contentDirty atomic.Bool
-	contentMu    sync.Mutex // one content update at a time
+	// paused: background work (contents, Tier 2) waits — on battery, hot, or
+	// in Low Power Mode, as the app reports.
+	paused    atomic.Bool
+	contentMu sync.Mutex // one content update at a time
 	// watcher keeps the index current (nil when not watching).
 	watcher *core.Watcher
 	socket  string
@@ -102,7 +105,7 @@ func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
 				return
 			case <-time.After(2 * time.Second):
 			}
-			if !s.contentDirty.Swap(false) {
+			if s.paused.Load() || !s.contentDirty.Swap(false) {
 				continue
 			}
 			st, err := s.UpdateContent()
@@ -120,6 +123,9 @@ func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
 			case <-s.done:
 				return
 			case <-time.After(2 * time.Minute):
+			}
+			if s.paused.Load() {
+				continue
 			}
 			st, err := s.ld.DeepProbe(20)
 			if err != nil {
@@ -357,6 +363,24 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		return result(s.UpdateContent())
 	case ipc.OpCoach:
 		return ok(s.ld.Coach(req.Query))
+	case ipc.OpStorage:
+		limit := 50
+		if req.Limit != nil {
+			limit = *req.Limit
+		}
+		rep, err := s.ld.Storage(req.Path, limit)
+		if err != nil {
+			return fail(ipc.ErrorOf(err))
+		}
+		return ok(rep)
+	case ipc.OpBackground:
+		if req.Paused != nil {
+			s.paused.Store(*req.Paused)
+			if !*req.Paused {
+				s.contentDirty.Store(true) // catch up what waited
+			}
+		}
+		return ok(map[string]bool{"paused": s.paused.Load()})
 	case ipc.OpClearOpens:
 		if err := s.ld.ClearOpens(); err != nil {
 			return fail(ipc.ErrorOf(err))

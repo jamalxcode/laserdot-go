@@ -24,7 +24,7 @@ def check(ok, what):
 
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
-for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "similar", "home"):
+for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "multi", "trash", "trashed", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -107,6 +107,28 @@ if os.path.exists(ax_file):
 # Videos and songs: selected and previewed with a player, without a crash.
 check(steps["video"]["selected"] == "clip.mp4", f"the video is selected and previewed (got {steps['video']['selected']!r})")
 check(steps["song"]["selected"] == "song.mp3", f"the song is selected and previewed (got {steps['song']['selected']!r})")
+
+# Sorted by size: one list, largest first.
+srt = steps["sorted"]
+check(srt["section_ids"] == ["sorted"], f"sorted results are one list (got {srt['section_ids']})")
+check(srt["sizes"] == sorted(srt["sizes"], reverse=True) and len(srt["sizes"]) >= 2, f"largest first (got {srt['sizes']})")
+
+# ⇧↓ selects a second result.
+check(steps["multi"]["selected_count"] == 2, f"two results selected (got {steps['multi']['selected_count']})")
+
+# Move to Trash: gone from the next search.
+check("trashme.txt" in steps["trash"]["results"], f"the file to trash was found (got {steps['trash']['results']})")
+check(steps["trashed"]["results"] == [], f"after Move to Trash it is gone (got {steps['trashed']['results']})")
+
+# A laserdot:// link opens the search.
+url = steps["url"]
+check(url["query"] == "beach" and "beach.jpg" in url["results"], f"laserdot://search?q=beach (got {url['query']!r}, {url['results']})")
+
+# Storage and Duplicates windows.
+check(report.get("storage_items", -1) >= 1, f"the Storage window lists folders (got {report.get('storage_items')})")
+check(report.get("duplicate_groups", -1) >= 1, f"the Duplicates window found the copied clip (got {report.get('duplicate_groups')})")
+for shot in ("storage.png", "duplicates.png", "settings-folders.png", "settings-drives.png"):
+    check(shot in report["screenshots"], f"screenshot {shot}")
 
 # The empty box shows what was opened.
 home = steps["home"]

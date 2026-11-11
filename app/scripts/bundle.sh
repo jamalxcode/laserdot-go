@@ -20,6 +20,13 @@ rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$APP/Contents/Helpers"
 cp "$BIN/Laserdot" "$APP/Contents/MacOS/Laserdot"
 cp "$DAEMON" "$APP/Contents/MacOS/laserdotd"
+# The bundled ffmpeg/ffprobe (LGPL, no network), when built: Tier 2 media
+# details. laserdotd finds them next to itself.
+if [ -x build/ffmpeg/ffprobe ]; then
+  cp build/ffmpeg/ffmpeg build/ffmpeg/ffprobe "$APP/Contents/MacOS/"
+  mkdir -p "$APP/Contents/Resources/FFmpeg"
+  cp build/ffmpeg/LICENSE.txt build/ffmpeg/README.txt "$APP/Contents/Resources/FFmpeg/"
+fi
 for b in "$BIN"/*.bundle; do [ -e "$b" ] && cp -R "$b" "$APP/Contents/Resources/"; done
 cp Info.plist "$APP/Contents/Info.plist"
 # The app's own language folders: macOS picks the app's language, and with

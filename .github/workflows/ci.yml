@@ -20,6 +20,9 @@ jobs:
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - run: go vet ./...
       - run: go test -race ./...
+      - name: Speed on a real Mac (100,000 real files)
+        if: runner.os == 'macOS'
+        run: app/scripts/perf-mac.sh
 
   app:
     runs-on: macos-latest
@@ -46,6 +49,13 @@ jobs:
         env:
           LASERDOTD: ${{ github.workspace }}/app/build/go/laserdotd
         run: swift test
+      - name: ffmpeg for Tier 2 (LGPL, no network) — cached
+        uses: actions/cache@v4
+        with:
+          path: app/build/ffmpeg
+          key: ffmpeg-7.1-lgpl-nonet-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Build ffmpeg (only when not cached)
+        run: app/scripts/build-ffmpeg.sh
       - name: Bundle Laserdot.app
         run: |
           app/scripts/bundle.sh
@@ -54,6 +64,12 @@ jobs:
           plutil -lint app/build/Laserdot.app/Contents/Info.plist
           test -x "app/build/Laserdot.app/Contents/Helpers/Laserdot Updater.app/Contents/MacOS/LaserdotUpdater"
           test -f app/build/Laserdot.app/Contents/Resources/AppIcon.icns
+          # The bundled ffprobe/ffmpeg speak no network protocol.
+          for t in ffprobe ffmpeg; do
+            protos=$("app/build/Laserdot.app/Contents/MacOS/$t" -hide_banner -protocols | tr -d ' ' | grep -vE '^(Supportedfileprotocols:|Input:|Output:)$' | sort -u | tr '\n' ' ')
+            echo "$t protocols: $protos"
+            [ "$protos" = "file pipe " ] || { echo "::error::$t supports more than file and pipe: $protos"; exit 1; }
+          done
           ditto -c -k --keepParent app/build/Laserdot.app Laserdot-unsigned.zip
           app/scripts/make-dmg.sh "$PWD/Laserdot.dmg"
       - name: Launch the bundled app, as a user would (smoke test)
@@ -87,6 +103,8 @@ jobs:
           echo '<plist/>' > "$fx/Tool.app/Contents/Info.plist"
           cp internal/media/testdata/dupes/clip.mp4 "$fx/clip.mp4"
           cp internal/media/testdata/song.mp3 "$fx/song.mp3"
+          cp internal/media/testdata/dupes/clip.mp4 "$fx/clip copy.mp4"
+          echo trash me > "$fx/trashme.txt"
           status=0
           for lang in en ar; do
             out="$(mktemp -d)"

@@ -24,6 +24,8 @@ const ContentResults = 1000
 type ContentSettings struct {
 	Roots    []string `json:"roots"`
 	MaxBytes uint64   `json:"max_bytes"`
+	// SkipCode leaves source code out of content search (v1.24).
+	SkipCode bool `json:"skip_code,omitempty"`
 }
 
 // DefaultContentSettings: the whole home folder (v1.23; Documents, Desktop
@@ -53,6 +55,8 @@ type ContentStatus struct {
 	Documents uint64           `json:"documents"`
 	Skipped   uint64           `json:"skipped"`
 	Pending   uint64           `json:"pending"`
+	// Bytes: the content index's size on disk (content.db and its journal).
+	Bytes uint64 `json:"bytes"`
 }
 
 type contentTodo struct {
@@ -177,7 +181,13 @@ func (ld *Laserdot) ContentStatus() (ContentStatus, error) {
 		return ContentStatus{}, err
 	}
 	s := ld.ContentSettings()
-	return ContentStatus{Settings: &s, Documents: docs, Skipped: skipped, Pending: uint64(job.Pending())}, nil
+	var size uint64
+	for _, suffix := range []string{"", "-wal"} {
+		if fi, err := os.Stat(contentPath(ld.dbPath) + suffix); err == nil {
+			size += uint64(fi.Size())
+		}
+	}
+	return ContentStatus{Settings: &s, Documents: docs, Skipped: skipped, Pending: uint64(job.Pending()), Bytes: size}, nil
 }
 
 // ContentJob works out what the content index lacks.
@@ -187,7 +197,7 @@ func (ld *Laserdot) ContentJob() (*ContentJob, error) {
 		return nil, err
 	}
 	ld.mu.RLock()
-	wanted := inScope(ld.store, ld.contentSettings.Roots)
+	wanted := inScope(ld.store, ld.contentSettings.Roots, ld.contentSettings.SkipCode)
 	maxBytes := ld.contentSettings.MaxBytes
 	ld.mu.RUnlock()
 	j := &ContentJob{ci: ld.content, maxBytes: maxBytes}
@@ -216,7 +226,7 @@ func (ld *Laserdot) UpdateContent() (ContentStats, error) {
 
 // inScope: the documents under the content roots (and indexed roots inside
 // them) that content search should hold.
-func inScope(s *index.Store, roots []string) map[string]contentTodo {
+func inScope(s *index.Store, roots []string, skipCode bool) map[string]contentTodo {
 	ids := roaring.New()
 	indexed := s.Roots()
 	for _, r := range roots {
@@ -235,7 +245,7 @@ func inScope(s *index.Store, roots []string) map[string]contentTodo {
 	it := ids.Iterator()
 	for it.HasNext() {
 		id := it.Next()
-		if s.IsDir(id) || s.IsSymlink(id) || s.IsDataless(id) || s.IsPending(id) {
+		if s.IsDir(id) || s.IsSymlink(id) || s.IsDataless(id) || s.IsPending(id) || skipCode && s.Kind(id) == media.Code {
 			continue
 		}
 		kind := index.ContentTypeOf(media.Extension(s.FoldedName(id)))

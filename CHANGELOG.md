@@ -3,6 +3,19 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.7.0
+
+- Sort results by name, size or date (the arrows next to the pin).
+- Library ▸ Storage: what fills your disk, folder by folder, and the largest files.
+- Full media details for every format: ffprobe is now built in (without any network support).
+- Resize the ⌥Space window from its edges; Laserdot remembers the size.
+- Background work pauses on battery, when the Mac is hot, or in Low Power Mode.
+- Content Search shows how much space it uses, and can skip source code.
+- laserdot:// links for Shortcuts: laserdot://search?q=photos%20last%20week, laserdot://storage.
+- ⌘K adds Open in Terminal, Copy as Link, Compress and Move to….
+- ⌥1–⌥9 press the suggestion chips; ⌘→ shows all of a section (after ↓).
+- A new menu-bar icon.
+
 ## 0.6.1
 
 - Fixed: Laserdot quit when a video or song was selected (the preview's player).

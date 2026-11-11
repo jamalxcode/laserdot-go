@@ -53,7 +53,9 @@ struct SearchView: View {
                 }
             }
         }
-        .frame(width: fixedSize ? 920 : nil, height: fixedSize ? (model.compact ? Self.compactHeight : Self.fullHeight) : nil)
+        // The overlay fills its panel (resizable, remembered); the slim bar
+        // is just the field.
+        .frame(maxWidth: .infinity, maxHeight: fixedSize && model.compact ? Self.compactHeight : .infinity, alignment: .top)
         .background {
             // The floating card is the overlay's look; the main window keeps
             // the standard window background.
@@ -90,6 +92,22 @@ struct SearchView: View {
                 .help(L("search.clear"))
                 .accessibilityLabel(L("search.clear"))
             }
+            // Result order.
+            Menu {
+                Picker(L("sort.title"), selection: $model.sort) {
+                    ForEach(SortKey.allCases, id: \.self) { k in Text(L("sort.\(k.rawValue)")).tag(k) }
+                }
+                .pickerStyle(.inline)
+                Toggle(L("sort.reverse"), isOn: $model.reverse)
+            } label: {
+                Image(systemName: model.sort == .relevance ? "arrow.up.arrow.down" : "arrow.up.arrow.down.circle.fill")
+                    .font(.title3)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help(L("sort.title"))
+            .accessibilityLabel(L("sort.title"))
             // Pin the query (spec §8.6).
             Button { model.togglePin() } label: {
                 Image(systemName: model.isPinned ? "pin.fill" : "pin").font(.title3)
@@ -154,18 +172,25 @@ struct SearchView: View {
         if !completions.isEmpty || !kinds.isEmpty || !pins.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
+                    // ⌥1–⌥9 press a chip without the mouse (shown in its tooltip).
                     if !completions.isEmpty {
-                        ForEach(completions, id: \.self) { c in
-                            Button(c.label) { model.apply(c) }.help(c.detail)
+                        ForEach(Array(completions.enumerated()), id: \.element) { i, c in
+                            Button(c.label) { model.apply(c) }
+                                .help(c.detail + Self.chipKey(i))
+                                .modifier(ChipKey(index: i))
                         }
                     } else if !kinds.isEmpty {
-                        ForEach(kinds) { k in
-                            Button("\(k.title) (\(k.total))") { model.narrow(to: k) }.help(k.filter ?? "")
+                        ForEach(Array(kinds.enumerated()), id: \.element.id) { i, k in
+                            Button("\(k.title) (\(k.total))") { model.narrow(to: k) }
+                                .help((k.filter ?? "") + Self.chipKey(i))
+                                .modifier(ChipKey(index: i))
                         }
                     } else {
                         Image(systemName: "pin").foregroundStyle(.secondary).accessibilityHidden(true)
-                        ForEach(pins, id: \.self) { q in
+                        ForEach(Array(pins.enumerated()), id: \.element) { i, q in
                             Button(q) { model.query = q }
+                                .help(Self.chipKey(i).trimmingCharacters(in: .whitespaces))
+                                .modifier(ChipKey(index: i))
                                 .contextMenu { Button(String(format: L("pin.unpin"), q)) { model.togglePin(q) } }
                         }
                     }
@@ -177,6 +202,8 @@ struct SearchView: View {
             .padding(.bottom, 8)
         }
     }
+
+    static func chipKey(_ i: Int) -> String { i < 9 ? "  (⌥\(i + 1))" : "" }
 
     // MARK: the list
 
@@ -345,6 +372,9 @@ struct SearchView: View {
             Button("") { model.copyPath() }.keyboardShortcut("c", modifiers: [.command, .shift])
             Button("") { model.quickLook() }.keyboardShortcut("y", modifiers: .command)
             Button("") { model.toggleActions() }.keyboardShortcut("k", modifiers: .command)
+            // While browsing results only: typing keeps ⌘→ (end of line).
+            Button("") { model.expandSelectedSection() }.keyboardShortcut(.rightArrow, modifiers: .command)
+                .disabled(!model.browsing)
             ForEach(1...9, id: \.self) { n in
                 Button("") { model.openNumbered(n) }.keyboardShortcut(KeyEquivalent(Character("\(n)")), modifiers: .command)
             }
@@ -869,4 +899,17 @@ struct IndexedHit: Identifiable {
     let index: Int
     let hit: Hit
     var id: String { hit.path }
+}
+
+/// ⌥1–⌥9 for the first nine chips.
+struct ChipKey: ViewModifier {
+    let index: Int
+
+    func body(content: Content) -> some View {
+        if index < 9 {
+            content.keyboardShortcut(KeyEquivalent(Character("\(index + 1)")), modifiers: .option)
+        } else {
+            content
+        }
+    }
 }

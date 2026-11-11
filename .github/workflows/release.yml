@@ -26,6 +26,13 @@ jobs:
           v="${{ github.event.inputs.version }}"
           [ -n "$v" ] || v="${GITHUB_REF_NAME#v}"
           echo "version=$v" >> "$GITHUB_OUTPUT"
+      - name: ffmpeg for Tier 2 (LGPL, no network) — cached
+        uses: actions/cache@v4
+        with:
+          path: app/build/ffmpeg
+          key: ffmpeg-7.1-lgpl-nonet-${{ runner.os }}-${{ runner.arch }}-v1
+      - name: Build ffmpeg (only when not cached)
+        run: app/scripts/build-ffmpeg.sh
       - name: Build
         run: |
           VERSION=${{ steps.v.outputs.version }} app/scripts/build-go.sh

@@ -1,7 +1,9 @@
 package core
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -95,5 +97,41 @@ func TestExcludedFolders(t *testing.T) {
 	}
 	if count("plan-secret") != 1 || count("plan-new") != 1 {
 		t.Error("included again, but not indexed")
+	}
+}
+
+// Storage lists a folder's entries by total size, from the index.
+func TestStorage(t *testing.T) {
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(dir, "home")
+	write(t, root, "Movies/a.mkv", strings.Repeat("x", 5000))
+	write(t, root, "Movies/b.mkv", strings.Repeat("x", 3000))
+	write(t, root, "Docs/n.txt", strings.Repeat("x", 100))
+	write(t, root, "big.iso", strings.Repeat("x", 6000))
+	ld, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	rep, err := ld.Storage(root, 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, it := range rep.Items {
+		got = append(got, fmt.Sprintf("%s=%d/%d", it.Name, it.Bytes, it.Files))
+	}
+	if want := []string{"Movies=8000/2", "big.iso=6000/1", "Docs=100/1"}; strings.Join(got, " ") != strings.Join(want, " ") {
+		t.Errorf("got %v, want %v", got, want)
+	}
+	if rep.Bytes != 14100 || rep.Files != 4 {
+		t.Errorf("total %d/%d", rep.Bytes, rep.Files)
+	}
+	top, _ := ld.Storage("", 10)
+	if len(top.Items) != 1 || top.Items[0].Bytes != 14100 {
+		t.Errorf("roots: %+v", top.Items)
 	}
 }

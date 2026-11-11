@@ -14,6 +14,13 @@
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>CFBundleIconFile</key><string>AppIcon</string>
     <key>NSPrincipalClass</key><string>NSApplication</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key><string>app.laserdot.Laserdot</string>
+            <key>CFBundleURLSchemes</key><array><string>laserdot</string></array>
+        </dict>
+    </array>
     <key>NSHumanReadableCopyright</key><string>No network. No telemetry. No AI.</string>
 </dict>
 </plist>

@@ -16,6 +16,17 @@ final class SearchModel: ObservableObject {
         didSet { if query != oldValue { queryChanged() } }
     }
     @Published private(set) var results: [Hit] = []
+    /// Result order: relevance (sections), or name, size, date (one list).
+    @Published var sort: SortKey = SortKey(rawValue: UserDefaults.standard.string(forKey: "laserdot.sort") ?? "") ?? .relevance {
+        didSet {
+            UserDefaults.standard.set(sort.rawValue, forKey: "laserdot.sort")
+            if sort != oldValue { queryChanged() }
+        }
+    }
+    /// The sort's other direction (smallest, oldest, Z→A).
+    @Published var reverse = false {
+        didSet { if reverse != oldValue { queryChanged() } }
+    }
     /// The results in sections, like Spotlight: Top Hit, then Applications,
     /// Documents, Images… in the order their best result ranks. `results` is
     /// in this display order, so ↑/↓ and ⌘1–9 follow what is on screen.
@@ -216,8 +227,9 @@ final class SearchModel: ObservableObject {
             return
         }
         searching = true
+        let (sort, reverse) = (self.sort, self.reverse)
         queue.async { [weak self] in
-            let outcome = Result { try engine.search(query: q, limit: 100) }
+            let outcome = Result { try engine.search(query: q, limit: 100, sort: sort, reverse: reverse) }
             DispatchQueue.main.async {
                 guard let self, gen == self.generation else { return }
                 self.apply(outcome)
@@ -232,7 +244,7 @@ final class SearchModel: ObservableObject {
         switch outcome {
         case .success(let r):
             allHits = r.hits
-            (results, sections) = Self.grouped(r.hits, expanded: expanded)
+            (results, sections) = arranged(r.hits)
             total = r.total
             elapsedMs = r.elapsedMs
             notes = r.notes
@@ -341,9 +353,9 @@ final class SearchModel: ObservableObject {
     func loadMore() {
         guard canLoadMore, !loadingMore else { return }
         loadingMore = true
-        let (engine, q, gen, offset) = (self.engine, self.query, self.generation, allHits.count)
+        let (engine, q, gen, offset, sort, reverse) = (self.engine, self.query, self.generation, allHits.count, self.sort, self.reverse)
         queue.async { [weak self] in
-            let more = (try? engine.search(query: q, limit: 100, offset: offset).hits) ?? []
+            let more = (try? engine.search(query: q, limit: 100, offset: offset, sort: sort, reverse: reverse).hits) ?? []
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.loadingMore = false
@@ -351,7 +363,7 @@ final class SearchModel: ObservableObject {
                 let current = self.selected?.path
                 let seen = Set(self.allHits.map(\.path))
                 self.allHits += more.filter { !seen.contains($0.path) }
-                (self.results, self.sections) = Self.grouped(self.allHits, expanded: self.expanded)
+                (self.results, self.sections) = self.arranged(self.allHits)
                 self.selection = self.results.firstIndex { $0.path == current } ?? self.selection
             }
         }
@@ -370,11 +382,25 @@ final class SearchModel: ObservableObject {
         }
     }
 
+    /// Sections by kind when sorted by relevance; one list in the chosen
+    /// order otherwise.
+    private func arranged(_ hits: [Hit]) -> ([Hit], [ResultSection]) {
+        guard sort != .relevance else { return Self.grouped(hits, expanded: expanded) }
+        let title = L("sort.\(sort.rawValue)")
+        return (hits, hits.isEmpty ? [] : [ResultSection(id: "sorted", title: title, range: 0..<hits.count, filter: nil, total: hits.count, hidden: 0)])
+    }
+
+    /// ⌘→: "Show all" for the selected result's section.
+    func expandSelectedSection() {
+        guard let sec = sections.first(where: { $0.range.contains(selection) }), sec.hidden > 0 else { return }
+        expand(sec.id)
+    }
+
     /// "Show all 37": the section's other results join the list.
     func expand(_ id: String) {
         expanded.insert(id)
         let current = selected?.path
-        (results, sections) = Self.grouped(allHits, expanded: expanded)
+        (results, sections) = arranged(allHits)
         selection = results.firstIndex { $0.path == current } ?? 0
         resultsID &+= 1
     }
@@ -639,6 +665,22 @@ final class SearchModel: ObservableObject {
                 }
             },
         ]
+        list += [
+            ActionItem(id: "terminal", title: L("action.terminal"), symbol: "terminal") {
+                // The folder itself, or the folder a file is in.
+                let dir = first.isDir && first.kind != "app" ? urls[0] : urls[0].deletingLastPathComponent()
+                if let terminal = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") {
+                    NSWorkspace.shared.open([dir], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration())
+                }
+            },
+            ActionItem(id: "copyLink", title: L("action.copyLink"), symbol: "link.badge.plus") {
+                let links = zip(hits, urls).map { h, u in "[\(h.name)](\(u.absoluteString))" }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(links.joined(separator: "\n"), forType: .string)
+            },
+            ActionItem(id: "compress", title: L("action.compress"), symbol: "doc.zipper") { [weak self] in self?.compress(hits) },
+            ActionItem(id: "moveTo", title: L("action.moveTo"), symbol: "folder.badge.gearshape") { [weak self] in self?.move(hits) },
+        ]
         if !many && first.volume == nil {
             list.append(ActionItem(id: "rename", title: L("action.rename"), symbol: "pencil") { [weak self] in self?.rename(first) })
         }
@@ -664,6 +706,55 @@ final class SearchModel: ObservableObject {
         } catch {
             let e = NSAlert(error: error)
             e.runFront()
+        }
+        refreshSoon()
+    }
+
+    /// A zip next to the first file (one file: name.zip; several: Archive.zip),
+    /// as Finder's Compress does.
+    private func compress(_ hits: [Hit]) {
+        guard let first = hits.first else { return }
+        let dir = URL(fileURLWithPath: first.path).deletingLastPathComponent()
+        let base = hits.count == 1 ? first.name : L("action.archiveName")
+        var dest = dir.appendingPathComponent(base + ".zip")
+        var n = 2
+        while FileManager.default.fileExists(atPath: dest.path) {
+            dest = dir.appendingPathComponent("\(base) \(n).zip")
+            n += 1
+        }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+        p.arguments = hits.count == 1
+            ? ["-c", "-k", "--sequesterRsrc", "--keepParent", first.path, dest.path]
+            : ["-c", "-k", "--sequesterRsrc"] + hits.map(\.path) + [dest.path]
+        p.terminationHandler = { [weak self] proc in
+            DispatchQueue.main.async {
+                if proc.terminationStatus == 0 {
+                    NSWorkspace.shared.activateFileViewerSelecting([dest])
+                }
+                self?.refreshSoon()
+            }
+        }
+        try? p.run()
+    }
+
+    /// Move to a folder chosen in a panel.
+    private func move(_ hits: [Hit]) {
+        NSApp.activate(ignoringOtherApps: true)
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = L("action.moveHere")
+        guard panel.runFront() == .OK, let folder = panel.url else { return }
+        for h in hits {
+            let from = URL(fileURLWithPath: h.path)
+            do {
+                try FileManager.default.moveItem(at: from, to: folder.appendingPathComponent(from.lastPathComponent))
+            } catch {
+                NSAlert(error: error).runFront()
+                break
+            }
         }
         refreshSoon()
     }

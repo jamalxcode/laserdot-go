@@ -74,6 +74,11 @@ const (
 	// Tier 2 (§3.1.1): deep probing now; loudness of one file (§3.6).
 	OpDeepProbe = "deep_probe"
 	OpLoudness  = "loudness"
+	// OpStorage lists a folder's entries by size (Path; "" = indexed folders).
+	OpStorage = "storage"
+	// OpBackground pauses or resumes background work (Paused): the app pauses
+	// it on battery, when the Mac is hot, or in Low Power Mode.
+	OpBackground = "background"
 )
 
 // Request is one call. Op selects it; the other fields are per op and
@@ -89,6 +94,8 @@ type Request struct {
 	Typo    *bool  `json:"typo,omitempty"`
 	// index, forget
 	Path string `json:"path,omitempty"`
+	// background
+	Paused *bool `json:"paused,omitempty"`
 	// hint, section_at, completions: caret position (runes); lang: en/ar.
 	Cursor int    `json:"cursor,omitempty"`
 	Lang   string `json:"lang,omitempty"`

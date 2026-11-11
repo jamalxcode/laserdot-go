@@ -19,6 +19,7 @@ final class SelfTestRunner {
     private var steps: [[String: Any]] = []
     private var shots: [String] = []
     private var closeAttempts = 0
+    private var extra: [String: Any] = [:]
 
     init(app: AppDelegate, out: URL) {
         self.app = app
@@ -79,6 +80,17 @@ final class SelfTestRunner {
             // A video and a song: their previews play in the pane (AVKit).
             Step(name: "video", typed: "clip"),
             Step(name: "song", typed: "song"),
+            // Sorted by size: one list, largest first.
+            Step(name: "sorted", typed: "kind:image", before: { model.sort = .size }),
+            // ⇧↓ selects a second result.
+            Step(name: "multi", typed: "jpg", before: { model.sort = .relevance }, after: { model.extend(1) }),
+            // ⌘K ▸ Move to Trash removes a file; a new search no longer finds it.
+            Step(name: "trash", typed: "trashme", after: {
+                model.actions.first { $0.id == "trash" }?.run()
+            }),
+            Step(name: "trashed", typed: "trashme"),
+            // A laserdot:// link opens the overlay with its search.
+            Step(name: "url", typed: "", before: { self.app.handle(URL(string: "laserdot://search?q=beach")!) }),
             // A swapped-letter typo finds the file, and says so.
             Step(name: "similar", typed: "pfd"),
             Step(name: "home", typed: "", before: {
@@ -131,6 +143,52 @@ final class SelfTestRunner {
 
     private func mainWindowAndSettings(model: SearchModel, overlay: OverlayController) {
         overlay.hide()
+        windowsTour(model: model) { self.mainWindowAndSettingsRest(model: model) }
+    }
+
+    /// Storage and Duplicates windows, and the Settings tabs: screenshots and
+    /// what they show.
+    private func windowsTour(model: SearchModel, done: @escaping () -> Void) {
+        app.showStorage()
+        after(3) {
+            if let w = NSApp.windows.first(where: { $0.isVisible && $0.title == L("menu.storageTitle") }) {
+                self.screenshot(w, name: "storage")
+            }
+            self.extra["storage_items"] = self.app.storageModel?.report?.items.count ?? -1
+            self.app.showDuplicates()
+            self.app.duplicatesModel?.scan()
+            self.after(8) {
+                if let w = NSApp.windows.first(where: { $0.isVisible && $0.title == L("dupes.title") }) {
+                    self.screenshot(w, name: "duplicates")
+                }
+                self.extra["duplicate_groups"] = self.app.duplicatesModel?.report?.groups.count ?? -1
+                UserDefaults.standard.set("folders", forKey: "laserdot.settingsTab")
+                self.app.showSettings()
+                self.after(1.5) {
+                    if let w = self.settingsWindow() { self.screenshot(w, name: "settings-folders") }
+                    UserDefaults.standard.set("drives", forKey: "laserdot.settingsTab")
+                    self.after(1) {
+                        if let w = self.settingsWindow() { self.screenshot(w, name: "settings-drives") }
+                        UserDefaults.standard.set("general", forKey: "laserdot.settingsTab")
+                        self.settingsWindow()?.close()
+                        for title in [L("menu.storageTitle"), L("dupes.title")] {
+                            NSApp.windows.first { $0.title == title }?.close()
+                        }
+                        done()
+                    }
+                }
+            }
+        }
+    }
+
+    private func settingsWindow() -> NSWindow? {
+        NSApp.windows.first(where: {
+            $0.isVisible && ($0.identifier?.rawValue.contains("Settings") == true
+                || (!($0 is NSPanel) && $0.title != "Laserdot" && $0.frame.width > 300 && $0.title != L("menu.storageTitle") && $0.title != L("dupes.title")))
+        })
+    }
+
+    private func mainWindowAndSettingsRest(model: SearchModel, overlay: OverlayController? = nil) {
         model.query = "proj"
         after(2) {
             if let main = NSApp.windows.first(where: { !($0 is NSPanel) && $0.isVisible && $0.title == "Laserdot" }) {
@@ -140,10 +198,7 @@ final class SelfTestRunner {
             self.after(1.5) {
                 // The Settings window: visible, not the main window, not the
                 // menu-bar icon's tiny status window.
-                if let settings = NSApp.windows.first(where: {
-                    $0.isVisible && ($0.identifier?.rawValue.contains("Settings") == true
-                        || (!($0 is NSPanel) && $0.title != "Laserdot" && $0.frame.width > 300))
-                }) {
+                if let settings = self.settingsWindow() {
                     self.screenshot(settings, name: "settings")
                 }
                 self.finish(error: nil)
@@ -242,6 +297,9 @@ final class SelfTestRunner {
         let keyWindow: String = NSApp.keyWindow.map { String(describing: Swift.type(of: $0)) } ?? "none"
         r["key_window"] = keyWindow
         r["accessibility"] = labels
+        r["sizes"] = model.results.map { Int($0.size) }
+        r["selected_count"] = model.selectedHits.count
+        r["section_ids"] = model.sections.map(\.id)
         steps.append(r)
         screenshot(window, name: name)
     }
@@ -266,7 +324,8 @@ final class SelfTestRunner {
     }
 
     private func finish(error: String?) {
-        let report: [String: Any] = [
+        var report: [String: Any] = extra
+        let base: [String: Any] = [
             "lang": appLang,
             "layout_rtl": appLayoutDirection == .rightToLeft,
             "appkit_rtl": NSApp.userInterfaceLayoutDirection == .rightToLeft,
@@ -274,6 +333,7 @@ final class SelfTestRunner {
             "steps": steps,
             "screenshots": shots,
         ]
+        report.merge(base) { _, b in b }
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: out.appendingPathComponent("report.json"))
         }

@@ -8,11 +8,14 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var delegate: AppDelegate
     @ObservedObject var updates: UpdateController
+    /// The open tab, remembered (the self-test opens each).
+    @AppStorage("laserdot.settingsTab") private var tab = "general"
 
     var body: some View {
-        TabView {
+        TabView(selection: $tab) {
             GeneralSettings(delegate: delegate, updates: updates)
                 .tabItem { Label(L("settings.general"), systemImage: "gearshape") }
+                .tag("general")
             Group {
                 if let engine = delegate.sharedEngine {
                     FoldersSettings(model: delegate.folders ?? FoldersModel(engine: engine), delegate: delegate)
@@ -21,6 +24,7 @@ struct SettingsView: View {
                 }
             }
             .tabItem { Label(L("settings.folders"), systemImage: "folder") }
+                .tag("folders")
             Group {
                 if let content = delegate.content {
                     ContentSettings(model: content)
@@ -29,6 +33,7 @@ struct SettingsView: View {
                 }
             }
             .tabItem { Label(L("menu.content"), systemImage: "doc.text.magnifyingglass") }
+                .tag("content")
             Group {
                 if let drives = delegate.drives {
                     DrivesSettings(model: drives)
@@ -37,6 +42,7 @@ struct SettingsView: View {
                 }
             }
             .tabItem { Label(L("menu.drives"), systemImage: "externaldrive") }
+                .tag("drives")
         }
         .frame(width: 560, height: 460)
     }
@@ -49,6 +55,7 @@ struct GeneralSettings: View {
     @State private var loginNote: String?
     @State private var fullDiskAccess = DiskAccess.granted
     @State private var historyCleared = false
+    @AppStorage(PowerWatcher.batteryKey) private var pauseOnBattery = true
 
     var body: some View {
         Form {
@@ -62,6 +69,7 @@ struct GeneralSettings: View {
                     ForEach(HotKeyChoice.all, id: \.label) { Text($0.label).tag($0.label) }
                 }
                 Toggle(L("settings.openAtLogin"), isOn: Binding(get: { openAtLogin }, set: setOpenAtLogin))
+                Toggle(L("settings.pauseOnBattery"), isOn: $pauseOnBattery)
                 if let loginNote {
                     Text(loginNote).font(.caption).foregroundStyle(.secondary)
                 }
@@ -181,6 +189,11 @@ struct ContentSettings: View {
                 }
             }
             .buttonStyle(.borderless)
+            if let info = model.info {
+                Toggle(L("settings.skipCode"), isOn: Binding(get: { info.skipCode }, set: { model.setSkipCode($0) }))
+                Text(String(format: L("settings.contentSize"), ByteCountFormatter.string(fromByteCount: Int64(info.bytes), countStyle: .file)))
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
         .padding(20)
         .onAppear { model.refresh() }

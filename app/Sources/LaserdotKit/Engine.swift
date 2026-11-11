@@ -144,6 +144,9 @@ public struct ContentInfo: Sendable {
     public var skipped: UInt64
     public var pending: UInt64
     public var maxBytes: UInt64
+    public var skipCode: Bool = false
+    /// content.db's size on disk.
+    public var bytes: UInt64 = 0
 }
 
 /// One file in a duplicate group (spec §4).
@@ -549,6 +552,24 @@ public final class Engine: @unchecked Sendable {
         info(try call(.contentStatus, as: Wire.ContentStatus.self))
     }
 
+    /// Leave source code out of content search (or put it back).
+    public func setContentSkipCode(_ skip: Bool) throws -> ContentInfo {
+        var settings = try call(.contentStatus, as: Wire.ContentStatus.self).settings ?? .defaultForHome
+        settings.skipCode = skip
+        _ = try call(.setContentSettings(settings: settings), as: Wire.ContentStatus.self)
+        return try contentInfo()
+    }
+
+    /// What fills a folder ("" = the indexed folders), largest first.
+    public func storage(path: String, limit: Int = 60) throws -> Wire.StorageReport {
+        try call(.storage(path: path, limit: limit), as: Wire.StorageReport.self)
+    }
+
+    /// Pause background work (contents, Tier 2) or resume it.
+    public func setBackground(paused: Bool) {
+        _ = try? call(.background(paused: paused), as: [String: Bool].self)
+    }
+
     /// Index the text of files in `folder` too (or stop, with `add` false).
     public func setContentFolder(folder: String, add: Bool) throws -> ContentInfo {
         var settings = try call(.contentStatus, as: Wire.ContentStatus.self).settings ?? .defaultForHome
@@ -562,7 +583,7 @@ public final class Engine: @unchecked Sendable {
         let settings = st.settings ?? .defaultForHome
         return ContentInfo(
             folders: settings.roots, documents: st.documents, skipped: st.skipped, pending: st.pending,
-            maxBytes: settings.maxBytes)
+            maxBytes: settings.maxBytes, skipCode: settings.skipCode, bytes: st.bytes)
     }
 
     // MARK: duplicates (spec §4)

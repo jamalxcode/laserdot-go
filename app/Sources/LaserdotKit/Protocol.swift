@@ -56,6 +56,10 @@ public enum DaemonRequest: Encodable, Sendable {
     case recentOpens(limit: Int)
     /// Forget the open history.
     case clearOpens
+    /// A folder's entries by size ("" = the indexed folders).
+    case storage(path: String, limit: Int)
+    /// Pause or resume background work (battery, heat, Low Power Mode).
+    case background(paused: Bool)
     /// Folders never indexed: list, add, remove.
     case exclusions
     case exclude(path: String)
@@ -72,6 +76,8 @@ public enum DaemonRequest: Encodable, Sendable {
         case .opened: return "opened"
         case .recentOpens: return "recent_opens"
         case .clearOpens: return "clear_opens"
+        case .storage: return "storage"
+        case .background: return "background"
         case .exclusions: return "exclusions"
         case .exclude: return "exclude"
         case .include: return "include"
@@ -104,7 +110,7 @@ public enum DaemonRequest: Encodable, Sendable {
     }
 
     private enum Key: String, CodingKey {
-        case op, query, sort, reverse, offset, limit, typo, path, mount, passphrase, options, request, settings, cursor, lang
+        case op, query, sort, reverse, offset, limit, typo, path, mount, passphrase, options, request, settings, cursor, lang, paused
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -144,6 +150,11 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(lang, forKey: .lang)
         case let .recentOpens(limit):
             try c.encode(limit, forKey: .limit)
+        case let .storage(path, limit):
+            try c.encode(path, forKey: .path)
+            try c.encode(limit, forKey: .limit)
+        case let .background(paused):
+            try c.encode(paused, forKey: .paused)
         case .ping, .status, .refresh, .roots, .stats, .shutdown, .drives, .contentStatus, .updateContent, .valueCounts,
              .clearOpens, .exclusions:
             break
@@ -711,26 +722,35 @@ public enum Wire {
         public var roots: [String]
         /// Larger files are not read.
         public var maxBytes: UInt64
+        /// Source code is left out of content search.
+        public var skipCode: Bool
 
-        public init(roots: [String], maxBytes: UInt64) {
+        public init(roots: [String], maxBytes: UInt64, skipCode: Bool = false) {
             self.roots = roots
             self.maxBytes = maxBytes
+            self.skipCode = skipCode
         }
 
-        /// `~/Documents`, `~/Desktop`, `~/Downloads`; 20 MB (as laserdot-core).
+        /// The home folder; 20 MB (as the Go daemon's default, v1.23).
         public static var defaultForHome: ContentSettings {
-            let home = NSHomeDirectory()
-            return ContentSettings(
-                roots: ["Documents", "Desktop", "Downloads"].map { (home as NSString).appendingPathComponent($0) },
-                maxBytes: 20_000_000)
+            ContentSettings(roots: [NSHomeDirectory()], maxBytes: 20_000_000)
         }
 
-        enum CodingKeys: String, CodingKey { case roots, maxBytes = "max_bytes" }
+        enum CodingKeys: String, CodingKey { case roots, maxBytes = "max_bytes", skipCode = "skip_code" }
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             roots = try c.value(.roots, or: [])
             maxBytes = try c.value(.maxBytes, or: 20_000_000)
+            skipCode = try c.value(.skipCode, or: false)
+        }
+
+        /// skip_code only when set, so older daemons see what they know.
+        public func encode(to encoder: Encoder) throws {
+            var c = encoder.container(keyedBy: CodingKeys.self)
+            try c.encode(roots, forKey: .roots)
+            try c.encode(maxBytes, forKey: .maxBytes)
+            if skipCode { try c.encode(true, forKey: .skipCode) }
         }
     }
 
@@ -742,8 +762,10 @@ public enum Wire {
         public var skipped: UInt64
         /// Files waiting to be (re)indexed.
         public var pending: UInt64
+        /// content.db's size on disk.
+        public var bytes: UInt64
 
-        enum CodingKeys: String, CodingKey { case settings, documents, skipped, pending }
+        enum CodingKeys: String, CodingKey { case settings, documents, skipped, pending, bytes }
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -751,6 +773,35 @@ public enum Wire {
             documents = try c.value(.documents, or: 0)
             skipped = try c.value(.skipped, or: 0)
             pending = try c.value(.pending, or: 0)
+            bytes = try c.value(.bytes, or: 0)
+        }
+    }
+
+    /// `storage`: a folder's entries by total size.
+    public struct StorageItem: Decodable, Sendable, Hashable {
+        public var path: String
+        public var name: String
+        public var isDir: Bool
+        public var bytes: UInt64
+        public var files: UInt64
+
+        enum CodingKeys: String, CodingKey { case path, name, isDir = "is_dir", bytes, files }
+    }
+
+    public struct StorageReport: Decodable, Sendable {
+        public var path: String
+        public var bytes: UInt64
+        public var files: UInt64
+        public var items: [StorageItem]
+
+        enum CodingKeys: String, CodingKey { case path, bytes, files, items }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            path = try c.value(.path, or: "")
+            bytes = try c.value(.bytes, or: 0)
+            files = try c.value(.files, or: 0)
+            items = try c.value(.items, or: [])
         }
     }
 

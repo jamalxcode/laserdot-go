@@ -18,6 +18,8 @@ struct LaserdotApp: App {
             MainWindow(delegate: delegate, updates: delegate.updates)
                 .environment(\.layoutDirection, appLayoutDirection)
         }
+        // laserdot:// links are handled by the app delegate, not new windows.
+        .handlesExternalEvents(matching: [])
         .defaultSize(width: 860, height: 600)
         .commands { LaserdotCommands(delegate: delegate, updates: delegate.updates) }
 
@@ -26,8 +28,10 @@ struct LaserdotApp: App {
                 .environment(\.layoutDirection, appLayoutDirection)
         }
 
-        MenuBarExtra("Laserdot", systemImage: "scope") {
+        MenuBarExtra {
             StatusMenu(delegate: delegate, updates: delegate.updates)
+        } label: {
+            Image(nsImage: menuBarIcon)
         }
     }
 }
@@ -48,6 +52,7 @@ struct StatusMenu: View {
         Button(L("menu.index")) { delegate.chooseFolder() }
         Button(L("menu.duplicates")) { delegate.showDuplicates() }
             .disabled(!delegate.dupesAvailable)
+        Button(L("menu.storage")) { delegate.showStorage() }
         if let drives = delegate.drives {
             DrivesMenu(model: drives)
         }
@@ -170,6 +175,9 @@ struct LaserdotCommands: Commands {
                 .keyboardShortcut("u", modifiers: [.command, .shift])
         }
         CommandMenu(L("menu.library")) {
+            Button(L("menu.storage")) { delegate.showStorage() }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
+            Divider()
             if let drives = delegate.drives {
                 DrivesMenu(model: drives)
             }
@@ -258,6 +266,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         updates.startDailyChecks()
         openAtLoginByDefault()
         noteVersion()
+        power = PowerWatcher { [weak engine] pause in
+            DispatchQueue.global().async { engine?.setBackground(paused: pause) }
+        }
+    }
+
+    private var power: PowerWatcher?
+    private(set) var duplicatesModel: DuplicatesModel?
+    private var storageWindow: NSWindow?
+    private(set) var storageModel: StorageModel?
+
+    /// Library ▸ Storage: what fills the disk.
+    func showStorage() {
+        guard let engine else { return }
+        if storageWindow == nil {
+            let model = StorageModel(engine: engine)
+            storageModel = model
+            let w = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 680, height: 560),
+                styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
+            w.title = L("menu.storageTitle")
+            w.isReleasedWhenClosed = false
+            w.contentMinSize = NSSize(width: 520, height: 380)
+            w.contentView = NSHostingView(rootView: StorageView(model: model).environment(\.layoutDirection, appLayoutDirection))
+            w.center()
+            w.setFrameAutosaveName("Storage")
+            storageWindow = w
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        storageWindow?.makeKeyAndOrderFront(nil)
+        storageModel?.load()
+    }
+
+    /// laserdot:// links (Shortcuts' "Open URL", Terminal's `open`):
+    ///   laserdot://search?q=photos%20last%20week   the overlay with that search
+    ///   laserdot://storage   laserdot://duplicates   laserdot://settings
+    func application(_ application: NSApplication, open urls: [URL]) {
+        urls.forEach { _ = handle($0) }
+    }
+
+    @discardableResult
+    func handle(_ url: URL) -> Bool {
+        guard url.scheme == "laserdot" else { return false }
+        switch url.host ?? "" {
+        case "search":
+            let q = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "q" }?.value ?? ""
+            overlay?.show()
+            model?.query = q
+        case "storage": showStorage()
+        case "duplicates": showDuplicates()
+        case "settings": showSettings()
+        default: return false
+        }
+        return true
     }
 
     /// Laserdot opens at login unless the user turns it off: an index that
@@ -369,6 +430,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func commands() -> [ActionItem] {
         var list: [ActionItem] = [
             ActionItem(id: "dupes", title: L("menu.duplicates"), symbol: "square.on.square") { [weak self] in self?.showDuplicates() },
+            ActionItem(id: "storage", title: L("menu.storage"), symbol: "chart.bar.xaxis", shortcut: "⇧⌘S") { [weak self] in self?.showStorage() },
             ActionItem(id: "index", title: L("menu.index"), symbol: "folder.badge.plus", shortcut: "⌘O") { [weak self] in self?.chooseFolder() },
             ActionItem(id: "syntax", title: L("menu.syntax"), symbol: "questionmark.circle", shortcut: "⌘/") { [weak self] in
                 self?.model?.showCheatSheet = true
@@ -432,7 +494,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             w.title = L("dupes.title")
             w.isReleasedWhenClosed = false
             w.contentMinSize = NSSize(width: 560, height: 380)
-            w.contentView = NSHostingView(rootView: DuplicatesView(model: DuplicatesModel(engine: engine))
+            let model = DuplicatesModel(engine: engine)
+            duplicatesModel = model
+            w.contentView = NSHostingView(rootView: DuplicatesView(model: model)
                 .environment(\.layoutDirection, appLayoutDirection))
             w.center()
             w.setFrameAutosaveName("Duplicates") // reopen where the user left it
@@ -642,6 +706,14 @@ final class ContentModel: ObservableObject {
         }
     }
 
+    func setSkipCode(_ skip: Bool) {
+        let engine = self.engine
+        queue.async { [weak self] in
+            let info = try? engine.setContentSkipCode(skip)
+            DispatchQueue.main.async { self?.info = info ?? self?.info }
+        }
+    }
+
     func addFolder() {
         NSApp.activate(ignoringOtherApps: true)
         let panel = NSOpenPanel()
@@ -679,3 +751,26 @@ struct ContentMenu: View {
         }
     }
 }
+
+/// The menu-bar icon: a laser dot in a ring with four ticks, drawn as a
+/// template so it follows the menu bar's light and dark look.
+let menuBarIcon: NSImage = {
+    let img = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { r in
+        NSColor.black.set()
+        let ring = NSBezierPath(ovalIn: r.insetBy(dx: 3.5, dy: 3.5))
+        ring.lineWidth = 1.5
+        ring.stroke()
+        NSBezierPath(ovalIn: NSRect(x: 6.75, y: 6.75, width: 4.5, height: 4.5)).fill()
+        let ticks = NSBezierPath()
+        ticks.lineWidth = 1.5
+        for (from, to) in [((9.0, 0.5), (9.0, 3.5)), ((9.0, 14.5), (9.0, 17.5)), ((0.5, 9.0), (3.5, 9.0)), ((14.5, 9.0), (17.5, 9.0))] {
+            ticks.move(to: NSPoint(x: from.0, y: from.1))
+            ticks.line(to: NSPoint(x: to.0, y: to.1))
+        }
+        ticks.stroke()
+        return true
+    }
+    img.isTemplate = true
+    img.accessibilityDescription = "Laserdot"
+    return img
+}()
