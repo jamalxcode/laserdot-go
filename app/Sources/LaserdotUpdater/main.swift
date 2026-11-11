@@ -37,9 +37,23 @@ final class RedirectGuard: NSObject, URLSessionTaskDelegate {
 
 let session = URLSession(configuration: .ephemeral, delegate: RedirectGuard(), delegateQueue: nil)
 
+/// Refuses every redirect, so the answer's Location header can be read.
+final class NoRedirects: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
+        completionHandler(nil)
+    }
+}
+
+let probeSession = URLSession(configuration: .ephemeral, delegate: NoRedirects(), delegateQueue: nil)
+
 struct HTTPError: Error, LocalizedError {
     let status: Int
-    var errorDescription: String? { "GitHub answered HTTP \(status)." }
+    var errorDescription: String? {
+        status == 403 || status == 429
+            ? "GitHub is limiting requests from your network right now. Laserdot will try again later."
+            : "GitHub answered HTTP \(status)."
+    }
 }
 
 func request(_ url: URL, accept: String) -> URLRequest {
@@ -82,14 +96,39 @@ func download(_ r: URLRequest, to dest: URL) throws {
     if let failure { throw failure }
 }
 
+/// The newest release's version, from where github.com/<repo>/releases/latest
+/// redirects (…/releases/tag/v0.2.7). This is the ordinary web page, so it is
+/// not subject to the API's 60-requests-an-hour limit for anonymous clients,
+/// which a shared network address can use up.
+func latestFromWeb() throws -> String {
+    let url = URL(string: "https://github.com/\(repo)/releases/latest")!
+    let done = DispatchSemaphore(value: 0)
+    var result: Result<String, Error> = .failure(HTTPError(status: 0))
+    probeSession.dataTask(with: request(url, accept: "text/html")) { _, response, error in
+        defer { done.signal() }
+        if let error { result = .failure(error); return }
+        let http = response as? HTTPURLResponse
+        let status = http?.statusCode ?? 0
+        guard (300..<400).contains(status), let loc = http?.value(forHTTPHeaderField: "Location"),
+              let target = URL(string: loc, relativeTo: url), target.host == "github.com",
+              target.path.hasPrefix("/\(repo)/releases/tag/") else {
+            result = .failure(HTTPError(status: status))
+            return
+        }
+        result = .success(target.lastPathComponent)
+    }.resume()
+    done.wait()
+    return try result.get()
+}
+
+/// The API's answer (the fallback): the newest release's tag.
+func latestFromAPI() throws -> String {
+    let api = URL(string: "https://\(apiHost)/repos/\(repo)/releases/latest")!
+    return try JSONDecoder().decode(Release.self, from: fetch(request(api, accept: "application/vnd.github+json"))).tag_name
+}
+
 struct Release: Decodable {
-    struct Asset: Decodable {
-        let name: String
-        let size: Int
-        let browser_download_url: URL
-    }
     let tag_name: String
-    let assets: [Asset]
 }
 
 // MARK: main
@@ -124,23 +163,29 @@ guard let current = AppVersion(bundle: appURL) else {
 }
 
 do {
-    let api = URL(string: "https://\(apiHost)/repos/\(repo)/releases/latest")!
-    let rel = try JSONDecoder().decode(Release.self, from: fetch(request(api, accept: "application/vnd.github+json")))
-    let latest = rel.tag_name.hasPrefix("v") ? String(rel.tag_name.dropFirst()) : rel.tag_name
+    let tag: String
+    do {
+        tag = try latestFromWeb()
+    } catch {
+        tag = try latestFromAPI()
+    }
+    let latest = tag.hasPrefix("v") ? String(tag.dropFirst()) : tag
+    guard !latest.isEmpty, latest.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" }) else {
+        finish(UpdateStatus(state: .failed, message: "GitHub named an unexpected release: \(tag)"))
+    }
     guard AppVersion(short: current.short, build: "0") < AppVersion(short: latest, build: "0") else {
         finish(UpdateStatus(state: .upToDate, latest: latest))
     }
-    guard let asset = rel.assets.first(where: { $0.name.lowercased().hasPrefix("laserdot") && $0.name.lowercased().hasSuffix(".dmg") }),
-          asset.browser_download_url.scheme == "https", let h = asset.browser_download_url.host, allowedHosts.contains(h),
-          !asset.name.contains("/") else {
-        finish(UpdateStatus(state: .failed, latest: latest, message: "release \(rel.tag_name) has no Laserdot .dmg"))
-    }
+    // The Release workflow names the disk image Laserdot-<version>.dmg.
+    let name = "Laserdot-\(latest).dmg"
+    let url = URL(string: "https://github.com/\(repo)/releases/download/v\(latest)/\(name)")!
     let folder = UpdateStatus.downloadsFolder
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-    let dest = folder.appendingPathComponent(asset.name)
-    let have = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int) ?? nil
-    if have != asset.size {
-        try download(request(asset.browser_download_url, accept: "application/octet-stream"), to: dest)
+    let dest = folder.appendingPathComponent(name)
+    // A download is moved into place only once complete, so a file that is
+    // there is whole; Laserdot checks it again before installing.
+    if !FileManager.default.fileExists(atPath: dest.path) {
+        try download(request(url, accept: "application/octet-stream"), to: dest)
     }
     finish(UpdateStatus(state: .downloaded, latest: latest, file: dest.path))
 } catch {

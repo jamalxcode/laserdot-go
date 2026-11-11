@@ -35,7 +35,7 @@ iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 
 # The updater helper: its own small app, so macOS (not Laserdot) launches it.
 HELPER="$APP/Contents/Helpers/Laserdot Updater.app"
-mkdir -p "$HELPER/Contents/MacOS"
+mkdir -p "$HELPER/Contents/MacOS" "$HELPER/Contents/Resources"
 cp "$BIN/LaserdotUpdater" "$HELPER/Contents/MacOS/LaserdotUpdater"
 cat > "$HELPER/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -50,10 +50,11 @@ cat > "$HELPER/Contents/Info.plist" <<PLIST
     <key>CFBundleVersion</key><string>$BUILD</string>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSUIElement</key><true/>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
 </dict>
 </plist>
 PLIST
-cp "$APP/Contents/Resources/AppIcon.icns" "$HELPER/Contents/Resources/AppIcon.icns" 2>/dev/null || true
+cp "$APP/Contents/Resources/AppIcon.icns" "$HELPER/Contents/Resources/AppIcon.icns"
 
 codesign --force --deep --sign - "$APP"
 codesign --verify --deep --strict "$APP"

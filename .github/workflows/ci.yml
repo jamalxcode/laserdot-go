@@ -73,6 +73,19 @@ jobs:
           pkill -f "$d/Laserdot.app/Contents/MacOS/laserdotd" || true
           cat "$d/app.log"
           echo "Laserdot.app launched and kept running"
+      - name: The updater finds and downloads the newest release (no token, no API)
+        run: |
+          d=$(mktemp -d)
+          mkdir -p "$d/Old.app/Contents"
+          printf '<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleShortVersionString</key><string>0.0.1</string><key>CFBundleVersion</key><string>1</string></dict></plist>' > "$d/Old.app/Contents/Info.plist"
+          status="$HOME/Library/Application Support/laserdot/update.json"
+          rm -f "$status"
+          "app/build/Laserdot.app/Contents/Helpers/Laserdot Updater.app/Contents/MacOS/LaserdotUpdater" --app "$d/Old.app"
+          cat "$status"; echo
+          grep -q '"state" *: *"downloaded"' "$status"
+          f=$(plutil -extract file raw "$status")
+          test -s "$f" && hdiutil imageinfo "$f" >/dev/null && echo "downloaded a valid disk image: $f"
+          test -f "app/build/Laserdot.app/Contents/Helpers/Laserdot Updater.app/Contents/Resources/AppIcon.icns"
       - uses: actions/upload-artifact@v4
         with:
           name: Laserdot-unsigned
