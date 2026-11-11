@@ -76,6 +76,8 @@ const (
 	OpLoudness  = "loudness"
 	// OpStorage lists a folder's entries by size (Path; "" = indexed folders).
 	OpStorage = "storage"
+	// OpSnippet: the passage of Path where the words of Query were found.
+	OpSnippet = "snippet"
 	// OpBackground pauses or resumes background work (Paused): the app pauses
 	// it on battery, when the Mac is hot, or in Low Power Mode.
 	OpBackground = "background"

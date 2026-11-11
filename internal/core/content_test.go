@@ -210,3 +210,22 @@ func TestContentIncrementalUpdates(t *testing.T) {
 	expect(t, cnames(t, l.ld, "annual"))
 	expect(t, cnames(t, l.ld, "invoice"), "main.rs")
 }
+
+// The preview of a content match shows the line with the words.
+func TestSnippet(t *testing.T) {
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(dir, "home")
+	write(t, root, "notes.txt", "Shopping list\nThe quarterly report is due in March.\nOther things\n")
+	ld, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	got := ld.Snippet(filepath.Join(root, "notes.txt"), []string{"QUARTERLY", "march"})
+	if got != "The quarterly report is due in March." {
+		t.Errorf("snippet: %q", got)
+	}
+	if ld.Snippet(filepath.Join(root, "notes.txt"), []string{"absent"}) != "" {
+		t.Error("no words, no snippet")
+	}
+}

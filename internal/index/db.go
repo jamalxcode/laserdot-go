@@ -161,7 +161,7 @@ func isEncryptedFile(path string) bool {
 }
 
 func openConn(path, mount string) (*Db, error) {
-	dsn := "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)"
+	dsn := "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=cache_size(-65536)"
 	if mount != "" {
 		// A drive's index is input from outside this Mac: no trust.
 		dsn += "&_pragma=trusted_schema(OFF)&_pragma=cell_size_check(ON)"
@@ -546,26 +546,64 @@ func (d *Db) InsertChunk(rootID, base int64, entries []scan.Entry, start int, pr
 	if err := invalidateSnapshot(tx); err != nil {
 		return err
 	}
+	// Rows go in batchRows at a time: one statement per batch instead of one
+	// per row (the per-call cost of database/sql dominated a first index).
+	batch, err := tx.Prepare(insertBatchSQL)
+	if err != nil {
+		return err
+	}
+	defer batch.Close()
 	stmt, err := tx.Prepare(insertSQL)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	for k, p := range probes {
-		i := start + k
-		e := &entries[i]
-		var parent any
-		name := filepath.Base(e.Path)
-		if e.Parent < 0 {
-			name = rootName
-		} else {
-			parent = base + int64(e.Parent)
+	args := make([]any, 0, batchRows*insertCols)
+	for k := 0; k < len(probes); {
+		if len(probes)-k >= batchRows {
+			args = args[:0]
+			for j := 0; j < batchRows; j++ {
+				args = append(args, d.rowArgs(rootID, base, rootName, entries, start+k+j, probes[k+j])...)
+			}
+			if _, err := batch.Exec(args...); err != nil {
+				return err
+			}
+			k += batchRows
+			continue
 		}
-		if err := insertRow(stmt, base+int64(i), rootID, parent, name, e, p); err != nil {
+		if _, err := stmt.Exec(d.rowArgs(rootID, base, rootName, entries, start+k, probes[k])...); err != nil {
 			return err
 		}
+		k++
 	}
 	return tx.Commit()
+}
+
+const (
+	batchRows  = 64
+	insertCols = 17
+)
+
+var insertBatchSQL = func() string {
+	row := "(" + strings.TrimSuffix(strings.Repeat("?,", insertCols), ",") + ")"
+	rows := strings.TrimSuffix(strings.Repeat(row+",", batchRows), ",")
+	return `INSERT INTO entries (id, root, parent, name, is_dir, is_symlink, dataless, size, mtime, ctime,
+	inode, dev, probe, width, height, media, tags) VALUES ` + rows
+}()
+
+// rowArgs: the insert values of entries[i].
+func (d *Db) rowArgs(rootID, base int64, rootName string, entries []scan.Entry, i int, p Probe) []any {
+	e := &entries[i]
+	var parent any
+	name := filepath.Base(e.Path)
+	if e.Parent < 0 {
+		name = rootName
+	} else {
+		parent = base + int64(e.Parent)
+	}
+	code, w, h, blob := storedCode(e, p)
+	return []any{base + int64(i), rootID, parent, name, e.IsDir, e.IsSymlink, e.Dataless, int64(e.Size), e.Modified,
+		e.Created, int64(e.Inode), int64(e.Dev), code, w, h, blob, tagsText(e.Tags)}
 }
 
 // FinishRoot marks a root's first index complete.

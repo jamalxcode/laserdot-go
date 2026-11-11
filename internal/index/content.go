@@ -99,6 +99,18 @@ func ExtractText(path string, kind ContentType) (string, bool) {
 	return text, true
 }
 
+// RawText reads a document's text as written (not folded), for showing a
+// passage of it; ok is false for binary or unreadable files.
+func RawText(path string, kind ContentType) (string, bool) {
+	switch kind {
+	case ContentText:
+		return readText(path)
+	case ContentPDF:
+		return readPDF(path)
+	}
+	return "", false
+}
+
 func readText(path string) (string, bool) {
 	f, err := os.Open(path)
 	if err != nil {
