@@ -76,9 +76,12 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
     func show(_ urls: [URL], at index: Int) {
         guard !urls.isEmpty, let panel = QLPreviewPanel.shared() else { return }
         items = urls
+        NSApp.activate(ignoringOtherApps: true)
+        // Ask the panel to find its controller again (the app delegate): a
+        // panel that was closed keeps a stale one and would not reopen.
+        panel.updateController()
         panel.dataSource = self
         panel.delegate = self
-        NSApp.activate(ignoringOtherApps: true)
         panel.reloadData()
         panel.currentPreviewItemIndex = max(0, min(index, urls.count - 1))
         if !panel.isVisible { panel.makeKeyAndOrderFront(nil) }
@@ -87,7 +90,9 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
     func show(_ url: URL) { show([url], at: 0) }
 
     func close() {
-        if isVisible { QLPreviewPanel.shared().orderOut(nil) }
+        // close(), not orderOut: the panel then ends its controller properly,
+        // so the next Space can open it again.
+        if isVisible { QLPreviewPanel.shared().close() }
         onClose?()
     }
 
