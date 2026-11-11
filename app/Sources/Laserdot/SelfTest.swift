@@ -218,28 +218,31 @@ final class SelfTestRunner {
     private func capture(_ name: String, model: SearchModel, window: NSWindow) {
         var labels: [String] = []
         if let v = window.contentView { collect(v, depth: 0, into: &labels) }
-        steps.append([
-            "name": name,
-            "query": model.query,
-            "hint": model.hint ?? "",
-            "sections": model.sections.map { ["title": $0.title, "count": $0.range.count] },
-            "results": model.results.map(\.name),
-            "selected": model.selected?.name ?? "",
-            "chips": model.completionChips.map(\.label) + model.kindChips.map(\.title),
-            "compact": model.compact,
-            "commands": model.isCommandMode ? model.commandEntries.map(\.title) : [],
-            "actions": model.showActions ? model.actions.map(\.title) : [],
-            "highlight": model.highlightWords,
-            "visible_hint": model.visibleHint ?? "",
-            "browsing": model.browsing,
-            "similar": model.similarOnly,
-            "quicklook": QuickLook.shared.isVisible,
-            "space_presses": model.spacePresses,
-            "quicklook_shows": QuickLook.shared.shows,
-            "key_window_is_overlay": NSApp.keyWindow === window,
-            "key_window": NSApp.keyWindow.map { String(describing: type(of: $0)) } ?? "none",
-            "accessibility": labels,
-        ])
+        // Built field by field: one big literal is too slow to type-check.
+        var r: [String: Any] = [:]
+        r["name"] = name
+        r["query"] = model.query
+        r["hint"] = model.hint ?? ""
+        r["sections"] = model.sections.map { s -> [String: Any] in ["title": s.title, "count": s.range.count] }
+        r["results"] = model.results.map(\.name)
+        r["selected"] = model.selected?.name ?? ""
+        let chips: [String] = model.completionChips.map(\.label) + model.kindChips.map(\.title)
+        r["chips"] = chips
+        r["compact"] = model.compact
+        r["commands"] = model.isCommandMode ? model.commandEntries.map(\.title) : [String]()
+        r["actions"] = model.showActions ? model.actions.map(\.title) : [String]()
+        r["highlight"] = model.highlightWords
+        r["visible_hint"] = model.visibleHint ?? ""
+        r["browsing"] = model.browsing
+        r["similar"] = model.similarOnly
+        r["quicklook"] = QuickLook.shared.isVisible
+        r["space_presses"] = model.spacePresses
+        r["quicklook_shows"] = QuickLook.shared.shows
+        r["key_window_is_overlay"] = NSApp.keyWindow === window
+        let keyWindow: String = NSApp.keyWindow.map { String(describing: type(of: $0)) } ?? "none"
+        r["key_window"] = keyWindow
+        r["accessibility"] = labels
+        steps.append(r)
         screenshot(window, name: name)
     }
 
