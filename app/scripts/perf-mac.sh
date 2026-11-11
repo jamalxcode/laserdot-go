@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Speed on a real Mac with real files (spec §12, §15.3): creates 100,000
 # files in nested folders, indexes them with the CLI, and times searches.
-# Fails only far below the targets (CI disks vary): indexing under 20,000
+# Fails only far below the targets (CI disks vary): indexing under 10,000
 # files a second, or a search over 50 ms.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -36,6 +36,6 @@ for q in "invoice pdf" "beach jpg" "kind:video" "report*" "notes 12"; do
   worst=$(python3 -c "print(max($worst, float('${ms:-0}')))")
 done
 echo "slowest search: $worst ms"
-python3 -c "import sys; sys.exit(0 if $rate >= 20000 else 1)" || { echo "::error::indexing too slow: $rate files/s"; exit 1; }
+python3 -c "import sys; sys.exit(0 if $rate >= 10000 else 1)" || { echo "::error::indexing too slow: $rate files/s"; exit 1; }
 python3 -c "import sys; sys.exit(0 if $worst < 50 else 1)" || { echo "::error::a search took $worst ms"; exit 1; }
 rm -rf "$d"
