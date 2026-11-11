@@ -363,7 +363,8 @@ final class SelfTestRunner {
         r["sizes"] = model.results.map { Int($0.size) }
         r["selected_count"] = model.selectedHits.count
         r["section_ids"] = model.sections.map(\.id)
-        r["paths"] = model.results.map { $0.path.replacingOccurrences(of: folder, with: "") }
+        let real = realpath(folder, nil).map { p in defer { free(p) }; return String(cString: p) } ?? folder // /var → /private/var
+        r["paths"] = model.results.map { $0.path.replacingOccurrences(of: real, with: "").replacingOccurrences(of: folder, with: "") }
         r["undo"] = model.undoStep?.title ?? ""
         r["undo_banner"] = model.undoBannerVisible
         r["snippet"] = model.snippet ?? ""

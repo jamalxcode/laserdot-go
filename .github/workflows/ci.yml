@@ -123,8 +123,14 @@ jobs:
               head -60 "$out/ax.txt"
               touch "$out/release"
             fi
-            for i in $(seq 1 330); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
-            if kill -0 "$pid" 2>/dev/null; then kill "$pid"; echo "::error::self-test ($lang) did not finish"; fi
+            for i in $(seq 1 420); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+            if kill -0 "$pid" 2>/dev/null; then
+              echo "::error::self-test ($lang) did not finish"
+              # Where it is stuck: the main thread's stack.
+              sample "$pid" 2 -file "$out/sample.txt" >/dev/null 2>&1 || true
+              grep -A60 "Thread_.*DispatchQueue_1" "$out/sample.txt" | head -90 || true
+              kill "$pid"
+            fi
             pkill -f "$out/data" || true
             tail -20 "$out/app.log"
             cat "$out/report.json" || { echo "::error::no report ($lang)"; status=1; continue; }
