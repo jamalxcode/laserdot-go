@@ -678,7 +678,7 @@ struct MediaPreview: View {
     var body: some View {
         VStack {
             if let player {
-                VideoPlayer(player: player)
+                PlayerView(player: player)
             } else {
                 Color.black.opacity(0.05)
             }
@@ -689,6 +689,31 @@ struct MediaPreview: View {
             player = AVPlayer(url: URL(fileURLWithPath: path))
         }
         .onDisappear { player?.pause() }
+    }
+}
+
+/// AppKit's player view. SwiftUI's VideoPlayer crashed in apps built with
+/// SwiftPM (its _AVKit_SwiftUI overlay could not find AVKit's classes:
+/// "getSuperclassMetadata" at the first video preview); AVPlayerView links
+/// AVKit directly.
+struct PlayerView: NSViewRepresentable {
+    let player: AVPlayer
+
+    func makeNSView(context: Context) -> AVPlayerView {
+        let v = AVPlayerView()
+        v.controlsStyle = .inline
+        v.showsFullScreenToggleButton = true
+        v.player = player
+        return v
+    }
+
+    func updateNSView(_ v: AVPlayerView, context: Context) {
+        if v.player !== player { v.player = player }
+    }
+
+    static func dismantleNSView(_ v: AVPlayerView, coordinator: ()) {
+        v.player?.pause()
+        v.player = nil
     }
 }
 

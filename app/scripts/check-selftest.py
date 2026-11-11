@@ -24,7 +24,7 @@ def check(ok, what):
 
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
-for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "similar", "home"):
+for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -103,6 +103,10 @@ if os.path.exists(ax_file):
     else:
         check("beach.jpg" in ax, "VoiceOver can read the beach.jpg row")
         check("jpg notes.txt" not in ax, "VoiceOver reads no stale rows")
+
+# Videos and songs: selected and previewed with a player, without a crash.
+check(steps["video"]["selected"] == "clip.mp4", f"the video is selected and previewed (got {steps['video']['selected']!r})")
+check(steps["song"]["selected"] == "song.mp3", f"the song is selected and previewed (got {steps['song']['selected']!r})")
 
 # The empty box shows what was opened.
 home = steps["home"]

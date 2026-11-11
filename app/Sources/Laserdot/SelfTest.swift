@@ -76,6 +76,9 @@ final class SelfTestRunner {
             // (The key path itself is the "space" step; a second posted key
             // event can be lost in CI, so this one asks the field's handler.)
             Step(name: "spacespace", typed: "jpg ", after: { _ = model.spaceKey() }),
+            // A video and a song: their previews play in the pane (AVKit).
+            Step(name: "video", typed: "clip"),
+            Step(name: "song", typed: "song"),
             // A swapped-letter typo finds the file, and says so.
             Step(name: "similar", typed: "pfd"),
             Step(name: "home", typed: "", before: {

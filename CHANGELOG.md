@@ -3,6 +3,10 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.6.1
+
+- Fixed: Laserdot quit when a video or song was selected (the preview's player).
+
 ## 0.6.0
 
 - Settings ▸ Folders: see every indexed folder, add or remove one, and pick folders that are never indexed.

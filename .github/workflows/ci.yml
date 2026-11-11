@@ -85,6 +85,8 @@ jobs:
           echo readme > "$fx/Projects/readme.md"
           printf '%%PDF-1.4\n%%%%EOF\n' > "$fx/project.pdf"
           echo '<plist/>' > "$fx/Tool.app/Contents/Info.plist"
+          cp internal/media/testdata/dupes/clip.mp4 "$fx/clip.mp4"
+          cp internal/media/testdata/song.mp3 "$fx/song.mp3"
           status=0
           for lang in en ar; do
             out="$(mktemp -d)"
