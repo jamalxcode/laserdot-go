@@ -12,8 +12,8 @@
     <key>CFBundleDevelopmentRegion</key><string>en</string>
     <key>CFBundleLocalizations</key><array><string>en</string><string>ar</string></array>
     <key>LSMinimumSystemVersion</key><string>14.0</string>
-    <!-- menu-bar app: no Dock icon -->
-    <key>LSUIElement</key><true/>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>NSPrincipalClass</key><string>NSApplication</string>
     <key>NSHumanReadableCopyright</key><string>No network. No telemetry. No AI.</string>
 </dict>
 </plist>

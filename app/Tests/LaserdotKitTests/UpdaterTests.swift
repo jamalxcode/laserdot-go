@@ -1,0 +1,138 @@
+import Foundation
+@testable import LaserdotKit
+import XCTest
+
+/// The offline half of updating (spec §7.4): finding, unpacking, checking
+/// and installing a downloaded Laserdot. The network half lives in the
+/// Laserdot Updater helper.
+final class UpdaterTests: XCTestCase {
+    private var dir: URL!
+
+    override func setUpWithError() throws {
+        dir = FileManager.default.temporaryDirectory.appendingPathComponent("updater-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(at: dir)
+    }
+
+    /// A minimal Laserdot.app at `parent/name`.
+    @discardableResult
+    private func fakeApp(_ parent: URL, version: String, build: String = "1", id: String = "app.laserdot.Laserdot",
+                         daemon: Bool = true, name: String = "Laserdot.app") throws -> URL {
+        let app = parent.appendingPathComponent(name)
+        let macos = app.appendingPathComponent("Contents/MacOS")
+        try FileManager.default.createDirectory(at: macos, withIntermediateDirectories: true)
+        let info: [String: Any] = ["CFBundleIdentifier": id, "CFBundleShortVersionString": version,
+                                   "CFBundleVersion": build, "CFBundleExecutable": "Laserdot"]
+        let data = try PropertyListSerialization.data(fromPropertyList: info, format: .xml, options: 0)
+        try data.write(to: app.appendingPathComponent("Contents/Info.plist"))
+        for exe in daemon ? ["Laserdot", "laserdotd"] : ["Laserdot"] {
+            let f = macos.appendingPathComponent(exe)
+            try Data("#!/bin/sh\n".utf8).write(to: f)
+            try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: f.path)
+        }
+        return app
+    }
+
+    private func zip(_ app: URL, to out: URL) throws {
+        try Updater.run("/usr/bin/ditto", ["-c", "-k", "--keepParent", app.path, out.path])
+    }
+
+    func testVersionsCompareNumerically() {
+        XCTAssertLessThan(AppVersion(short: "0.9.3", build: "9"), AppVersion(short: "0.10.0", build: "1"))
+        XCTAssertLessThan(AppVersion(short: "1.2", build: "3"), AppVersion(short: "1.2.0", build: "4"))
+        XCTAssertEqual(AppVersion(short: "1.2", build: "3"), AppVersion(short: "1.2.0", build: "3"))
+        XCTAssertFalse(AppVersion(short: "2.0.0", build: "1") < AppVersion(short: "1.9.9", build: "99"))
+    }
+
+    func testFindsLaserdotDownloadsNewestFirst() throws {
+        let dl = dir.appendingPathComponent("Downloads")
+        try FileManager.default.createDirectory(at: dl, withIntermediateDirectories: true)
+        for (n, age) in [("Laserdot-0.2.0.dmg", 100.0), ("Laserdot-0.3.0.dmg", 10.0), ("other.dmg", 1.0), ("Laserdot.txt", 1.0)] {
+            let f = dl.appendingPathComponent(n)
+            try Data().write(to: f)
+            try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-age)], ofItemAtPath: f.path)
+        }
+        XCTAssertEqual(Updater.downloads(in: dl).map(\.lastPathComponent), ["Laserdot-0.3.0.dmg", "Laserdot-0.2.0.dmg"])
+    }
+
+    func testPreparesFromZipDmgAndNestedZipAndRejectsOldOrForeign() throws {
+        let installed = try fakeApp(dir.appendingPathComponent("Applications"), version: "0.1.0")
+        let up = Updater(current: installed)
+        let newer = try fakeApp(dir.appendingPathComponent("new"), version: "0.2.0", build: "7")
+
+        let z = dir.appendingPathComponent("Laserdot-0.2.0.zip")
+        try zip(newer, to: z)
+        let c = try up.prepare(file: z)
+        XCTAssertEqual(c.version.description, "0.2.0 (7)")
+        XCTAssertTrue(c.unsigned)
+        up.discard(c)
+
+        // A CI artifact: a zip holding the release zip.
+        let outer = dir.appendingPathComponent("artifact")
+        try FileManager.default.createDirectory(at: outer, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: z, to: outer.appendingPathComponent("Laserdot-unsigned.zip"))
+        let nested = dir.appendingPathComponent("Laserdot-artifact.zip")
+        try Updater.run("/usr/bin/ditto", ["-c", "-k", outer.appendingPathComponent("Laserdot-unsigned.zip").path, nested.path])
+        up.discard(try up.prepare(file: nested))
+
+        let dmg = dir.appendingPathComponent("Laserdot-0.2.0.dmg")
+        try Updater.run("/usr/bin/hdiutil", ["create", "-volname", "Laserdot", "-srcfolder", newer.deletingLastPathComponent().path,
+                                            "-ov", "-format", "UDZO", dmg.path])
+        up.discard(try up.prepare(file: dmg))
+
+        let old = try fakeApp(dir.appendingPathComponent("old"), version: "0.1.0")
+        let oz = dir.appendingPathComponent("old.zip")
+        try zip(old, to: oz)
+        XCTAssertThrowsError(try up.prepare(file: oz)) { e in
+            guard case UpdateError.notNewer = e else { return XCTFail("\(e)") }
+        }
+        let other = try fakeApp(dir.appendingPathComponent("other"), version: "9.0", id: "com.example.Other")
+        let otz = dir.appendingPathComponent("other.zip")
+        try zip(other, to: otz)
+        XCTAssertThrowsError(try up.prepare(file: otz)) { e in
+            XCTAssertEqual(e as? UpdateError, .wrongApp("com.example.Other"))
+        }
+        let broken = try fakeApp(dir.appendingPathComponent("broken"), version: "3.0", daemon: false)
+        let bz = dir.appendingPathComponent("broken.zip")
+        try zip(broken, to: bz)
+        XCTAssertThrowsError(try up.prepare(file: bz)) { e in XCTAssertEqual(e as? UpdateError, .missingDaemon) }
+
+        // The newest valid download wins; the old one is skipped.
+        let dl = dir.appendingPathComponent("dl")
+        try FileManager.default.createDirectory(at: dl, withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: oz, to: dl.appendingPathComponent("Laserdot-0.1.0.zip"))
+        try FileManager.default.copyItem(at: z, to: dl.appendingPathComponent("Laserdot-0.2.0.zip"))
+        XCTAssertEqual(up.newestUpdate(in: dl)?.version.short, "0.2.0")
+    }
+
+    func testInstallReplacesTheAppAndMoveToApplicationsCopies() throws {
+        let apps = dir.appendingPathComponent("Applications")
+        let installed = try fakeApp(apps, version: "0.1.0")
+        let up = Updater(current: installed)
+        XCTAssertEqual(up.installTarget, installed.standardizedFileURL)
+        let z = dir.appendingPathComponent("u.zip")
+        try zip(try fakeApp(dir.appendingPathComponent("new"), version: "0.2.0"), to: z)
+        let target = try up.install(try up.prepare(file: z))
+        XCTAssertEqual(AppVersion(bundle: target)?.short, "0.2.0")
+        let left = try FileManager.default.contentsOfDirectory(atPath: apps.path)
+        XCTAssertEqual(left, ["Laserdot.app"], "no staging copies left behind")
+
+        let elsewhere = try fakeApp(dir.appendingPathComponent("Downloads"), version: "0.4.0")
+        let fresh = dir.appendingPathComponent("FreshApplications")
+        try FileManager.default.createDirectory(at: fresh, withIntermediateDirectories: true)
+        let moved = try Updater(current: elsewhere).moveToApplications(fresh)
+        XCTAssertEqual(AppVersion(bundle: moved)?.short, "0.4.0")
+        XCTAssertTrue(Updater(current: elsewhere).isOutsideApplications)
+    }
+
+    func testStatusRoundTrips() throws {
+        let f = dir.appendingPathComponent("update.json")
+        let s = UpdateStatus(state: .downloaded, checkedAt: Date(timeIntervalSince1970: 1_800_000_000), latest: "0.3.0", file: "/x/Laserdot-0.3.0.dmg")
+        try s.save(to: f)
+        XCTAssertEqual(UpdateStatus.load(from: f), s)
+        XCTAssertNil(UpdateStatus.load(from: dir.appendingPathComponent("missing.json")))
+    }
+}

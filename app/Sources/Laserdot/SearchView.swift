@@ -7,6 +7,8 @@ import SwiftUI
 struct SearchView: View {
     @ObservedObject var model: SearchModel
     var close: () -> Void
+    /// The hot-key overlay has a fixed size; the main window resizes.
+    var fixedSize = true
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -70,7 +72,7 @@ struct SearchView: View {
             Divider()
             footer
         }
-        .frame(width: 720, height: 480)
+        .frame(width: fixedSize ? 720 : nil, height: fixedSize ? 480 : nil)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(hiddenShortcuts)
         .onAppear { focused = true }

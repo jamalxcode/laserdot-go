@@ -11,6 +11,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "Laserdot", targets: ["Laserdot"]),
+        .executable(name: "LaserdotUpdater", targets: ["LaserdotUpdater"]),
         .library(name: "LaserdotKit", targets: ["LaserdotKit"]),
     ],
     targets: [
@@ -23,6 +24,9 @@ let package = Package(
             path: "Sources/Laserdot",
             resources: [.process("Resources")]
         ),
+        // The updater helper: the only Laserdot code allowed on the network
+        // (spec §7.4), bundled as Contents/Helpers/Laserdot Updater.app.
+        .executableTarget(name: "LaserdotUpdater", dependencies: ["LaserdotKit"], path: "Sources/LaserdotUpdater"),
         .testTarget(name: "LaserdotKitTests", dependencies: ["LaserdotKit"], path: "Tests/LaserdotKitTests"),
     ]
 )

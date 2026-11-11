@@ -30,6 +30,12 @@ jobs:
         run: app/scripts/build-go.sh
       - name: The committed registry is current
         run: git diff --exit-code app/Sources/LaserdotKit/Registry.generated.swift
+      - name: Only the updater helper may use the network (spec 7.4 exception)
+        run: |
+          if grep -rnE 'URLSession|NWConnection|CFNetwork|CFSocket|import Network' app/Sources --include='*.swift' | grep -v '^app/Sources/LaserdotUpdater/'; then
+            echo "::error::network code outside app/Sources/LaserdotUpdater"
+            exit 1
+          fi
       - name: Build the app
         working-directory: app
         run: swift build
@@ -44,7 +50,10 @@ jobs:
           test -x app/build/Laserdot.app/Contents/MacOS/Laserdot
           test -x app/build/Laserdot.app/Contents/MacOS/laserdotd
           plutil -lint app/build/Laserdot.app/Contents/Info.plist
+          test -x "app/build/Laserdot.app/Contents/Helpers/Laserdot Updater.app/Contents/MacOS/LaserdotUpdater"
+          test -f app/build/Laserdot.app/Contents/Resources/AppIcon.icns
           ditto -c -k --keepParent app/build/Laserdot.app Laserdot-unsigned.zip
+          app/scripts/make-dmg.sh "$PWD/Laserdot.dmg"
       - name: Launch the bundled app, as a user would (smoke test)
         run: |
           d=$(mktemp -d)
@@ -65,4 +74,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Laserdot-unsigned
-          path: Laserdot-unsigned.zip
+          path: |
+            Laserdot-unsigned.zip
+            Laserdot.dmg

@@ -1,0 +1,53 @@
+name: Release
+# Push a tag like v0.2.0 (or run this by hand with a version) to build
+# Laserdot.app, pack it as Laserdot-<version>.dmg, check that it launches,
+# and publish it as a GitHub release (where the Laserdot Updater finds it).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version, e.g. 0.2.0'
+        required: true
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Version
+        id: v
+        run: |
+          v="${{ github.event.inputs.version }}"
+          [ -n "$v" ] || v="${GITHUB_REF_NAME#v}"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+      - name: Build
+        run: |
+          app/scripts/build-go.sh
+          VERSION=${{ steps.v.outputs.version }} BUILD=${{ github.run_number }} app/scripts/bundle.sh
+          app/scripts/make-dmg.sh "$PWD/Laserdot-${{ steps.v.outputs.version }}.dmg"
+      - name: The packaged app launches (from the disk image, as a user would)
+        run: |
+          d=$(mktemp -d)
+          hdiutil attach -nobrowse -readonly -mountpoint "$d/mnt" "Laserdot-${{ steps.v.outputs.version }}.dmg"
+          ditto "$d/mnt/Laserdot.app" "$d/Laserdot.app"
+          hdiutil detach "$d/mnt"
+          export LASERDOT_DB="$d/data/index.db"
+          "$d/Laserdot.app/Contents/MacOS/Laserdot" > "$d/app.log" 2>&1 &
+          pid=$!
+          sleep 8
+          kill -0 "$pid" || { cat "$d/app.log"; echo "::error::Laserdot.app exited at launch"; exit 1; }
+          kill "$pid"
+          pkill -f "$d/Laserdot.app/Contents/MacOS/laserdotd" || true
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v=${{ steps.v.outputs.version }}
+          git tag -f "v$v" && git push -f origin "v$v" 2>/dev/null || true
+          gh release create "v$v" "Laserdot-$v.dmg" --title "Laserdot $v" --notes "Open the disk image and drag Laserdot to Applications. The first time, right-click Laserdot → Open (the app is not notarized yet). Later versions install themselves from Laserdot → Check for Updates…" || gh release upload "v$v" "Laserdot-$v.dmg" --clobber

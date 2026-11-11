@@ -3,36 +3,132 @@ import Carbon.HIToolbox
 import LaserdotKit
 import SwiftUI
 
-/// The menu-bar app (spec §6.4, §13.1). Searching happens in a floating
-/// overlay opened with ⌥Space; the index lives in laserdotd.
+/// Laserdot is both a Dock app and a menu-bar app (spec §6.4, §13.1): a main
+/// window for searching, the same search as a floating overlay on ⌥Space,
+/// the app's menus, and a menu-bar icon with the everyday actions. The index
+/// lives in laserdotd, which the app starts and stops.
 @main
 struct LaserdotApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
     var body: some Scene {
+        WindowGroup("Laserdot", id: "main") {
+            MainWindow(delegate: delegate, updates: delegate.updates)
+        }
+        .defaultSize(width: 860, height: 600)
+        .commands { LaserdotCommands(delegate: delegate, updates: delegate.updates) }
+
         MenuBarExtra("Laserdot", systemImage: "scope") {
-            Button(L("menu.search")) { delegate.toggleOverlay() }
-                .keyboardShortcut(.space, modifiers: .option)
-            Button(L("menu.index")) { delegate.chooseFolder() }
-            Button(L("menu.duplicates")) { delegate.showDuplicates() }
-                .disabled(!delegate.dupesAvailable)
-            Menu(String(format: L("menu.hotkey"), delegate.hotKeyChoice.label)) {
-                ForEach(HotKeyChoice.all, id: \.label) { c in
-                    Button(c.label) { delegate.useHotKey(c) }
+            StatusMenu(delegate: delegate, updates: delegate.updates)
+        }
+    }
+}
+
+/// The menu-bar icon's menu.
+struct StatusMenu: View {
+    @ObservedObject var delegate: AppDelegate
+    @ObservedObject var updates: UpdateController
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some View {
+        Button(L("menu.search")) { delegate.toggleOverlay() }
+            .keyboardShortcut(.space, modifiers: .option)
+        Button(L("menu.showWindow")) {
+            NSApp.activate(ignoringOtherApps: true)
+            openWindow(id: "main")
+        }
+        Button(L("menu.index")) { delegate.chooseFolder() }
+        Button(L("menu.duplicates")) { delegate.showDuplicates() }
+            .disabled(!delegate.dupesAvailable)
+        if let drives = delegate.drives {
+            DrivesMenu(model: drives)
+        }
+        if let content = delegate.content {
+            ContentMenu(model: content)
+        }
+        Divider()
+        if let r = updates.ready {
+            Button(String(format: L("update.button"), r.latest ?? "")) { updates.offerInstall() }
+        }
+        Button(L("menu.checkUpdates")) { updates.check(interactive: true) }
+            .disabled(updates.checking)
+        Divider()
+        Text(delegate.statusLine)
+        Text(delegate.networkLine)
+        Divider()
+        Button(L("menu.quit")) { NSApp.terminate(nil) }
+            .keyboardShortcut("q")
+    }
+}
+
+/// The main window: search, and a status bar (index size, network, update).
+struct MainWindow: View {
+    @ObservedObject var delegate: AppDelegate
+    @ObservedObject var updates: UpdateController
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if let model = delegate.model {
+                SearchView(model: model, close: { model.query = "" }, fixedSize: false)
+            } else {
+                ProgressView(L("daemon.starting")).frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            Divider()
+            HStack(spacing: 12) {
+                Text(delegate.statusLine)
+                Text(delegate.networkLine).foregroundStyle(.secondary)
+                Spacer()
+                if updates.checking {
+                    ProgressView().controlSize(.small)
+                    Text(L("update.checking")).foregroundStyle(.secondary)
+                }
+                if let r = updates.ready {
+                    Button(String(format: L("update.button"), r.latest ?? "")) { updates.offerInstall() }
+                        .buttonStyle(.borderedProminent)
                 }
             }
+            .font(.callout)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+        }
+        .frame(minWidth: 640, minHeight: 420)
+    }
+}
+
+/// The menu bar: File (index, duplicates), Library (drives, content search,
+/// hot key) and Check for Updates in the app menu.
+struct LaserdotCommands: Commands {
+    @ObservedObject var delegate: AppDelegate
+    @ObservedObject var updates: UpdateController
+
+    var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            Button(L("menu.checkUpdates")) { updates.check(interactive: true) }
+                .disabled(updates.checking)
+            if let r = updates.ready {
+                Button(String(format: L("update.button"), r.latest ?? "")) { updates.offerInstall() }
+            }
+        }
+        CommandGroup(replacing: .newItem) {
+            Button(L("menu.search")) { delegate.toggleOverlay() }
+            Button(L("menu.index")) { delegate.chooseFolder() }
+                .keyboardShortcut("o")
+            Button(L("menu.duplicates")) { delegate.showDuplicates() }
+                .disabled(!delegate.dupesAvailable)
+                .keyboardShortcut("u", modifiers: [.command, .shift])
+        }
+        CommandMenu(L("menu.library")) {
             if let drives = delegate.drives {
                 DrivesMenu(model: drives)
             }
             if let content = delegate.content {
                 ContentMenu(model: content)
             }
-            Divider()
-            Text(delegate.statusLine)
-            Text(delegate.networkLine)
-            Divider()
-            Button(L("menu.quit")) { NSApp.terminate(nil) }
-                .keyboardShortcut("q")
+            Menu(String(format: L("menu.hotkey"), delegate.hotKeyChoice.label)) {
+                ForEach(HotKeyChoice.all, id: \.label) { c in
+                    Button(c.label) { delegate.useHotKey(c) }
+                }
+            }
         }
     }
 }
@@ -47,7 +143,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     @Published var dupesAvailable = true
     private var engine: Engine?
     private var duplicates: NSWindow?
-    private var model: SearchModel?
+    @Published private(set) var model: SearchModel?
+    let updates = UpdateController()
     private var overlay: OverlayController?
     private var hotKey: HotKey?
     @Published private(set) var hotKeyChoice = HotKeyChoice.saved
@@ -91,6 +188,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         self.drives = drives
         drives.start()
         probeDuplicates()
+        updates.stopDaemon = { [weak engine] in engine?.shutdown() }
+        updates.offerMoveToApplications()
+        updates.startDailyChecks()
+    }
+
+    /// Laserdot started laserdotd; it stops it when it quits.
+    func applicationWillTerminate(_ notification: Notification) {
+        engine?.shutdown()
+    }
+
+    /// Closing the window keeps Laserdot (and ⌥Space) running; the Dock icon
+    /// opens a new window.
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
     }
 
     /// An empty dry run moves nothing; it only tells whether this daemon
