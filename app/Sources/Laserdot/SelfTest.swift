@@ -237,6 +237,7 @@ final class SelfTestRunner {
             "space_presses": model.spacePresses,
             "quicklook_shows": QuickLook.shared.shows,
             "key_window_is_overlay": NSApp.keyWindow === window,
+            "key_window": NSApp.keyWindow.map { String(describing: type(of: $0)) } ?? "none",
             "accessibility": labels,
         ])
         screenshot(window, name: name)

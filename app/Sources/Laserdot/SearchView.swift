@@ -668,25 +668,45 @@ struct PreviewPane: View {
     }
 }
 
-/// A video or song, playable in the pane (local file, AVKit). It never
-/// starts by itself and stops when another result is selected.
+/// A video or song in the pane: its thumbnail with a Play button; the
+/// player (AVKit) is created only when Play is clicked. Arrowing through
+/// results never loads a player, so the query keeps the keyboard and nothing
+/// starts by itself; Space plays it in Quick Look.
 struct MediaPreview: View {
     let path: String
     let video: Bool
     @State private var player: AVPlayer?
+    @State private var playerFor: String?
 
     var body: some View {
-        VStack {
-            if let player {
+        Group {
+            if let player, playerFor == path {
                 PlayerView(player: player)
             } else {
-                Color.black.opacity(0.05)
+                ZStack {
+                    FileIcon(path: path, size: video ? 170 : 64, thumbnail: true, large: true)
+                        .frame(maxWidth: .infinity)
+                    Button {
+                        let p = AVPlayer(url: URL(fileURLWithPath: path))
+                        player = p
+                        playerFor = path
+                        p.play()
+                    } label: {
+                        Image(systemName: "play.circle.fill")
+                            .font(.system(size: video ? 44 : 30))
+                            .symbolRenderingMode(.palette)
+                            .foregroundStyle(.white, Color.black.opacity(0.55))
+                    }
+                    .buttonStyle(.plain)
+                    .help(L("preview.play"))
+                    .accessibilityLabel(L("preview.play"))
+                }
             }
         }
         .frame(height: video ? 170 : 64)
-        .task(id: path) {
+        .onChange(of: path) { _, _ in
             player?.pause()
-            player = AVPlayer(url: URL(fileURLWithPath: path))
+            player = nil
         }
         .onDisappear { player?.pause() }
     }

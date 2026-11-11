@@ -242,3 +242,4 @@
 "tour.next" = "التالي";
 "tour.start" = "ابدأ البحث";
 "results.countOne" = "نتيجة واحدة · %2$.1f مللي ثانية";
+"preview.play" = "تشغيل";

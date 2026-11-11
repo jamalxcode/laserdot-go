@@ -242,3 +242,4 @@
 "tour.next" = "Next";
 "tour.start" = "Start Searching";
 "results.countOne" = "%lld result · %.1f ms";
+"preview.play" = "Play";
