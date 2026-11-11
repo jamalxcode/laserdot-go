@@ -699,8 +699,15 @@ struct MediaPreview: View {
 struct PlayerView: NSViewRepresentable {
     let player: AVPlayer
 
+    /// The player is clicked, never typed into: the search field keeps the
+    /// keyboard (otherwise the query stops taking letters after a video is
+    /// selected).
+    final class Unfocused: AVPlayerView {
+        override var acceptsFirstResponder: Bool { false }
+    }
+
     func makeNSView(context: Context) -> AVPlayerView {
-        let v = AVPlayerView()
+        let v = Unfocused()
         v.controlsStyle = .inline
         v.showsFullScreenToggleButton = true
         v.player = player
