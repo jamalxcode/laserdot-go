@@ -618,7 +618,13 @@ func rawOf(e *scan.Entry, p Probe, dbID int64) RawEntry {
 
 func diffDir(s *Store, dir uint32, recursive bool, opts scan.Options, out *diff, done map[uint32]bool) {
 	path := s.Path(dir)
-	if scan.IsOpaque(path, opts) || (!s.IsRoot(dir) && scan.IsMountPoint(path)) {
+	if scan.IsOpaque(path, opts) {
+		// Indexed before it counted as opaque (an app bundle before 0.3):
+		// its contents leave the index.
+		out.removed = append(out.removed, s.Children(dir)...)
+		return
+	}
+	if !s.IsRoot(dir) && scan.IsMountPoint(path) {
 		return
 	}
 	list, err := scan.ListDir(path, opts)

@@ -58,6 +58,7 @@ var kindWords = map[string]string{
 	"music": "audio", "song": "audio", "songs": "audio", "audio": "audio",
 	"document": "document", "documents": "document",
 	"archive": "archive", "archives": "archive",
+	"apps": "app", "تطبيقات": "app",
 	"فيديو": "video", "فيديوهات": "video", "فلم": "video", "فيلم": "video", "افلام": "video",
 	"صوره": "image", "صور": "image",
 	"موسيقي": "audio", "اغاني": "audio", "اغنيه": "audio", "صوت": "audio",

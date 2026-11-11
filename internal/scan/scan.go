@@ -24,6 +24,15 @@ var DefaultIgnoredDirs = []string{
 // DefaultOpaqueDirs are listed as results, but their contents are not indexed.
 var DefaultOpaqueDirs = []string{".git", ".hg", ".svn"}
 
+// DefaultOpaqueExts: folders with these extensions are macOS packages (an app
+// is a folder of thousands of files). Like Finder and Spotlight, Laserdot lists
+// the package as one result and does not index its contents. Photos and Music
+// libraries are personal-data stores (spec pillar 4), so they stay closed too.
+var DefaultOpaqueExts = []string{
+	"app", "appex", "framework", "bundle", "plugin", "kext", "xpc", "prefpane", "qlgenerator",
+	"mdimporter", "saver", "photoslibrary", "musiclibrary", "photolibrary",
+}
+
 // PartialDownloadExts are downloads in progress: never indexed (story 12).
 var PartialDownloadExts = []string{"crdownload", "part", "partial", "download", "opdownload", "!qb", "!ut"}
 
@@ -46,6 +55,8 @@ func IsPartialDownload(name string) bool {
 type Options struct {
 	IgnoredDirs []string
 	OpaqueDirs  []string
+	// OpaqueExts: package folders by extension (lowercase, no dot).
+	OpaqueExts []string
 	// ExcludedPaths are never indexed (e.g. the index database itself).
 	ExcludedPaths []string
 	// StableInodes: the volume's inode numbers survive remounts. When not
@@ -55,7 +66,7 @@ type Options struct {
 
 // DefaultOptions are the spec's defaults.
 func DefaultOptions() Options {
-	return Options{IgnoredDirs: DefaultIgnoredDirs, OpaqueDirs: DefaultOpaqueDirs, StableInodes: true}
+	return Options{IgnoredDirs: DefaultIgnoredDirs, OpaqueDirs: DefaultOpaqueDirs, OpaqueExts: DefaultOpaqueExts, StableInodes: true}
 }
 
 // Entry is one file system entry.
@@ -143,7 +154,7 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 		for i := range level {
 			errs = append(errs, failures[i]...)
 			for _, e := range results[i] {
-				if e.IsDir && !contains(opts.OpaqueDirs, filepath.Base(e.Path)) && e.Dev == rootEntry.Dev {
+				if e.IsDir && !IsOpaque(e.Path, opts) && e.Dev == rootEntry.Dev {
 					nextLevel = append(nextLevel, len(entries))
 				}
 				entries = append(entries, e)
@@ -189,9 +200,22 @@ func ListDir(dir string, opts Options) ([]Entry, error) {
 	return out, nil
 }
 
-// IsOpaque: a version-control folder whose contents are not indexed.
+// IsOpaque: a version-control folder or a package (an app…) whose contents
+// are not indexed.
 func IsOpaque(dir string, opts Options) bool {
-	return contains(opts.OpaqueDirs, filepath.Base(dir))
+	name := filepath.Base(dir)
+	if contains(opts.OpaqueDirs, name) {
+		return true
+	}
+	if i := strings.LastIndexByte(name, '.'); i > 0 {
+		ext := strings.ToLower(name[i+1:])
+		for _, e := range opts.OpaqueExts {
+			if ext == e {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // IsMountPoint: another volume is mounted at dir (its device differs from

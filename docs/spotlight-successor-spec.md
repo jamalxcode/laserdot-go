@@ -445,6 +445,7 @@ white       = " " | "\t" | "\n" ;
 - **13.4** CLI sharing the same index and query syntax for scripting
 - **13.5** URL scheme `laserdot://search?q=...` and Shortcuts actions (search, open result, start index)
 - **13.6** User-configurable index scopes and ignore patterns (node_modules, .venv, caches), with churn detection auto-excluding hot directories; auto-excluded directories can be permanently re-included
+  - *Decided (v1.19, the owner's report that `claude.app` found nothing):* macOS packages are opaque like `.git`: a folder named `*.app`, `.appex`, `.framework`, `.bundle`, `.plugin`, `.kext`, `.xpc`, `.prefPane`, `.qlgenerator`, `.mdimporter`, `.saver`, `.photoslibrary` or `.musiclibrary` is one result (apps are `kind:app`; the type word `apps` finds them) and its contents are not indexed; contents indexed before this leave the index on the next refresh. The app indexes `/Applications`, `/System/Applications` and `~/Applications` once, without asking, since apps are what people look for first
   - Defaults never indexed: `node_modules`, `.venv`, `__pycache__`, `.cache`, `.Trash`, `.Trashes`, `.Spotlight-V100`, `.fseventsd`, `.DocumentRevisions-V100`, `.TemporaryItems`, `.laserdot`, and the index database itself
   - Version-control folders (`.git`, `.hg`, `.svn`) are listed as results but their contents are not indexed
 - **13.7** Index schema versioned; app updates migrate in place; incompatible versions trigger rebuild with checkpoint resume

@@ -192,7 +192,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         self.model = model
         overlay = OverlayController(model: model)
         registerHotKey(prompt: true)
-        model.onStatus = { [weak self] status in self?.show(status) }
+        model.onStatus = { [weak self] status in
+            self?.show(status)
+            self?.indexApplicationsOnce(status)
+        }
         model.onIndexing = { [weak self] name in
             self?.statusLine = String(format: L("index.running"), name)
         }
@@ -290,6 +293,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     /// First launch: nothing is indexed, so searches would find nothing.
     /// Offer the home folder, or a folder of the user's choice.
+    /// Apps are what people look for first, so the Applications folders are
+    /// indexed once, without asking (each app is one result; its contents
+    /// are not indexed). Removing them later is respected.
+    private func indexApplicationsOnce(_ status: DaemonStatus) {
+        let key = "laserdot.applicationsIndexed"
+        guard status.running, !UserDefaults.standard.bool(forKey: key), let model else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        for path in ["/Applications", "/System/Applications", home + "/Applications"] {
+            var dir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: path, isDirectory: &dir), dir.boolValue,
+                  !status.folders.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
+            model.index(folder: URL(fileURLWithPath: path))
+        }
+    }
+
     private func offerFirstIndex() {
         guard !UserDefaults.standard.bool(forKey: "laserdot.firstIndexOffered") else { return }
         UserDefaults.standard.set(true, forKey: "laserdot.firstIndexOffered")
