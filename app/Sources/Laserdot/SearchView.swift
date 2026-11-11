@@ -1,9 +1,13 @@
+import AVKit
 import AppKit
 import LaserdotKit
+import PDFKit
 import SwiftUI
 
-/// The overlay: query field, hint line, results (or the cheat sheet), and a
-/// footer that says whether the network is blocked.
+/// The search UI, in the ⌥Space overlay and in the main window: the query
+/// field, a hint only when it helps, suggestion chips, the results in
+/// sections (or the empty box's recent files, or `>` commands), a preview
+/// pane (or the ⌘K actions), and a footer with the keys to press.
 struct SearchView: View {
     @ObservedObject var model: SearchModel
     var close: () -> Void
@@ -14,71 +18,42 @@ struct SearchView: View {
     /// keyboard (the overlay always does), and grey otherwise — as lists do.
     private var emphasized: Bool { fixedSize || activeState == .key }
 
+    /// The overlay's slim bar: just the field.
+    static let compactHeight: CGFloat = 58
+    static let fullHeight: CGFloat = 520
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "magnifyingglass").font(.title2).foregroundStyle(.secondary)
-                SearchField(
-                    text: $model.query,
-                    placeholder: L("search.placeholder"),
-                    focusToken: model.focusRequest,
-                    onMove: { d in model.showCheatSheet ? model.moveCheat(d) : model.move(d) },
-                    onTab: { model.showCheatSheet ? model.nextCheatSection() : model.acceptCompletion() },
-                    onSubmit: { model.showCheatSheet ? model.insertSelectedCheat() : model.open() },
-                    onEscape: {
-                        // Esc closes the cheat sheet first, then the overlay (§8.9.2).
-                        if model.showCheatSheet { model.showCheatSheet = false } else { close() }
-                    }
-                )
-                .frame(height: 30)
-                // Pin the query (spec §8.6).
-                Button { model.togglePin() } label: {
-                    Image(systemName: model.isPinned ? "pin.fill" : "pin").font(.title3)
-                }
-                .buttonStyle(.borderless)
-                .keyboardShortcut("d", modifiers: .command)
-                .help(L("pin.help"))
-                .accessibilityLabel(L(model.isPinned ? "pin.remove" : "pin.add"))
-                .disabled(model.query.trimmingCharacters(in: .whitespaces).isEmpty)
-                // Cheat sheet button (spec §8.9); typing `?` stays a wildcard.
-                Button { model.showCheatSheet.toggle() } label: {
-                    Image(systemName: model.showCheatSheet ? "questionmark.circle.fill" : "questionmark.circle")
-                        .font(.title2)
-                }
-                .buttonStyle(.borderless)
-                .keyboardShortcut("/", modifiers: .command)
-                .help(L("cheatsheet.help"))
-                .accessibilityLabel(L("cheatsheet.help"))
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            hintLine
-            chips
-            Divider()
-            Group {
-                if model.showCheatSheet {
-                    CheatSheetView(model: model)
-                } else {
-                    HStack(spacing: 0) {
-                        results
-                        // The selected result, larger, with its details.
-                        if let hit = model.selected, !model.results.isEmpty {
-                            Divider()
-                            PreviewPane(hit: hit, model: model)
-                                .frame(width: fixedSize ? 280 : 300)
+            header
+            if !(fixedSize && model.compact) {
+                hintLine
+                chips
+                Divider()
+                Group {
+                    if model.showCheatSheet {
+                        CheatSheetView(model: model)
+                    } else {
+                        HStack(spacing: 0) {
+                            mainList
+                            if model.showActions {
+                                Divider()
+                                ActionsPane(model: model).frame(width: fixedSize ? 280 : 300)
+                            } else if let hit = model.selected, !model.results.isEmpty, !model.isCommandMode {
+                                Divider()
+                                PreviewPane(hit: hit, model: model).frame(width: fixedSize ? 280 : 300)
+                            }
                         }
                     }
                 }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // The main window shows results and status in its own status bar.
-            if fixedSize {
-                Divider()
-                footer
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The main window shows status and keys in its own status bar.
+                if fixedSize {
+                    Divider()
+                    footer
+                }
             }
         }
-        .frame(width: fixedSize ? 920 : nil, height: fixedSize ? 520 : nil)
+        .frame(width: fixedSize ? 920 : nil, height: fixedSize ? (model.compact ? Self.compactHeight : Self.fullHeight) : nil)
         .background {
             // The floating card is the overlay's look; the main window keeps
             // the standard window background.
@@ -87,6 +62,54 @@ struct SearchView: View {
             }
         }
         .overlay(hiddenShortcuts)
+    }
+
+    // MARK: header
+
+    private var header: some View {
+        HStack(spacing: 10) {
+            Image(systemName: model.isCommandMode ? "chevron.right.2" : "magnifyingglass")
+                .font(.title2).foregroundStyle(.secondary)
+            SearchField(
+                text: $model.query,
+                placeholder: L("search.placeholder"),
+                focusToken: model.focusRequest,
+                onMove: { d in model.showCheatSheet ? model.moveCheat(d) : model.move(d) },
+                onExtend: { d in model.extend(d) },
+                onTab: { model.showCheatSheet ? model.nextCheatSection() : model.acceptCompletion() },
+                onSubmit: { model.showCheatSheet ? model.insertSelectedCheat() : model.submit() },
+                onEscape: { model.escape(close: close) }
+            )
+            .frame(height: 30)
+            if !model.query.isEmpty {
+                Button { model.query = ""; model.focusSearch() } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.borderless)
+                .help(L("search.clear"))
+                .accessibilityLabel(L("search.clear"))
+            }
+            // Pin the query (spec §8.6).
+            Button { model.togglePin() } label: {
+                Image(systemName: model.isPinned ? "pin.fill" : "pin").font(.title3)
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut("d", modifiers: .command)
+            .help(L("pin.help"))
+            .accessibilityLabel(L(model.isPinned ? "pin.remove" : "pin.add"))
+            .disabled(model.isHome || model.isCommandMode)
+            // Cheat sheet button (spec §8.9); typing `?` stays a wildcard.
+            Button { model.showCheatSheet.toggle() } label: {
+                Image(systemName: model.showCheatSheet ? "questionmark.circle.fill" : "questionmark.circle")
+                    .font(.title2)
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut("/", modifiers: .command)
+            .help(L("cheatsheet.help"))
+            .accessibilityLabel(L("cheatsheet.help"))
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 
     @ViewBuilder private var hintLine: some View {
@@ -103,7 +126,7 @@ struct SearchView: View {
             .font(.callout)
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
-        } else if let h = model.hint {
+        } else if let h = model.visibleHint {
             Text(h)
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -114,35 +137,65 @@ struct SearchView: View {
         }
     }
 
-    @ViewBuilder private var results: some View {
+    /// Suggestions under the hint: completions for the word being typed, the
+    /// kinds a mixed result list contains, or the pinned searches.
+    @ViewBuilder private var chips: some View {
+        let completions = model.completionChips
+        let kinds = model.kindChips
+        let pins = model.isHome ? model.pinned : []
+        if !completions.isEmpty || !kinds.isEmpty || !pins.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    if !completions.isEmpty {
+                        ForEach(completions, id: \.self) { c in
+                            Button(c.label) { model.apply(c) }.help(c.detail)
+                        }
+                    } else if !kinds.isEmpty {
+                        ForEach(kinds) { k in
+                            Button("\(k.title) (\(k.total))") { model.narrow(to: k) }.help(k.filter ?? "")
+                        }
+                    } else {
+                        Image(systemName: "pin").foregroundStyle(.secondary).accessibilityHidden(true)
+                        ForEach(pins, id: \.self) { q in
+                            Button(q) { model.query = q }
+                                .contextMenu { Button(String(format: L("pin.unpin"), q)) { model.togglePin(q) } }
+                        }
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .padding(.horizontal, 16)
+            }
+            .padding(.bottom, 8)
+        }
+    }
+
+    // MARK: the list
+
+    @ViewBuilder private var mainList: some View {
         if let message = model.unavailable {
             placeholder(message)
-        } else if model.query.trimmingCharacters(in: .whitespaces).isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                if !model.pinned.isEmpty {
-                    Text(L("results.pinned")).foregroundStyle(.secondary)
-                    FlowChips(items: model.pinned) { model.query = $0 }
-                        .contextMenu {
-                            ForEach(model.pinned, id: \.self) { q in
-                                Button(String(format: L("pin.unpin"), q)) { model.togglePin(q) }
-                            }
-                        }
-                }
-                Text(L("results.examples")).foregroundStyle(.secondary)
-                FlowChips(items: model.examples) { model.query = $0 }
-                Text(L("results.historyHint")).font(.caption).foregroundStyle(.tertiary)
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        } else if model.isCommandMode {
+            commandList
         } else if model.results.isEmpty {
-            VStack(spacing: 8) {
-                if model.problem == nil {
-                    Text(L("results.none")).foregroundStyle(.secondary)
+            if model.isHome {
+                VStack(spacing: 8) {
+                    Text(L("home.empty")).foregroundStyle(.secondary)
+                    Text(L("home.tips")).font(.caption).foregroundStyle(.tertiary)
                 }
-                ForEach(model.notes, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
-                coachingList
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if !model.searching {
+                VStack(spacing: 8) {
+                    if model.problem == nil {
+                        Text(L("results.none")).foregroundStyle(.secondary)
+                    }
+                    ForEach(model.notes, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
+                    coachingList
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
@@ -153,18 +206,24 @@ struct SearchView: View {
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
                                     .padding(.horizontal, 10)
-                                    .padding(.top, section.id == "top" ? 2 : 10)
+                                    .padding(.top, section.range.lowerBound == 0 ? 2 : 10)
                                     .accessibilityAddTraits(.isHeader)
                             }
                             ForEach(section.range.map { IndexedHit(index: $0, hit: model.results[$0]) }) { item in
                                 row(item.index, item.hit)
                             }
+                            if section.hidden > 0 {
+                                Button(String(format: L("results.showAll"), Int64(section.total))) { model.expand(section.id) }
+                                    .buttonStyle(.link)
+                                    .font(.caption)
+                                    .padding(.leading, 48)
+                                    .padding(.vertical, 2)
+                            }
                         }
                     }
                     .padding(6)
                 }
-                // One identity per row (its path): a second one (the index)
-                // let the lazy stack reuse rows of the previous answer.
+                // One identity per row (its path); rebuilt on every answer.
                 .id(model.resultsID)
                 .onChange(of: model.selection) { _, i in
                     if model.results.indices.contains(i) { proxy.scrollTo(model.results[i].path) }
@@ -178,44 +237,43 @@ struct SearchView: View {
     }
 
     private func row(_ i: Int, _ hit: Hit) -> some View {
-        ResultRow(hit: hit, selected: i == model.selection, emphasized: emphasized, number: i < 9 ? i + 1 : nil)
+        ResultRow(
+            hit: hit, selected: model.isSelected(i), emphasized: emphasized,
+            number: i < 9 ? i + 1 : nil, highlight: model.highlightWords)
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { model.open(hit) }
-            .onTapGesture { model.selection = i }
+            .onTapGesture { model.click(i) }
             .contextMenu {
                 Button(L("action.open")) { model.open(hit) }
                 Button(L("action.quickLook")) { model.quickLook(hit) }
                 Button(L("action.reveal")) { model.reveal(hit) }
                 Button(L("action.copy")) { model.copyPath(hit) }
+                Divider()
+                Button(L("action.more")) {
+                    if !model.isSelected(i) { model.click(i) }
+                    model.toggleActions()
+                }
             }
             .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
     }
 
-    /// Suggestions under the hint: completions for the word being typed, or
-    /// the kinds the results mix (one click narrows to that kind).
-    @ViewBuilder private var chips: some View {
-        let completions = model.completionChips
-        let kinds = model.kindChips
-        if !completions.isEmpty || !kinds.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    if !completions.isEmpty {
-                        ForEach(completions, id: \.self) { c in
-                            Button(c.label) { model.apply(c) }
-                                .help(c.detail)
-                        }
-                    } else {
-                        ForEach(kinds) { k in
-                            Button("\(k.title) (\(k.range.count))") { model.narrow(to: k) }
-                                .help(k.filter ?? "")
-                        }
-                    }
+    private var commandList: some View {
+        let list = model.commandEntries
+        return ScrollView {
+            LazyVStack(alignment: .leading, spacing: 2) {
+                Text(L("commands.title"))
+                    .font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    .padding(.horizontal, 10).padding(.top, 2)
+                ForEach(Array(list.enumerated()), id: \.element.id) { i, c in
+                    ActionRow(item: c, selected: i == model.commandIndex, emphasized: emphasized)
+                        .contentShape(Rectangle())
+                        .onTapGesture { model.runCommand(i) }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .padding(.horizontal, 16)
+                if list.isEmpty {
+                    Text(L("results.none")).foregroundStyle(.secondary).padding(10)
+                }
             }
-            .padding(.bottom, 8)
+            .padding(6)
         }
     }
 
@@ -251,34 +309,53 @@ struct SearchView: View {
         Text(text).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: footer and keys
+
     private var footer: some View {
-        HStack {
-            ResultsSummary(model: model)
+        HStack(spacing: 12) {
+            StatusSummary(model: model)
             Spacer()
-            Label(
-                model.networkBlocked ? L("network.blocked") : L("network.open"),
-                systemImage: model.networkBlocked ? "lock.shield" : "exclamationmark.shield"
-            )
-            .foregroundStyle(model.networkBlocked ? Color.secondary : Color.orange)
+            ShortcutBar(model: model)
+            Spacer()
+            NetworkLock(blocked: model.networkBlocked)
         }
         .font(.caption)
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
     }
 
-    /// ⌘↩ reveal, ⌘⇧C copy path (spec §5.1).
+    /// Keys without a visible button: ⌘↩ reveal, ⌘⇧C copy path, ⌘Y Quick
+    /// Look, ⌘K actions, ⌘1–⌘9 open (spec §5.1).
     private var hiddenShortcuts: some View {
         ZStack {
             Button("") { model.reveal() }.keyboardShortcut(.return, modifiers: .command)
             Button("") { model.copyPath() }.keyboardShortcut("c", modifiers: [.command, .shift])
             Button("") { model.quickLook() }.keyboardShortcut("y", modifiers: .command)
+            Button("") { model.toggleActions() }.keyboardShortcut("k", modifiers: .command)
             ForEach(1...9, id: \.self) { n in
                 Button("") { model.openNumbered(n) }.keyboardShortcut(KeyEquivalent(Character("\(n)")), modifiers: .command)
             }
         }
         .opacity(0)
-        .accessibilityHidden(true) // keyboard shortcuts only; the context menu has these actions
+        .accessibilityHidden(true) // the context menu and ⌘K list offer these actions
         .allowsHitTesting(false)
+    }
+}
+
+/// Indexing progress if a folder is being indexed, else "28 results · 0.3
+/// ms" or "Searching…".
+struct StatusSummary: View {
+    @ObservedObject var model: SearchModel
+
+    var body: some View {
+        if let p = model.progressText {
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.mini)
+                Text(p)
+            }
+        } else {
+            ResultsSummary(model: model)
+        }
     }
 }
 
@@ -289,11 +366,68 @@ struct ResultsSummary: View {
     var body: some View {
         if model.searching {
             Text(L("results.searching"))
-        } else if model.total > 0 {
+        } else if model.total > 0 && !model.isHome {
             Text(String(format: L("results.count"), Int64(model.total), model.elapsedMs))
         }
     }
 }
+
+/// The keys that work right now, so people learn them without the cheat sheet.
+struct ShortcutBar: View {
+    @ObservedObject var model: SearchModel
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ForEach(items) { item in
+                HStack(spacing: 4) {
+                    Text(item.key)
+                        .font(.caption2.monospaced())
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 1)
+                        .background(RoundedRectangle(cornerRadius: 3).fill(.quaternary))
+                    Text(item.label)
+                }
+            }
+        }
+        .foregroundStyle(.secondary)
+        .accessibilityElement(children: .combine)
+    }
+
+    struct KeyHint: Identifiable {
+        let key: String
+        let label: String
+        var id: String { key }
+    }
+
+    private var items: [KeyHint] {
+        func k(_ key: String, _ label: String) -> KeyHint { KeyHint(key: key, label: label) }
+        if model.showActions {
+            return [k("↑↓", L("keys.choose")), k("↩", L("keys.run")), k("esc", L("keys.back"))]
+        }
+        if model.isCommandMode {
+            return [k("↑↓", L("keys.choose")), k("↩", L("keys.run")), k("esc", L("keys.cancel"))]
+        }
+        if model.results.isEmpty {
+            return [k(">", L("keys.commands")), k("⌘/", L("keys.syntax"))]
+        }
+        return [k("↩", L("action.open")), k("⌘↩", L("action.reveal")), k("⌘Y", L("action.quickLook")), k("⌘K", L("keys.actions"))]
+    }
+}
+
+/// A lock: the search engine cannot reach the network (spec §7.1). The
+/// words are in the tooltip and in Settings.
+struct NetworkLock: View {
+    let blocked: Bool
+
+    var body: some View {
+        Image(systemName: blocked ? "lock.shield" : "exclamationmark.shield")
+            .foregroundStyle(blocked ? Color.secondary : Color.orange)
+            .help(L(blocked ? "network.blocked" : "network.open"))
+            .accessibilityLabel(L(blocked ? "network.blocked" : "network.open"))
+    }
+}
+
+// MARK: rows
 
 struct ResultRow: View {
     let hit: Hit
@@ -302,6 +436,8 @@ struct ResultRow: View {
     var emphasized = true
     /// ⌘1–⌘9 opens this row.
     var number: Int?
+    /// Query words, shown bold where the name contains them.
+    var highlight: [String] = []
 
     private var light: Bool { selected && emphasized }
 
@@ -309,10 +445,12 @@ struct ResultRow: View {
         HStack(spacing: 10) {
             FileIcon(path: hit.path, size: 28, thumbnail: hit.kind == "image" || hit.kind == "video")
             VStack(alignment: .leading, spacing: 2) {
-                Text(hit.name).fontWeight(.medium).lineLimit(1)
+                Text(highlighted(hit.name, highlight)).lineLimit(1)
                     .foregroundStyle(light ? Color.white : Color.primary)
-                Text(hit.path).font(.caption).lineLimit(1).truncationMode(.middle)
+                Text(shortPath(hit.path) + " · " + friendlyDate(hit.modified))
+                    .font(.caption).lineLimit(1).truncationMode(.middle)
                     .foregroundStyle(light ? Color.white.opacity(0.85) : Color.secondary)
+                    .help(hit.path)
             }
             Spacer(minLength: 8)
             if hit.content {
@@ -325,7 +463,7 @@ struct ResultRow: View {
                     .font(.caption2)
                     .foregroundStyle(light ? Color.white.opacity(0.85) : Color.secondary)
             }
-            ForEach(hit.badges, id: \.self) { b in
+            ForEach(hit.badges.prefix(2), id: \.self) { b in
                 Text(b)
                     .font(.caption2.monospacedDigit())
                     .padding(.horizontal, 6)
@@ -352,44 +490,73 @@ struct ResultRow: View {
     }
 }
 
-/// Wrapping row of clickable chips.
-struct FlowChips: View {
-    let items: [String]
-    let action: (String) -> Void
+/// An action or command row: symbol, title, its key.
+struct ActionRow: View {
+    let item: ActionItem
+    let selected: Bool
+    var emphasized = true
+
+    private var light: Bool { selected && emphasized }
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 200), alignment: .leading)], alignment: .leading, spacing: 8) {
-            ForEach(items, id: \.self) { item in
-                Button(item) { action(item) }
-                    .buttonStyle(.bordered)
-                    .font(.system(.body, design: .monospaced))
+        HStack(spacing: 10) {
+            Image(systemName: item.symbol).frame(width: 20)
+            Text(item.title).lineLimit(1)
+            Spacer(minLength: 8)
+            if let k = item.shortcut {
+                Text(k).font(.caption.monospaced()).opacity(0.8)
             }
+        }
+        .foregroundStyle(light ? Color.white : Color.primary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(RoundedRectangle(cornerRadius: 8).fill(selected ? (emphasized ? Color.accentColor : Color.secondary.opacity(0.2)) : .clear))
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
+    }
+}
+
+/// ⌘K: what can be done with the selection, with ↑/↓ and Return.
+struct ActionsPane: View {
+    @ObservedObject var model: SearchModel
+
+    var body: some View {
+        let hits = model.selectedHits
+        let list = model.actions
+        ScrollView {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(hits.count > 1 ? String(format: L("actions.many"), Int64(hits.count)) : (hits.first?.name ?? ""))
+                    .font(.headline).lineLimit(2)
+                    .padding(.horizontal, 10).padding(.vertical, 6)
+                ForEach(Array(list.enumerated()), id: \.element.id) { i, a in
+                    ActionRow(item: a, selected: i == model.actionIndex)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            model.actionIndex = i
+                            model.submit()
+                        }
+                }
+            }
+            .padding(6)
         }
     }
 }
 
-/// The selected result, larger: thumbnail (Quick Look), name, kind, size,
-/// dates, media details and the actions.
+// MARK: preview
+
+/// The selected result, larger: a thumbnail, a playable video or song, or
+/// the PDF's pages; then name, kind, size, dates, media details, actions.
 struct PreviewPane: View {
     let hit: Hit
     @ObservedObject var model: SearchModel
 
-    private static let dateFormat: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        f.timeStyle = .short
-        return f
-    }()
+    private var ext: String { (hit.name as NSString).pathExtension.lowercased() }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                FileIcon(path: hit.path, size: 220, thumbnail: true, large: true)
-                    .frame(maxWidth: .infinity)
-                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
-                    .onTapGesture(count: 2) { model.open(hit) }
-                    .accessibilityHidden(true)
-                Text(hit.name)
+                visual
+                Text(highlighted(hit.name, model.highlightWords))
                     .font(.headline)
                     .lineLimit(3)
                     .textSelection(.enabled)
@@ -398,28 +565,43 @@ struct PreviewPane: View {
                     if !hit.isDir {
                         detail(L("preview.size"), ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file))
                     }
-                    detail(L("preview.modified"), Self.dateFormat.string(from: Date(timeIntervalSince1970: TimeInterval(hit.modified))))
+                    detail(L("preview.modified"), friendlyDate(hit.modified, long: true))
                     if !hit.badges.isEmpty {
                         detail(L("preview.media"), hit.badges.joined(separator: " · "))
                     }
                     if let v = hit.volume {
                         detail(L("preview.drive"), v)
                     }
+                    detail(L("preview.where"), shortPath(hit.path))
                 }
                 .font(.callout)
-                Text(hit.path)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .textSelection(.enabled)
-                    .lineLimit(4)
-                    .truncationMode(.middle)
                 HStack {
                     Button(L("action.open")) { model.open(hit) }
                     Button(L("action.reveal")) { model.reveal(hit) }
+                    Button { model.toggleActions() } label: { Image(systemName: "ellipsis.circle") }
+                        .help(L("keys.actions") + " (⌘K)")
+                        .accessibilityLabel(L("keys.actions"))
                 }
                 .controlSize(.small)
             }
             .padding(14)
+        }
+    }
+
+    @ViewBuilder private var visual: some View {
+        if hit.volume == nil && (hit.kind == "video" || hit.kind == "audio") {
+            MediaPreview(path: hit.path, video: hit.kind == "video")
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+        } else if hit.volume == nil && ext == "pdf" {
+            PDFPreview(path: hit.path)
+                .frame(height: 280)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+        } else {
+            FileIcon(path: hit.path, size: 220, thumbnail: true, large: true)
+                .frame(maxWidth: .infinity)
+                .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                .onTapGesture(count: 2) { model.open(hit) }
+                .accessibilityHidden(true)
         }
     }
 
@@ -438,6 +620,120 @@ struct PreviewPane: View {
             Text(value).lineLimit(2)
         }
     }
+}
+
+/// A video or song, playable in the pane (local file, AVKit). It never
+/// starts by itself and stops when another result is selected.
+struct MediaPreview: View {
+    let path: String
+    let video: Bool
+    @State private var player: AVPlayer?
+
+    var body: some View {
+        VStack {
+            if let player {
+                VideoPlayer(player: player)
+            } else {
+                Color.black.opacity(0.05)
+            }
+        }
+        .frame(height: video ? 170 : 64)
+        .task(id: path) {
+            player?.pause()
+            player = AVPlayer(url: URL(fileURLWithPath: path))
+        }
+        .onDisappear { player?.pause() }
+    }
+}
+
+/// A PDF's pages, scrollable in the pane (PDFKit).
+struct PDFPreview: NSViewRepresentable {
+    let path: String
+
+    func makeNSView(context: Context) -> PDFView {
+        let v = PDFView()
+        v.autoScales = true
+        v.displayMode = .singlePageContinuous
+        v.backgroundColor = .clear
+        return v
+    }
+
+    func updateNSView(_ v: PDFView, context: Context) {
+        if v.document?.documentURL?.path != path {
+            v.document = PDFDocument(url: URL(fileURLWithPath: path))
+        }
+    }
+}
+
+// MARK: text helpers
+
+/// "~ › Documents › AI Code": the folder a result is in, short. Long paths
+/// keep their last three folders; drives start with the drive's name.
+func shortPath(_ path: String) -> String {
+    var dir = (path as NSString).deletingLastPathComponent
+    let home = FileManager.default.homeDirectoryForCurrentUser.path
+    var parts: [String] = []
+    if dir == home || dir.hasPrefix(home + "/") {
+        parts = ["~"]
+        dir = String(dir.dropFirst(home.count))
+    } else if dir.hasPrefix("/Volumes/") {
+        dir = String(dir.dropFirst("/Volumes/".count))
+    }
+    parts += dir.split(separator: "/").map(String.init)
+    if parts.count > 4 { parts = [parts[0], "…"] + parts.suffix(3) }
+    return parts.isEmpty ? "/" : parts.joined(separator: " › ")
+}
+
+private let relativeFormatter: RelativeDateTimeFormatter = {
+    let f = RelativeDateTimeFormatter()
+    f.locale = Locale(identifier: appLang)
+    f.unitsStyle = .full
+    return f
+}()
+
+private let dayFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: appLang)
+    f.doesRelativeDateFormatting = true // "Today", "Yesterday"
+    f.dateStyle = .medium
+    f.timeStyle = .short
+    return f
+}()
+
+private let dateOnlyFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: appLang)
+    f.dateStyle = .medium
+    f.timeStyle = .none
+    return f
+}()
+
+/// "5 minutes ago", "Today at 9:04", "Yesterday at 18:20", "3 days ago",
+/// then the date.
+func friendlyDate(_ unix: Int64, long: Bool = false) -> String {
+    let d = Date(timeIntervalSince1970: TimeInterval(unix))
+    let age = Date().timeIntervalSince(d)
+    if age >= 0 && age < 3600 { return relativeFormatter.localizedString(for: d, relativeTo: Date()) }
+    if Calendar.current.isDateInToday(d) || Calendar.current.isDateInYesterday(d) { return dayFormatter.string(from: d) }
+    if age >= 0 && age < 7 * 86400 { return relativeFormatter.localizedString(for: d, relativeTo: Date()) }
+    return long ? dayFormatter.string(from: d) : dateOnlyFormatter.string(from: d)
+}
+
+/// The name with each query word in bold where it occurs (case and accents
+/// ignored), so it is clear why a result matched.
+func highlighted(_ name: String, _ words: [String]) -> AttributedString {
+    var attr = AttributedString(name)
+    for w in words where !w.isEmpty {
+        var from = name.startIndex
+        while from < name.endIndex,
+              let r = name.range(of: w, options: [.caseInsensitive, .diacriticInsensitive], range: from..<name.endIndex) {
+            if let ar = Range(r, in: attr) {
+                attr[ar].inlinePresentationIntent = .stronglyEmphasized
+            }
+            from = r.upperBound
+        }
+    }
+    return attr
 }
 
 /// A result and its place in `SearchModel.results`; identified by its path,

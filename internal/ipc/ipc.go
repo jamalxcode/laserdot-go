@@ -54,7 +54,9 @@ const (
 	// Guidance (§8.3, §8.9.5).
 	OpCoach = "coach"
 	// OpOpened records that the user opened a result (Path), for ranking.
-	OpOpened      = "opened"
+	OpOpened = "opened"
+	// OpRecentOpens lists the results opened most recently (Limit).
+	OpRecentOpens = "recent_opens"
 	OpValueCounts = "value_counts"
 	// Typing assistance, served by the daemon because the app has no
 	// in-process core (Go port; the Rust app called these through FFI).
@@ -164,6 +166,17 @@ type Status struct {
 	Watcher string `json:"watcher"`
 	DB      string `json:"db"`
 	Entries uint64 `json:"entries"`
+	// Indexing: a folder being indexed now (protocol 5 addition; absent
+	// otherwise and from older daemons).
+	Indexing *IndexProgress `json:"indexing,omitempty"`
+}
+
+// IndexProgress: see core.IndexProgress.
+type IndexProgress struct {
+	Root  string `json:"root"`
+	Phase string `json:"phase"`
+	Done  uint64 `json:"done"`
+	Total uint64 `json:"total"`
 }
 
 // maxSocketPath: the longest Unix socket path macOS accepts (sun_path is

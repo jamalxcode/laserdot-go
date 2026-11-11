@@ -289,6 +289,12 @@ public func hint(query: String, cursor: Int, lang: String) -> String? {
     return nil
 }
 
+/// The hint lines that say nothing about what was typed ("type words, or
+/// filters like…", "add filters like…"): the app does not show them.
+public func isGenericHint(_ hint: String, lang: String) -> Bool {
+    hint == Phrase.empty.text(lang) || hint == Phrase.addFilters.text(lang)
+}
+
 /// The cheat-sheet section id for the token under the caret (spec §8.9.6):
 /// its key's, or that of the first filter its text is a prefix of
 /// (`chan` → Audio).

@@ -1,7 +1,9 @@
 package query
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/fold"
 )
@@ -116,5 +118,90 @@ func TypeWords() map[string]string {
 	for w, k := range kindWords {
 		out[w] = "kind:" + k
 	}
+	for w, f := range filterWords {
+		out[w] = f
+	}
 	return out
+}
+
+// Plain-language words (spec §2.7 "type word", v1.21): dates, sizes,
+// resolutions and screenshots, written as people say them. Each stands for
+// a filter, shown on the hint line; quotes search names for the word.
+var filterWords = map[string]string{
+	"today": "modified:today", "yesterday": "modified:yesterday", "recent": "since:7d",
+	"big": "fsize:>100mb", "large": "fsize:>100mb", "huge": "fsize:>1gb",
+	"small": "fsize:<100kb", "tiny": "fsize:<10kb",
+	"4k": "res:4k", "8k": "res:8k", "1080p": "res:1080p", "720p": "res:720p",
+	"hdr": "hdr:true", "screenshot": "screenshot:true", "screenshots": "screenshot:true",
+	"اليوم": "modified:today", "امس": "modified:yesterday", "حديث": "since:7d",
+	"كبير": "fsize:>100mb", "كبيره": "fsize:>100mb", "صغير": "fsize:<100kb", "صغيره": "fsize:<100kb",
+	"لقطه": "screenshot:true", "لقطات": "screenshot:true",
+}
+
+func init() {
+	folded := map[string]string{}
+	for w, f := range filterWords {
+		folded[fold.Fold(w)] = f
+	}
+	filterWords = folded
+}
+
+// phraseFilter: two words that name a period ("last week", "this month",
+// "الاسبوع الماضي") as a filter, relative to now; "" when they do not.
+func phraseFilter(first, second string, now int64) string {
+	a, b := fold.Fold(first), fold.Fold(second)
+	periods := map[string]string{"day": "1d", "week": "7d", "month": "30d", "year": "365d"}
+	switch a {
+	case "last", "past":
+		if d, ok := periods[b]; ok {
+			return "since:" + d
+		}
+	case "this":
+		t := time.Unix(now, 0)
+		switch b {
+		case "week": // since Monday
+			return fmt.Sprintf("since:%dd", (int(t.Weekday())+6)%7+1)
+		case "month":
+			return t.Format("modified:2006-01")
+		case "year":
+			return t.Format("modified:2006")
+		}
+	}
+	// Arabic puts the noun first: الاسبوع الماضي = last week.
+	if b == fold.Fold("الماضي") || b == fold.Fold("الماضية") {
+		switch a {
+		case fold.Fold("الاسبوع"):
+			return "since:7d"
+		case fold.Fold("الشهر"):
+			return "since:30d"
+		case fold.Fold("السنة"), fold.Fold("العام"):
+			return "since:365d"
+		}
+	}
+	return ""
+}
+
+// wordFilter parses the filter a plain-language word stands for.
+func (p *parser) wordFilter(text string, span Span) (*Filter, bool) {
+	f, err := p.maybeFilter([]rune(text), span.Start, NoScope)
+	if err != nil || f == nil {
+		return nil, false
+	}
+	f.Span = span
+	return f, true
+}
+
+// WordMeaning: what a plain-language word, or the phrase ending in it
+// (prev + word), stands for — for the hint line; "" when nothing.
+func WordMeaning(prev, word string) string {
+	if m := TypeWordMeaning(word); m != "" {
+		return m
+	}
+	if f, ok := filterWords[fold.Fold(word)]; ok {
+		return f
+	}
+	if prev != "" {
+		return phraseFilter(prev, word, time.Now().Unix())
+	}
+	return ""
 }

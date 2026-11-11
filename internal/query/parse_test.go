@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
 
@@ -258,6 +259,48 @@ func TestTypeWordsParse(t *testing.T) {
 		}
 	}
 	if h := Hint("beach jpg", 9, En); h != "jpg means ext:jpg,jpeg,jpe — put it in quotes to search names for the word" {
+		t.Errorf("hint: %q", h)
+	}
+}
+
+func TestPlainLanguageWords(t *testing.T) {
+	now := time.Date(2026, 11, 11, 12, 0, 0, 0, time.Local).Unix() // a Wednesday
+	for in, want := range map[string][]string{
+		"photos last week":   {"kind", "since"},
+		"big videos":         {"fsize", "kind"},
+		"pdf yesterday":      {"ext", "modified"},
+		"4k hdr":             {"res", "hdr"},
+		"screenshots today":  {"screenshot", "modified"},
+		"this month":         {"modified"},
+		"صور الاسبوع الماضي": {"kind", "since"},
+		`"today" notes`:      {"text", "text"},
+		"last":               {"text"},
+		"mkv OR last week":   {"ext|since"},
+	} {
+		q, err := ParseAt(in, now)
+		if err != nil {
+			t.Fatalf("%s: %v", in, err)
+		}
+		var got []string
+		for _, c := range q.Clauses {
+			var alts []string
+			for _, term := range c.Terms {
+				k := "text"
+				if term.Kind == TermFilter {
+					k = term.Filter.Def.Key
+				}
+				alts = append(alts, k)
+			}
+			got = append(got, strings.Join(alts, "|"))
+		}
+		if strings.Join(got, " ") != strings.Join(want, " ") {
+			t.Errorf("%s: got %v, want %v", in, got, want)
+		}
+	}
+	if h := Hint("photos last week", 16, En); !strings.HasPrefix(h, "last week means since:7d") {
+		t.Errorf("hint: %q", h)
+	}
+	if h := Hint("big", 3, En); !strings.HasPrefix(h, "big means fsize:>100mb") {
 		t.Errorf("hint: %q", h)
 	}
 }

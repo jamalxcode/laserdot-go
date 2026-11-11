@@ -85,7 +85,9 @@ struct MainWindow: View {
             Divider()
             HStack(spacing: 12) {
                 if let model = delegate.model {
-                    ResultsSummary(model: model)
+                    StatusSummary(model: model)
+                    Spacer()
+                    ShortcutBar(model: model).font(.caption)
                 }
                 Spacer()
                 if updates.checking {
@@ -98,8 +100,8 @@ struct MainWindow: View {
                         .controlSize(.small)
                 }
                 Text(delegate.statusLine)
-                if !delegate.networkLine.isEmpty {
-                    Label(delegate.networkLine, systemImage: "lock.shield")
+                if let model = delegate.model, !delegate.networkLine.isEmpty {
+                    NetworkLock(blocked: model.networkBlocked)
                 }
             }
             .font(.callout)
@@ -198,6 +200,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             self?.show(status)
             if !SelfTest.active { self?.indexDefaultsOnce(status) }
         }
+        model.commandProvider = { [weak self] in self?.commands() ?? [] }
         model.onIndexing = { [weak self] name in
             self?.statusLine = String(format: L("index.running"), name)
         }
@@ -231,6 +234,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     private var selfTest: SelfTestRunner?
+
+    /// What `>` in the search box offers: the menus' actions, typed.
+    func commands() -> [ActionItem] {
+        var list: [ActionItem] = [
+            ActionItem(id: "dupes", title: L("menu.duplicates"), symbol: "square.on.square") { [weak self] in self?.showDuplicates() },
+            ActionItem(id: "index", title: L("menu.index"), symbol: "folder.badge.plus", shortcut: "⌘O") { [weak self] in self?.chooseFolder() },
+            ActionItem(id: "syntax", title: L("menu.syntax"), symbol: "questionmark.circle", shortcut: "⌘/") { [weak self] in
+                self?.model?.showCheatSheet = true
+            },
+            ActionItem(id: "settings", title: L("menu.settings"), symbol: "gearshape", shortcut: "⌘,") {
+                NSApp.activate(ignoringOtherApps: true)
+                NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
+            },
+            ActionItem(id: "updates", title: L("menu.checkUpdates"), symbol: "arrow.down.circle") { [weak self] in
+                self?.updates.check(interactive: true)
+            },
+            ActionItem(id: "content", title: L("commands.contentAdd"), symbol: "doc.text.magnifyingglass") { [weak self] in
+                self?.content?.addFolder()
+            },
+        ]
+        for d in drives?.drives ?? [] {
+            list.append(ActionItem(id: "eject:" + d.mount, title: String(format: L("commands.eject"), d.name), symbol: "eject") { [weak self] in
+                self?.drives?.eject(d)
+            })
+        }
+        list.append(ActionItem(id: "quit", title: L("menu.quit"), symbol: "power", shortcut: "⌘Q") { NSApp.terminate(nil) })
+        return list
+    }
     var engineForTests: Engine? { engine }
     var overlayForTests: OverlayController? { overlay }
 

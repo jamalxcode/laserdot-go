@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -45,6 +46,21 @@ func tokenAt(q string, cursor int) (int, string) {
 		end++
 	}
 	return start, string(r[start:end])
+}
+
+// prevToken is the whitespace-delimited token before the one at cursor.
+func prevToken(q string, cursor int) string {
+	start, _ := tokenAt(q, cursor)
+	r := []rune(q)
+	end := start
+	for end > 0 && unicode.IsSpace(r[end-1]) {
+		end--
+	}
+	if end == 0 {
+		return ""
+	}
+	_, tok := tokenAt(string(r[:end]), end)
+	return tok
 }
 
 // splitFilter splits -a.key:value into (scope prefix with dot, key, value,
@@ -122,7 +138,11 @@ func Hint(q string, cursor int, lang Lang) string {
 	}
 	if !hasValue {
 		w := strings.TrimPrefix(tok, "-")
-		if m := TypeWordMeaning(w); m != "" {
+		prev := prevToken(q, cursor)
+		if m := WordMeaning(prev, w); m != "" {
+			if TypeWordMeaning(w) == "" && phraseFilter(prev, w, time.Now().Unix()) != "" {
+				w = prev + " " + w
+			}
 			return fmt.Sprintf(phrase(phTypeWord, lang), w, m)
 		}
 	}

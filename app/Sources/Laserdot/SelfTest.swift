@@ -43,32 +43,55 @@ final class SelfTestRunner {
 
     // MARK: the script
 
+    /// One step: reset the query, optionally prepare, type, optionally act,
+    /// then record the screen.
+    private struct Step {
+        let name: String
+        let typed: String
+        var before: (() -> Void)?
+        var after: (() -> Void)?
+    }
+
     private func run() {
-        guard let overlay = app.overlayForTests, let model = app.model else {
+        guard let overlay = app.overlayForTests, let model = app.model, let engine = app.engineForTests else {
             finish(error: "no overlay")
             return
         }
+        let folder = ProcessInfo.processInfo.environment["LASERDOT_SELFTEST_FOLDER"] ?? ""
+        let steps = [
+            Step(name: "jpg", typed: "jpg"),
+            Step(name: "proj", typed: "proj"),
+            Step(name: "tool", typed: "tool"),
+            Step(name: "pdftoday", typed: "pdf today"),
+            Step(name: "commands", typed: ">dup"),
+            Step(name: "actions", typed: "jpg", after: { model.toggleActions() }),
+            Step(name: "home", typed: "", before: {
+                engine.recordOpen(path: folder + "/beach.jpg")
+                model.loadHome()
+            }),
+        ]
         overlay.show()
-        after(0.8) {
-            self.type("jpg", into: overlay.panel) {
+        after(1) {
+            // Nothing typed, nothing opened yet: the slim bar.
+            self.capture("start", model: model, window: overlay.panel)
+            self.runSteps(steps[...], model: model, overlay: overlay)
+        }
+    }
+
+    private func runSteps(_ steps: ArraySlice<Step>, model: SearchModel, overlay: OverlayController) {
+        guard let step = steps.first else {
+            mainWindowAndSettings(model: model, overlay: overlay)
+            return
+        }
+        model.query = ""
+        after(0.5) {
+            step.before?()
+            self.type(step.typed, into: overlay.panel) {
                 self.after(2) {
-                    self.capture("jpg", model: model, window: overlay.panel)
-                    model.query = ""
-                    self.after(0.5) {
-                        self.type("proj", into: overlay.panel) {
-                            self.after(2) {
-                                self.capture("proj", model: model, window: overlay.panel)
-                                model.query = ""
-                                self.after(0.5) {
-                                    self.type("tool", into: overlay.panel) {
-                                        self.after(2) {
-                                            self.capture("tool", model: model, window: overlay.panel)
-                                            self.mainWindowAndSettings(model: model, overlay: overlay)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                    step.after?()
+                    self.after(0.6) {
+                        self.capture(step.name, model: model, window: overlay.panel)
+                        self.runSteps(steps.dropFirst(), model: model, overlay: overlay)
                     }
                 }
             }
@@ -135,6 +158,11 @@ final class SelfTestRunner {
             "results": model.results.map(\.name),
             "selected": model.selected?.name ?? "",
             "chips": model.completionChips.map(\.label) + model.kindChips.map(\.title),
+            "compact": model.compact,
+            "commands": model.isCommandMode ? model.commandEntries.map(\.title) : [],
+            "actions": model.showActions ? model.actions.map(\.title) : [],
+            "highlight": model.highlightWords,
+            "visible_hint": model.visibleHint ?? "",
             "accessibility": labels,
         ])
         screenshot(window, name: name)

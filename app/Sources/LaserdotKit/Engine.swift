@@ -107,6 +107,8 @@ public struct DaemonStatus: Sendable {
     public var watcher: String
     public var entries: UInt64
     public var folders: [String]
+    /// A folder being indexed now, if the daemon reports it.
+    public var indexing: Wire.IndexProgress? = nil
 
     static let down = DaemonStatus(
         running: false, version: "", protocolVersion: 0, networkDenied: false, watcher: "", entries: 0, folders: [])
@@ -315,7 +317,7 @@ public final class Engine: @unchecked Sendable {
         let roots = (try? call(.roots, as: [Wire.RootInfo].self)) ?? []
         return DaemonStatus(
             running: true, version: s.version, protocolVersion: s.protocolVersion, networkDenied: s.networkDenied,
-            watcher: s.watcher, entries: s.entries, folders: roots.map(\.path))
+            watcher: s.watcher, entries: s.entries, folders: roots.map(\.path), indexing: s.indexing)
     }
 
     public func search(query: String, limit: Int = 100, sort: SortKey = .relevance, reverse: Bool = false) throws -> Results {
@@ -324,6 +326,11 @@ public final class Engine: @unchecked Sendable {
         return Results(
             total: r.total, hits: r.hits.map(Hit.init), elapsedMs: Double(r.elapsedUs) / 1000,
             typoFallback: r.typoFallback, notes: r.warnings.map(\.message))
+    }
+
+    /// The results opened most recently (empty with older daemons).
+    public func recentOpens(limit: Int = 8) -> [Hit] {
+        ((try? call(.recentOpens(limit: limit), as: [Wire.Hit].self)) ?? []).map(Hit.init)
     }
 
     /// Note that the user opened `path` (spec §6.2). Older daemons answer

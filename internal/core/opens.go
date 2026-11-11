@@ -111,3 +111,33 @@ func (ld *Laserdot) openBoosts(s *index.Store) map[uint32]uint8 {
 	}
 	return out
 }
+
+// RecentOpens: the results opened most recently that still exist, newest
+// first (the empty search box shows them).
+func (ld *Laserdot) RecentOpens(limit int) []Hit {
+	h := &ld.opens
+	h.mu.Lock()
+	ld.loadOpens()
+	type rec struct {
+		path string
+		last int64
+	}
+	recs := make([]rec, 0, len(h.records))
+	for p, r := range h.records {
+		recs = append(recs, rec{p, r.Last})
+	}
+	h.mu.Unlock()
+	sort.Slice(recs, func(i, j int) bool { return recs[i].last > recs[j].last })
+	ld.mu.RLock()
+	defer ld.mu.RUnlock()
+	out := []Hit{}
+	for _, r := range recs {
+		if len(out) >= limit {
+			break
+		}
+		if id, ok := ld.store.Resolve(r.path); ok {
+			out = append(out, hitOf(ld.store, id, false))
+		}
+	}
+	return out
+}

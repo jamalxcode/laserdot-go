@@ -14,6 +14,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/RoaringBitmap/roaring/v2"
@@ -114,14 +115,15 @@ type OpenReport struct {
 // exclusively while they change it. wmu serializes writers (the database
 // and the store change together).
 type Laserdot struct {
-	opens  openHistory
-	dbPath string
-	wmu    sync.Mutex
-	db     *index.Db
-	mu     sync.RWMutex
-	store  *index.Store
-	loadMS uint64
-	report OpenReport
+	opens    openHistory
+	progress atomic.Pointer[IndexProgress]
+	dbPath   string
+	wmu      sync.Mutex
+	db       *index.Db
+	mu       sync.RWMutex
+	store    *index.Store
+	loadMS   uint64
+	report   OpenReport
 	// content: file contents (§2.4), in its own file next to the index.
 	content         *index.ContentIndex
 	contentSettings ContentSettings
@@ -364,7 +366,12 @@ func (ld *Laserdot) Index(root string) (IndexStats, error) {
 	}
 	ld.wmu.Lock()
 	defer ld.wmu.Unlock()
-	st, err := index.IndexRoot(ld.db, root, ld.ScanOptions(), index.BulkOptions{})
+	defer ld.progress.Store(nil)
+	st, err := index.IndexRoot(ld.db, root, ld.ScanOptions(), index.BulkOptions{
+		Progress: func(phase string, done, total uint64) {
+			ld.progress.Store(&IndexProgress{Root: root, Phase: phase, Done: done, Total: total})
+		},
+	})
 	if err != nil {
 		return st, err
 	}

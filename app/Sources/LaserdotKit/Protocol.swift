@@ -52,6 +52,8 @@ public enum DaemonRequest: Encodable, Sendable {
     case cheatSheet(lang: String)
     /// The user opened a result: it ranks higher next time (spec §6.2).
     case opened(path: String)
+    /// The results opened most recently, newest first.
+    case recentOpens(limit: Int)
 
     /// The `op` tag.
     public var op: String {
@@ -62,6 +64,7 @@ public enum DaemonRequest: Encodable, Sendable {
         case .index: return "index"
         case .forget: return "forget"
         case .opened: return "opened"
+        case .recentOpens: return "recent_opens"
         case .refresh: return "refresh"
         case .roots: return "roots"
         case .stats: return "stats"
@@ -129,6 +132,8 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(cursor, forKey: .cursor)
         case let .filters(lang), let .cheatSheet(lang):
             try c.encode(lang, forKey: .lang)
+        case let .recentOpens(limit):
+            try c.encode(limit, forKey: .limit)
         case .ping, .status, .refresh, .roots, .stats, .shutdown, .drives, .contentStatus, .updateContent, .valueCounts:
             break
         }
@@ -176,9 +181,11 @@ public enum Wire {
         public var watcher: String
         public var db: String
         public var entries: UInt64
+        /// A folder being indexed now (newer daemons).
+        public var indexing: IndexProgress?
 
         enum CodingKeys: String, CodingKey {
-            case protocolVersion = "protocol", version, pid, networkDenied = "network_denied", watcher, db, entries
+            case protocolVersion = "protocol", version, pid, networkDenied = "network_denied", watcher, db, entries, indexing
         }
 
         public init(from decoder: Decoder) throws {
@@ -190,7 +197,16 @@ public enum Wire {
             watcher = try c.value(.watcher, or: "")
             db = try c.value(.db, or: "")
             entries = try c.value(.entries, or: 0)
+            indexing = try c.decodeIfPresent(IndexProgress.self, forKey: .indexing)
         }
+    }
+
+    /// `status.indexing`: phase "scanning" (total unknown) or "saving".
+    public struct IndexProgress: Decodable, Sendable, Equatable {
+        public var root: String
+        public var phase: String
+        public var done: UInt64
+        public var total: UInt64
     }
 
     /// Compact media facts for a result row (spec §10.3).

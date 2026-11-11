@@ -144,7 +144,26 @@ func ParseAt(input string, now int64) (*Query, error) {
 	p := &parser{now: now}
 	q := &Query{Raw: raw}
 	var pendingOr *Span
-	for _, tok := range tokens {
+	for i := 0; i < len(tokens); i++ {
+		tok := tokens[i]
+		// "last week", "this month": two words, one date filter.
+		if i+1 < len(tokens) {
+			if text := phraseFilter(tok.text, tokens[i+1].text, now); text != "" {
+				span := Span{tok.span.Start, tokens[i+1].span.End}
+				if f, ok := p.wordFilter(text, span); ok {
+					i++
+					term := Term{Span: span, Kind: TermFilter, Filter: *f}
+					if pendingOr != nil {
+						last := &q.Clauses[len(q.Clauses)-1]
+						last.Terms = append(last.Terms, term)
+						pendingOr = nil
+					} else {
+						q.Clauses = append(q.Clauses, Clause{Terms: []Term{term}})
+					}
+					continue
+				}
+			}
+		}
 		if tok.text == "OR" {
 			if len(q.Clauses) == 0 || pendingOr != nil {
 				return nil, newErr(tok.span, "OR needs a term on both sides")
@@ -282,6 +301,11 @@ func (p *parser) term(tok token) (Term, error) {
 	if !pat.Wildcards {
 		if tf, ok := p.typeFilter(pat.Text, span); ok {
 			return Term{Negated: negated, Span: span, Kind: TermFilter, Filter: *tf}, nil
+		}
+		if text, ok := filterWords[pat.Text]; ok {
+			if wf, ok := p.wordFilter(text, span); ok {
+				return Term{Negated: negated, Span: span, Kind: TermFilter, Filter: *wf}, nil
+			}
 		}
 	}
 	return Term{Negated: negated, Span: span, Kind: TermText, Text: TextValue{Pattern: pat}}, nil

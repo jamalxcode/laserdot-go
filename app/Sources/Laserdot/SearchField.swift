@@ -13,6 +13,8 @@ struct SearchField: NSViewRepresentable {
     /// Changing it gives the field the keyboard (window shown, ⌘F).
     var focusToken: Int
     var onMove: (Int) -> Void
+    /// ⇧↑/⇧↓: grow the selection.
+    var onExtend: (Int) -> Void = { _ in }
     var onTab: () -> Void
     var onSubmit: () -> Void
     var onEscape: () -> Void
@@ -73,6 +75,8 @@ struct SearchField: NSViewRepresentable {
             switch selector {
             case #selector(NSResponder.moveUp(_:)): parent.onMove(-1)
             case #selector(NSResponder.moveDown(_:)): parent.onMove(1)
+            case #selector(NSResponder.moveUpAndModifySelection(_:)): parent.onExtend(-1)
+            case #selector(NSResponder.moveDownAndModifySelection(_:)): parent.onExtend(1)
             case #selector(NSResponder.insertTab(_:)): parent.onTab()
             case #selector(NSResponder.insertNewline(_:)): parent.onSubmit()
             case #selector(NSResponder.cancelOperation(_:)): parent.onEscape()

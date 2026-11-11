@@ -23,7 +23,7 @@ def check(ok, what):
 
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
-for name in ("jpg", "proj", "tool"):
+for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -57,6 +57,31 @@ check(len(proj["chips"]) >= 2, f"kind chips offered for mixed results (got {proj
 tool = steps["tool"]
 check(tool["results"] == ["Tool.app"], f"Tool.app is one result (got {tool['results']})")
 
+# The overlay starts as a slim bar (nothing typed, nothing opened yet).
+check(steps.get("start", {}).get("compact") is True, "the overlay starts slim")
+check(not jpg["compact"], "the overlay grows for results")
+
+# Plain-language dates.
+pdft = steps["pdftoday"]
+check(pdft["results"] == ["project.pdf"], f"pdf today finds today's PDF (got {pdft['results']})")
+check("modified:today" in pdft["hint"], f"the hint explains today (got {pdft['hint']!r})")
+
+# The generic hint is not shown.
+check(steps["proj"]["visible_hint"] == "", f"no generic hint for a plain word (got {steps['proj']['visible_hint']!r})")
+
+# Commands with >.
+cmds = steps["commands"]["commands"]
+check(len(cmds) >= 1, f"> offers commands (got {cmds})")
+
+# ⌘K actions for the selection.
+acts = steps["actions"]["actions"]
+check(len(acts) >= 6, f"⌘K lists the actions (got {acts})")
+
+# The empty box shows what was opened.
+home = steps["home"]
+check("beach.jpg" in home["results"], f"the empty box lists recently opened files (got {home['results']})")
+check(not home["compact"], "the overlay grows for recent files")
+
 # Language: the UI strings follow the language, and Arabic is right-to-left.
 arabic = re.compile("[؀-ۿ]")
 if lang == "ar":
@@ -66,5 +91,5 @@ else:
     check(not report["layout_rtl"], "English lays out left-to-right")
     check("Top Hit" in titles, f"English section titles (got {titles})")
 
-check(len(report["screenshots"]) >= 4, f"screenshots saved (got {report['screenshots']})")
+check(len(report["screenshots"]) >= 8, f"screenshots saved (got {report['screenshots']})")
 sys.exit(1 if failures else 0)

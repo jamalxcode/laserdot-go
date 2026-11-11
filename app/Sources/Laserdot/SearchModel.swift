@@ -33,12 +33,40 @@ final class SearchModel: ObservableObject {
     /// Bumped by Edit ▸ Find (⌘F): the search field takes the keyboard.
     @Published private(set) var focusRequest = 0
     @Published private(set) var hint: String?
+    /// The hint, unless it says nothing about what was typed.
+    var visibleHint: String? {
+        guard let h = hint, !isGenericHint(h, lang: appLang) else { return nil }
+        return h
+    }
+    /// Every result of the last answer, before sections were capped.
+    private var allHits: [Hit] = []
+    /// Sections whose "Show all" was clicked.
+    private var expanded = Set<String>()
+    /// Rows selected besides `selection` (⇧↑/↓, ⌘-click).
+    @Published private(set) var extraSelection = Set<Int>()
+    private var anchor = 0
+    /// ⌘K: the actions for the selected result(s).
+    @Published var showActions = false {
+        didSet { actionIndex = 0; updateCompact() }
+    }
+    @Published var actionIndex = 0
+    /// `>` at the start of the query: commands instead of a search.
+    @Published var commandIndex = 0
+    var commandProvider: (() -> [ActionItem])?
+    /// "Indexing “Home”… 45%", while a folder is first indexed.
+    @Published private(set) var progressText: String?
+    private var progressTimer: Timer?
+    /// The overlay shrinks to a slim bar when there is nothing to show.
+    @Published private(set) var compact = true
     @Published private(set) var problem: Problem?
     @Published private(set) var notes: [String] = []
     @Published private(set) var unavailable: String?
     @Published var selection = 0
     @Published var showCheatSheet = false {
-        didSet { if showCheatSheet && !oldValue { loadCounts() } }
+        didSet {
+            if showCheatSheet && !oldValue { loadCounts() }
+            updateCompact()
+        }
     }
     @Published private(set) var networkBlocked = false
     /// Zero-results suggestions (spec §8.3).
@@ -106,16 +134,6 @@ final class SearchModel: ObservableObject {
     /// Indexing runs here, one folder after another, never ahead of searches.
     private let indexQueue = DispatchQueue(label: "laserdot.index", qos: .utility)
 
-    /// Example queries shown on an empty box (spec §8.5).
-    let examples = [
-        "invoice march",
-        "res:4k hdr:true",
-        "a(lang:ar channels:5.1)",
-        "kind:image taken:2024 gps:true",
-        "kind:video fsize:>4gb",
-        "lossless:true artist:fairouz",
-    ]
-
     init(engine: Engine) {
         self.engine = engine
         hint = LaserdotKit.hint(query: "", cursor: 0, lang: appLang)
@@ -139,6 +157,7 @@ final class SearchModel: ObservableObject {
                 self?.networkBlocked = status.networkDenied
                 self?.unavailable = status.running ? nil : L("daemon.starting")
                 self?.onStatus?(status)
+                if self?.query.isEmpty == true { self?.loadHome() }
                 if status.running && status.folders.isEmpty && status.entries == 0 {
                     self?.onNothingIndexed?()
                 }
@@ -154,6 +173,22 @@ final class SearchModel: ObservableObject {
         let gen = generation
         let q = query
         let (engine, caret) = (self.engine, cursor)
+        selection = 0
+        extraSelection = []
+        expanded = []
+        showActions = false
+        if isCommandMode {
+            // `>`: commands, not a search.
+            commandIndex = 0
+            searching = false
+            hint = L("commands.hint")
+            completionChips = []
+            (results, sections, allHits) = ([], [], [])
+            problem = nil
+            coaching = []
+            updateCompact()
+            return
+        }
         guideQueue.async { [weak self] in
             let h = engine.hint(query: q, cursor: caret, lang: appLang)
             let section = engine.sectionAt(query: q, cursor: caret)
@@ -165,16 +200,14 @@ final class SearchModel: ObservableObject {
                 self.completionChips = chips
             }
         }
-        selection = 0
         if q.trimmingCharacters(in: .whitespaces).isEmpty {
             searching = false
             completionChips = []
-            sections = []
-            results = []
             total = 0
             problem = nil
             notes = []
             coaching = []
+            loadHome()
             return
         }
         searching = true
@@ -193,7 +226,8 @@ final class SearchModel: ObservableObject {
         coaching = []
         switch outcome {
         case .success(let r):
-            (results, sections) = Self.grouped(r.hits)
+            allHits = r.hits
+            (results, sections) = Self.grouped(r.hits, expanded: expanded)
             total = r.total
             elapsedMs = r.elapsedMs
             notes = r.notes
@@ -203,6 +237,7 @@ final class SearchModel: ObservableObject {
         case .failure(let error):
             results = []
             sections = []
+            allHits = []
             total = 0
             switch error as? LaserdotError {
             case let .query(message, start, end, suggestion)?:
@@ -219,7 +254,42 @@ final class SearchModel: ObservableObject {
                 unavailable = error.localizedDescription
             }
         }
+        updateCompact()
     }
+
+    private func updateCompact() {
+        compact = query.isEmpty && results.isEmpty && !showCheatSheet && !showActions
+    }
+
+    // MARK: the empty box: recently opened, recent downloads, pins
+
+    /// What the empty box shows: results opened lately and new downloads,
+    /// in the same list (↑/↓, ⌘1–9, preview all work).
+    func loadHome() {
+        let engine = self.engine
+        let gen = generation
+        queue.async { [weak self] in
+            let recent = engine.recentOpens(limit: 6)
+            let downloads = (try? engine.search(query: "in:~/Downloads since:30d -kind:folder", limit: 6).hits) ?? []
+            DispatchQueue.main.async {
+                guard let self, gen == self.generation, self.query.isEmpty else { return }
+                var hits: [Hit] = []
+                var secs: [ResultSection] = []
+                let seen = Set(recent.map(\.path))
+                let fresh = downloads.filter { !seen.contains($0.path) }
+                for (id, list) in [("recent", recent), ("downloads", fresh)] where !list.isEmpty {
+                    secs.append(ResultSection(id: id, title: L("home.\(id)"), range: hits.count..<(hits.count + list.count),
+                                              filter: nil, total: list.count, hidden: 0))
+                    hits += list
+                }
+                self.resultsID &+= 1
+                (self.results, self.sections, self.allHits) = (hits, secs, [])
+                self.updateCompact()
+            }
+        }
+    }
+
+    var isHome: Bool { query.trimmingCharacters(in: .whitespaces).isEmpty }
 
     // MARK: editing
 
@@ -254,6 +324,44 @@ final class SearchModel: ObservableObject {
         guard !query.contains("kind:") else { return [] }
         let kinds = sections.filter { $0.filter != nil }
         return kinds.count >= 2 ? kinds : []
+    }
+
+    /// "Show all 37": the section's other results join the list.
+    func expand(_ id: String) {
+        expanded.insert(id)
+        let current = selected?.path
+        (results, sections) = Self.grouped(allHits, expanded: expanded)
+        selection = results.firstIndex { $0.path == current } ?? 0
+        resultsID &+= 1
+    }
+
+    /// The words of the query that match names, for bold highlighting.
+    var highlightWords: [String] {
+        query.split(separator: " ").compactMap { t -> String? in
+            var w = String(t)
+            if w == "OR" || w.hasPrefix("-") || w.contains(":") { return nil }
+            w = w.trimmingCharacters(in: CharacterSet(charactersIn: "\"*?"))
+            return w.isEmpty ? nil : w
+        }
+    }
+
+    // MARK: commands (`>`)
+
+    var isCommandMode: Bool { query.hasPrefix(">") }
+
+    var commandEntries: [ActionItem] {
+        let f = query.dropFirst().trimmingCharacters(in: .whitespaces).lowercased()
+        // Titles are localized; the ids (dupes, index, settings, eject…) also
+        // match, so English command names work in every language.
+        return (commandProvider?() ?? []).filter { f.isEmpty || $0.title.lowercased().contains(f) || $0.id.contains(f) }
+    }
+
+    func runCommand(_ i: Int? = nil) {
+        let list = commandEntries
+        let index = i ?? commandIndex
+        guard list.indices.contains(index) else { return }
+        query = ""
+        list[index].run()
     }
 
     /// Tab: take the first completion for the word under the caret (§8.2).
@@ -317,7 +425,7 @@ final class SearchModel: ObservableObject {
 
     /// Remember a query that was used (a result opened or revealed).
     /// Opened results rank higher next time (spec §6.2); kept on this Mac.
-    private func noteOpened(_ h: Hit) {
+    func noteOpened(_ h: Hit) {
         guard h.volume == nil else { return } // the history covers this Mac's index
         let (engine, path) = (self.engine, h.path)
         queue.async { engine.recordOpen(path: path) }
@@ -353,11 +461,177 @@ final class SearchModel: ObservableObject {
     // MARK: results
 
     func move(_ delta: Int) {
+        if showActions {
+            actionIndex = max(0, min(actions.count - 1, actionIndex + delta))
+            return
+        }
+        if isCommandMode {
+            commandIndex = max(0, min(commandEntries.count - 1, commandIndex + delta))
+            return
+        }
         guard !results.isEmpty else {
             recall(delta < 0 ? 1 : -1)
             return
         }
+        extraSelection = []
         selection = max(0, min(results.count - 1, selection + delta))
+        anchor = selection
+    }
+
+    /// ⇧↑/↓: grow the selection from where it started.
+    func extend(_ delta: Int) {
+        guard !results.isEmpty, !showActions, !isCommandMode else { return }
+        if extraSelection.isEmpty { anchor = selection }
+        selection = max(0, min(results.count - 1, selection + delta))
+        extraSelection = Set(min(anchor, selection)...max(anchor, selection))
+    }
+
+    /// A click: plain selects, ⌘ adds or removes, ⇧ selects a range.
+    func click(_ i: Int) {
+        let flags = NSEvent.modifierFlags
+        if flags.contains(.command) {
+            if extraSelection.isEmpty { extraSelection = [selection] }
+            if extraSelection.contains(i) && extraSelection.count > 1 {
+                extraSelection.remove(i)
+            } else {
+                extraSelection.insert(i)
+            }
+            selection = i
+        } else if flags.contains(.shift) {
+            if extraSelection.isEmpty { anchor = selection }
+            selection = i
+            extraSelection = Set(min(anchor, i)...max(anchor, i))
+        } else {
+            extraSelection = []
+            selection = i
+            anchor = i
+        }
+    }
+
+    func isSelected(_ i: Int) -> Bool { i == selection || extraSelection.contains(i) }
+
+    /// The selected results, in list order (one, or several).
+    var selectedHits: [Hit] {
+        if extraSelection.isEmpty { return selected.map { [$0] } ?? [] }
+        return extraSelection.sorted().compactMap { results.indices.contains($0) ? results[$0] : nil }
+    }
+
+    /// Return: open, or run the highlighted action or command.
+    func submit() {
+        if showActions {
+            let a = actions
+            if a.indices.contains(actionIndex) { a[actionIndex].run() }
+            showActions = false
+        } else if isCommandMode {
+            runCommand()
+        } else if extraSelection.count > 1 {
+            selectedHits.forEach { open($0) }
+        } else {
+            open()
+        }
+    }
+
+    /// Esc: close what is open (actions, cheat sheet), else the overlay.
+    func escape(close: () -> Void) {
+        if showActions {
+            showActions = false
+        } else if showCheatSheet {
+            showCheatSheet = false
+        } else if isCommandMode {
+            query = ""
+        } else {
+            close()
+        }
+    }
+
+    /// ⌘K: the actions for the selection.
+    func toggleActions() {
+        guard !selectedHits.isEmpty else { return }
+        showActions.toggle()
+    }
+
+    var actions: [ActionItem] {
+        let hits = selectedHits
+        guard let first = hits.first else { return [] }
+        let urls = hits.map { URL(fileURLWithPath: $0.path) }
+        let many = hits.count > 1
+        var list: [ActionItem] = [
+            ActionItem(id: "open", title: L("action.open"), symbol: "arrow.up.forward.app", shortcut: "↩") { [weak self] in
+                hits.forEach { self?.open($0) }
+            },
+        ]
+        if !many {
+            let apps = NSWorkspace.shared.urlsForApplications(toOpen: urls[0]).prefix(4)
+            for app in apps {
+                let name = FileManager.default.displayName(atPath: app.path).replacingOccurrences(of: ".app", with: "")
+                list.append(ActionItem(id: "with:" + app.path, title: String(format: L("action.openWith"), name), symbol: "app") { [weak self] in
+                    self?.noteOpened(first)
+                    NSWorkspace.shared.open(urls, withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+                })
+            }
+        }
+        list += [
+            ActionItem(id: "quicklook", title: L("action.quickLook"), symbol: "eye", shortcut: "⌘Y") { [weak self] in self?.quickLook(first) },
+            ActionItem(id: "reveal", title: L("action.reveal"), symbol: "folder", shortcut: "⌘↩") {
+                NSWorkspace.shared.activateFileViewerSelecting(urls)
+            },
+            ActionItem(id: "copyFile", title: L(many ? "action.copyFiles" : "action.copyFile"), symbol: "doc.on.doc") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.writeObjects(urls as [NSURL])
+            },
+            ActionItem(id: "copyPath", title: L("action.copy"), symbol: "link", shortcut: "⌘⇧C") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(hits.map(\.path).joined(separator: "\n"), forType: .string)
+            },
+            ActionItem(id: "share", title: L("action.share"), symbol: "square.and.arrow.up") {
+                if let view = NSApp.keyWindow?.contentView {
+                    let r = NSRect(x: view.bounds.midX, y: view.bounds.maxY - 60, width: 1, height: 1)
+                    NSSharingServicePicker(items: urls).show(relativeTo: r, of: view, preferredEdge: .minY)
+                }
+            },
+        ]
+        if !many && first.volume == nil {
+            list.append(ActionItem(id: "rename", title: L("action.rename"), symbol: "pencil") { [weak self] in self?.rename(first) })
+        }
+        list.append(ActionItem(id: "trash", title: L("action.trash"), symbol: "trash") { [weak self] in self?.trash(hits) })
+        return list
+    }
+
+    private func rename(_ h: Hit) {
+        let a = NSAlert()
+        a.messageText = String(format: L("rename.title"), h.name)
+        let field = NSTextField(string: h.name)
+        field.frame = NSRect(x: 0, y: 0, width: 300, height: 24)
+        a.accessoryView = field
+        a.addButton(withTitle: L("action.rename"))
+        a.addButton(withTitle: L("action.cancel"))
+        a.window.initialFirstResponder = field
+        guard a.runFront() == .alertFirstButtonReturn else { return }
+        let name = field.stringValue.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, name != h.name, !name.contains("/") else { return }
+        let from = URL(fileURLWithPath: h.path)
+        do {
+            try FileManager.default.moveItem(at: from, to: from.deletingLastPathComponent().appendingPathComponent(name))
+        } catch {
+            let e = NSAlert(error: error)
+            e.runFront()
+        }
+        refreshSoon()
+    }
+
+    /// Move to the Trash (Finder's ⌘⌫; recoverable from the Trash).
+    private func trash(_ hits: [Hit]) {
+        NSWorkspace.shared.recycle(hits.map { URL(fileURLWithPath: $0.path) }) { [weak self] _, error in
+            DispatchQueue.main.async {
+                if let error { NSAlert(error: error).runFront() }
+                self?.refreshSoon()
+            }
+        }
+    }
+
+    /// The daemon's watcher picks the change up; search again a moment later.
+    private func refreshSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.queryChanged() }
     }
 
     var selected: Hit? { results.indices.contains(selection) ? results[selection] : nil }
@@ -406,6 +680,7 @@ final class SearchModel: ObservableObject {
         let path = folder.path
         let name = folder.lastPathComponent
         onIndexing?(name)
+        startProgress(name)
         indexQueue.async { [weak self] in
             var failure: String?
             do {
@@ -415,11 +690,42 @@ final class SearchModel: ObservableObject {
             }
             let status = engine.status()
             DispatchQueue.main.async {
+                self?.stopProgress()
                 self?.onStatus?(status)
                 if let failure { self?.onIndexFailed?(name, failure) }
                 self?.queryChanged() // run the query again: the folder is in now
             }
         }
+    }
+
+    /// Poll the daemon once a second for how far indexing has got.
+    private func startProgress(_ name: String) {
+        progressText = String(format: L("index.running"), name)
+        progressTimer?.invalidate()
+        progressTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let engine = self.engine
+            self.guideQueue.async {
+                let p = engine.status().indexing
+                DispatchQueue.main.async {
+                    guard self.progressTimer != nil, let p else { return }
+                    let folder = p.root == FileManager.default.homeDirectoryForCurrentUser.path
+                        ? L("index.home") : URL(fileURLWithPath: p.root).lastPathComponent
+                    if p.phase == "saving", p.total > 0 {
+                        let pct = Int(Double(p.done) / Double(p.total) * 100)
+                        self.progressText = String(format: L("index.progress"), folder, pct)
+                    } else {
+                        self.progressText = String(format: L("index.scanning"), folder)
+                    }
+                }
+            }
+        }
+    }
+
+    private func stopProgress() {
+        progressTimer?.invalidate()
+        progressTimer = nil
+        progressText = nil
     }
 
     /// A readable reason for a failed request.
@@ -439,9 +745,24 @@ struct ResultSection: Identifiable, Equatable {
     let range: Range<Int>
     /// The filter that narrows to this section (`kind:image`), if any.
     let filter: String?
+    /// Results of this kind in the answer, and how many "Show all" adds.
+    let total: Int
+    let hidden: Int
+}
+
+/// An action (⌘K) or a command (`>`).
+struct ActionItem: Identifiable {
+    let id: String
+    let title: String
+    let symbol: String
+    var shortcut: String? = nil
+    let run: () -> Void
 }
 
 extension SearchModel {
+    /// Results shown per section until "Show all".
+    static let sectionCap = 5
+
     /// The category a result is shown under.
     static func category(_ h: Hit) -> String {
         if h.kind == "app" { return "app" }
@@ -453,12 +774,11 @@ extension SearchModel {
     }
 
     /// Top Hit (the best result), then one section per category in the order
-    /// of each category's best result; within a section the ranking order is
-    /// kept. One result, or none, needs no sections.
-    static func grouped(_ hits: [Hit]) -> ([Hit], [ResultSection]) {
-        guard hits.count > 1 else {
-            return (hits, hits.isEmpty ? [] : [ResultSection(id: "top", title: L("section.top"), range: 0..<1, filter: nil)])
-        }
+    /// of each category's best result, up to `sectionCap` each unless
+    /// expanded; within a section the ranking order is kept.
+    static func grouped(_ hits: [Hit], expanded: Set<String> = []) -> ([Hit], [ResultSection]) {
+        guard let top = hits.first else { return ([], []) }
+        let topSection = ResultSection(id: "top", title: L("section.top"), range: 0..<1, filter: nil, total: 1, hidden: 0)
         var order: [String] = []
         var byCategory: [String: [Hit]] = [:]
         for h in hits.dropFirst() {
@@ -466,13 +786,15 @@ extension SearchModel {
             if byCategory[c] == nil { order.append(c) }
             byCategory[c, default: []].append(h)
         }
-        var out = [hits[0]]
-        var sections = [ResultSection(id: "top", title: L("section.top"), range: 0..<1, filter: nil)]
+        var out = [top]
+        var sections = [topSection]
         for c in order {
-            let list = byCategory[c] ?? []
+            let all = byCategory[c] ?? []
+            let shown = expanded.contains(c) ? all : Array(all.prefix(sectionCap))
             sections.append(ResultSection(
-                id: c, title: L("section.\(c)"), range: out.count..<(out.count + list.count), filter: "kind:\(c)"))
-            out += list
+                id: c, title: L("section.\(c)"), range: out.count..<(out.count + shown.count), filter: "kind:\(c)",
+                total: all.count + (category(top) == c ? 1 : 0), hidden: all.count - shown.count))
+            out += shown
         }
         return (out, sections)
     }

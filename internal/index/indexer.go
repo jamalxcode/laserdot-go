@@ -43,6 +43,9 @@ type BulkOptions struct {
 	// StopAfterChunks > 0 stops after that many chunks (simulates a drive
 	// unplugged mid-index).
 	StopAfterChunks int
+	// Progress, when set, hears the phase ("scanning", then "saving") and,
+	// while saving, how many of the found entries are done.
+	Progress func(phase string, done, total uint64)
 }
 
 // ErrInterrupted: indexing stopped before the end (StopAfterChunks).
@@ -104,6 +107,12 @@ func IndexRoot(db *Db, root string, opts scan.Options, bulk BulkOptions) (IndexS
 		}
 	}
 	st := IndexStats{Root: root}
+	progress := func(phase string, done, total uint64) {
+		if bulk.Progress != nil {
+			bulk.Progress(phase, done, total)
+		}
+	}
+	progress("scanning", 0, 0)
 	t := time.Now()
 	entries, errs, err := scan.Walk(root, opts)
 	if err != nil {
@@ -127,6 +136,7 @@ func IndexRoot(db *Db, root string, opts scan.Options, bulk BulkOptions) (IndexS
 	if err != nil {
 		return st, err
 	}
+	progress("saving", 0, uint64(len(entries)))
 	chunk := max(bulk.Chunk, 1)
 	if bulk.Chunk == 0 {
 		chunk = 20_000
@@ -144,6 +154,7 @@ func IndexRoot(db *Db, root string, opts scan.Options, bulk BulkOptions) (IndexS
 			return st, err
 		}
 		st.WriteMS += uint64(time.Since(t).Milliseconds())
+		progress("saving", uint64(end), uint64(len(entries)))
 	}
 	if err := db.FinishRoot(root); err != nil {
 		return st, err

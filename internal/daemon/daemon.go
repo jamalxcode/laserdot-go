@@ -257,11 +257,15 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 	case ipc.OpPing:
 		return ok("pong")
 	case ipc.OpStatus:
-		return ok(ipc.Status{
+		st := ipc.Status{
 			Protocol: ipc.ProtocolVersion, Version: Version, PID: os.Getpid(),
 			NetworkDenied: sandbox.IsEnforced(), Watcher: s.watcherName(),
 			DB: s.ld.DBPath(), Entries: s.ld.Stats().Entries,
-		})
+		}
+		if p := s.ld.Progress(); p != nil {
+			st.Indexing = &ipc.IndexProgress{Root: p.Root, Phase: p.Phase, Done: p.Done, Total: p.Total}
+		}
+		return ok(st)
 	case ipc.OpSearch:
 		srt, valid := index.ParseSort(req.Sort)
 		if !valid {
@@ -346,6 +350,12 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		return result(s.UpdateContent())
 	case ipc.OpCoach:
 		return ok(s.ld.Coach(req.Query))
+	case ipc.OpRecentOpens:
+		limit := 10
+		if req.Limit != nil && *req.Limit > 0 {
+			limit = *req.Limit
+		}
+		return ok(s.ld.RecentOpens(limit))
 	case ipc.OpOpened:
 		if err := s.ld.RecordOpen(req.Path); err != nil {
 			return fail(ipc.ErrorOf(err))
