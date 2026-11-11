@@ -394,7 +394,7 @@ struct PreviewPane: View {
                     .lineLimit(3)
                     .textSelection(.enabled)
                 Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 8, verticalSpacing: 4) {
-                    detail(L("preview.kind"), L("section.\(SearchModel.category(hit))"))
+                    detail(L("preview.kind"), Self.kindText(hit))
                     if !hit.isDir {
                         detail(L("preview.size"), ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file))
                     }
@@ -421,6 +421,15 @@ struct PreviewPane: View {
             }
             .padding(14)
         }
+    }
+
+    /// What Finder calls it ("JPEG image", "Folder"), else the section name.
+    private static func kindText(_ hit: Hit) -> String {
+        let url = URL(fileURLWithPath: hit.path)
+        if let d = try? url.resourceValues(forKeys: [.localizedTypeDescriptionKey]).localizedTypeDescription, !d.isEmpty {
+            return d
+        }
+        return L("section.\(SearchModel.category(hit))")
     }
 
     private func detail(_ label: String, _ value: String) -> some View {

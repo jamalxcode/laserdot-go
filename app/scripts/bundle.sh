@@ -22,6 +22,13 @@ cp "$BIN/Laserdot" "$APP/Contents/MacOS/Laserdot"
 cp "$DAEMON" "$APP/Contents/MacOS/laserdotd"
 for b in "$BIN"/*.bundle; do [ -e "$b" ] && cp -R "$b" "$APP/Contents/Resources/"; done
 cp Info.plist "$APP/Contents/Info.plist"
+# The app's own language folders: macOS picks the app's language, and with
+# Arabic the right-to-left layout, from the main bundle's .lproj folders (the
+# strings themselves are in the SwiftPM resource bundle).
+for lang in en ar; do
+  mkdir -p "$APP/Contents/Resources/$lang.lproj"
+  printf '"CFBundleDisplayName" = "Laserdot";\n"CFBundleName" = "Laserdot";\n' > "$APP/Contents/Resources/$lang.lproj/InfoPlist.strings"
+done
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" -c "Set :CFBundleVersion $BUILD" "$APP/Contents/Info.plist"
 
 # The icon, from the 1024-px PNG.
