@@ -41,7 +41,12 @@ jobs:
       - name: The packaged app launches (from the disk image, as a user would)
         run: |
           d=$(mktemp -d)
-          hdiutil attach -nobrowse -readonly -mountpoint "$d/mnt" "Laserdot-${{ steps.v.outputs.version }}.dmg"
+          # hdiutil sometimes answers "Resource temporarily unavailable": try again.
+          for i in 1 2 3 4 5; do
+            hdiutil attach -nobrowse -readonly -mountpoint "$d/mnt" "Laserdot-${{ steps.v.outputs.version }}.dmg" && break
+            [ "$i" = 5 ] && exit 1
+            sleep $((i * 3))
+          done
           ditto "$d/mnt/Laserdot.app" "$d/Laserdot.app"
           hdiutil detach "$d/mnt"
           export LASERDOT_DB="$d/data/index.db"
