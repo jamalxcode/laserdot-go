@@ -1,0 +1,28 @@
+name: open-experiment
+on: [push]
+jobs:
+  probe:
+    runs-on: macos-latest
+    steps:
+      - name: Which ways of opening a file work from inside the no-network sandbox?
+        run: |
+          set +e
+          d=$(mktemp -d); echo hello > "$d/note.txt"; sips -s format jpeg -z 8 8 /System/Library/Desktop\ Pictures/*.heic --out "$d/pic.jpg" >/dev/null 2>&1 || cp /System/Library/CoreServices/CoreTypes.bundle/Contents/Resources/GenericDocumentIcon.icns "$d/pic.icns"
+          P='(version 1)(allow default)(deny network*)'
+          echo "== plain open"; /usr/bin/open "$d/note.txt"; echo "exit $?"; sleep 2; pkill TextEdit
+          echo "== open under sandbox-exec"; sandbox-exec -p "$P" /usr/bin/open "$d/note.txt"; echo "exit $?"; sleep 2; pkill TextEdit
+          echo "== open -a under sandbox-exec"; sandbox-exec -p "$P" /usr/bin/open -a TextEdit "$d/note.txt"; echo "exit $?"; sleep 2; pkill TextEdit
+          cat > ws.swift <<'SW'
+          import AppKit
+          let u = URL(fileURLWithPath: CommandLine.arguments[1])
+          let ok = NSWorkspace.shared.open(u)
+          print("NSWorkspace.open ->", ok)
+          let sem = DispatchSemaphore(value: 0)
+          NSWorkspace.shared.open([u], withApplicationAt: URL(fileURLWithPath: "/System/Applications/TextEdit.app"), configuration: .init()) { app, err in print("open(withApplicationAt) ->", app != nil, err.map { "\($0)" } ?? "ok"); sem.signal() }
+          _ = sem.wait(timeout: .now() + 10)
+          SW
+          swiftc ws.swift -o ws 2>&1 | tail -3
+          echo "== NSWorkspace unsandboxed"; ./ws "$d/note.txt"; sleep 2; pkill TextEdit
+          echo "== NSWorkspace under sandbox-exec"; sandbox-exec -p "$P" ./ws "$d/note.txt"; sleep 2; pkill TextEdit
+          echo "== NSWorkspace under sandbox-exec, open via /usr/bin/open child"; sandbox-exec -p "$P" /bin/sh -c "/usr/bin/open '$d/note.txt'; echo exit \$?"; sleep 2; pkill TextEdit
+          echo "== log"; log show --last 2m --predicate 'eventMessage CONTAINS "permission" OR eventMessage CONTAINS "Sandbox"' --style compact 2>/dev/null | grep -iE "lsopen|issue-extension|deny|permission" | tail -15
