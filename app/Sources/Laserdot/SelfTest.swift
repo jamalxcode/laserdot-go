@@ -239,7 +239,7 @@ final class SelfTestRunner {
         r["space_presses"] = model.spacePresses
         r["quicklook_shows"] = QuickLook.shared.shows
         r["key_window_is_overlay"] = NSApp.keyWindow === window
-        let keyWindow: String = NSApp.keyWindow.map { String(describing: type(of: $0)) } ?? "none"
+        let keyWindow: String = NSApp.keyWindow.map { String(describing: Swift.type(of: $0)) } ?? "none"
         r["key_window"] = keyWindow
         r["accessibility"] = labels
         steps.append(r)
