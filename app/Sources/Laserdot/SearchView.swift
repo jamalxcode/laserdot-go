@@ -54,12 +54,21 @@ struct SearchView: View {
             .padding(.vertical, 12)
 
             hintLine
+            chips
             Divider()
             Group {
                 if model.showCheatSheet {
                     CheatSheetView(model: model)
                 } else {
-                    results
+                    HStack(spacing: 0) {
+                        results
+                        // The selected result, larger, with its details.
+                        if let hit = model.selected, !model.results.isEmpty {
+                            Divider()
+                            PreviewPane(hit: hit, model: model)
+                                .frame(width: fixedSize ? 280 : 300)
+                        }
+                    }
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -69,7 +78,7 @@ struct SearchView: View {
                 footer
             }
         }
-        .frame(width: fixedSize ? 720 : nil, height: fixedSize ? 480 : nil)
+        .frame(width: fixedSize ? 920 : nil, height: fixedSize ? 520 : nil)
         .background {
             // The floating card is the overlay's look; the main window keeps
             // the standard window background.
@@ -137,18 +146,19 @@ struct SearchView: View {
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(spacing: 2) {
-                        ForEach(Array(model.results.enumerated()), id: \.element.path) { i, hit in
-                            ResultRow(hit: hit, selected: i == model.selection, emphasized: emphasized)
-                                .contentShape(Rectangle())
-                                .onTapGesture(count: 2) { model.open(hit) }
-                                .onTapGesture { model.selection = i }
-                                .contextMenu {
-                                    Button(L("action.open")) { model.open(hit) }
-                                    Button(L("action.reveal")) { model.reveal(hit) }
-                                    Button(L("action.copy")) { model.copyPath(hit) }
-                                }
-                                .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(model.sections) { section in
+                            if model.sections.count > 1 || section.id != "top" {
+                                Text(section.title)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.secondary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.top, section.id == "top" ? 2 : 10)
+                                    .accessibilityAddTraits(.isHeader)
+                            }
+                            ForEach(section.range.map { IndexedHit(index: $0, hit: model.results[$0]) }) { item in
+                                row(item.index, item.hit)
+                            }
                         }
                     }
                     .padding(6)
@@ -164,6 +174,48 @@ struct SearchView: View {
             // is answered (only if that takes a moment, so typing never flickers).
             .opacity(model.searching ? 0.35 : 1)
             .animation(model.searching ? .easeIn(duration: 0.15).delay(0.15) : .none, value: model.searching)
+        }
+    }
+
+    private func row(_ i: Int, _ hit: Hit) -> some View {
+        ResultRow(hit: hit, selected: i == model.selection, emphasized: emphasized, number: i < 9 ? i + 1 : nil)
+            .contentShape(Rectangle())
+            .onTapGesture(count: 2) { model.open(hit) }
+            .onTapGesture { model.selection = i }
+            .contextMenu {
+                Button(L("action.open")) { model.open(hit) }
+                Button(L("action.quickLook")) { model.quickLook(hit) }
+                Button(L("action.reveal")) { model.reveal(hit) }
+                Button(L("action.copy")) { model.copyPath(hit) }
+            }
+            .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
+    }
+
+    /// Suggestions under the hint: completions for the word being typed, or
+    /// the kinds the results mix (one click narrows to that kind).
+    @ViewBuilder private var chips: some View {
+        let completions = model.completionChips
+        let kinds = model.kindChips
+        if !completions.isEmpty || !kinds.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    if !completions.isEmpty {
+                        ForEach(completions, id: \.self) { c in
+                            Button(c.label) { model.apply(c) }
+                                .help(c.detail)
+                        }
+                    } else {
+                        ForEach(kinds) { k in
+                            Button("\(k.title) (\(k.range.count))") { model.narrow(to: k) }
+                                .help(k.filter ?? "")
+                        }
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .padding(.horizontal, 16)
+            }
+            .padding(.bottom, 8)
         }
     }
 
@@ -219,6 +271,10 @@ struct SearchView: View {
         ZStack {
             Button("") { model.reveal() }.keyboardShortcut(.return, modifiers: .command)
             Button("") { model.copyPath() }.keyboardShortcut("c", modifiers: [.command, .shift])
+            Button("") { model.quickLook() }.keyboardShortcut("y", modifiers: .command)
+            ForEach(1...9, id: \.self) { n in
+                Button("") { model.openNumbered(n) }.keyboardShortcut(KeyEquivalent(Character("\(n)")), modifiers: .command)
+            }
         }
         .opacity(0)
         .accessibilityHidden(true) // keyboard shortcuts only; the context menu has these actions
@@ -244,14 +300,14 @@ struct ResultRow: View {
     let selected: Bool
     /// Accent highlight with white text (the window has the keyboard).
     var emphasized = true
+    /// ⌘1–⌘9 opens this row.
+    var number: Int?
 
     private var light: Bool { selected && emphasized }
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(nsImage: NSWorkspace.shared.icon(forFile: hit.path))
-                .resizable()
-                .frame(width: 28, height: 28)
+            FileIcon(path: hit.path, size: 28, thumbnail: hit.kind == "image" || hit.kind == "video")
             VStack(alignment: .leading, spacing: 2) {
                 Text(hit.name).fontWeight(.medium).lineLimit(1)
                     .foregroundStyle(light ? Color.white : Color.primary)
@@ -276,6 +332,12 @@ struct ResultRow: View {
                     .padding(.vertical, 2)
                     .foregroundStyle(light ? Color.white : Color.primary)
                     .background(Capsule().fill(light ? AnyShapeStyle(Color.white.opacity(0.25)) : AnyShapeStyle(.quaternary)))
+            }
+            if let number {
+                Text("⌘\(number)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(light ? Color.white.opacity(0.85) : Color.secondary)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.horizontal, 10)
@@ -304,4 +366,75 @@ struct FlowChips: View {
             }
         }
     }
+}
+
+/// The selected result, larger: thumbnail (Quick Look), name, kind, size,
+/// dates, media details and the actions.
+struct PreviewPane: View {
+    let hit: Hit
+    @ObservedObject var model: SearchModel
+
+    private static let dateFormat: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f
+    }()
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                FileIcon(path: hit.path, size: 220, thumbnail: true, large: true)
+                    .frame(maxWidth: .infinity)
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
+                    .onTapGesture(count: 2) { model.open(hit) }
+                    .accessibilityHidden(true)
+                Text(hit.name)
+                    .font(.headline)
+                    .lineLimit(3)
+                    .textSelection(.enabled)
+                Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 8, verticalSpacing: 4) {
+                    detail(L("preview.kind"), L("section.\(SearchModel.category(hit))"))
+                    if !hit.isDir {
+                        detail(L("preview.size"), ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file))
+                    }
+                    detail(L("preview.modified"), Self.dateFormat.string(from: Date(timeIntervalSince1970: TimeInterval(hit.modified))))
+                    if !hit.badges.isEmpty {
+                        detail(L("preview.media"), hit.badges.joined(separator: " · "))
+                    }
+                    if let v = hit.volume {
+                        detail(L("preview.drive"), v)
+                    }
+                }
+                .font(.callout)
+                Text(hit.path)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+                    .lineLimit(4)
+                    .truncationMode(.middle)
+                HStack {
+                    Button(L("action.open")) { model.open(hit) }
+                    Button(L("action.reveal")) { model.reveal(hit) }
+                }
+                .controlSize(.small)
+            }
+            .padding(14)
+        }
+    }
+
+    private func detail(_ label: String, _ value: String) -> some View {
+        GridRow {
+            Text(label).foregroundStyle(.secondary).gridColumnAlignment(.trailing)
+            Text(value).lineLimit(2)
+        }
+    }
+}
+
+/// A result and its place in `SearchModel.results`; identified by its path,
+/// one identity per row.
+struct IndexedHit: Identifiable {
+    let index: Int
+    let hit: Hit
+    var id: String { hit.path }
 }

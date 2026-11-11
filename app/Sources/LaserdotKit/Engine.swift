@@ -326,10 +326,30 @@ public final class Engine: @unchecked Sendable {
             typoFallback: r.typoFallback, notes: r.warnings.map(\.message))
     }
 
+    /// Note that the user opened `path` (spec §6.2). Older daemons answer
+    /// `unsupported`; that is fine.
+    public func recordOpen(path: String) {
+        _ = try? call(.opened(path: path), as: String.self)
+    }
+
     /// Index a folder (or refresh it if already indexed). Returns a summary.
     @discardableResult
     public func index(path: String) throws -> String {
-        let s = try call(.index(path: path), as: Wire.IndexStats.self)
+        // Indexing a home folder takes minutes: a connection of its own, so
+        // searches on the shared one are not held up meanwhile.
+        let s: Wire.IndexStats
+        if let own = DaemonClient.connectLive(socketPath: socketPath) {
+            own.setTimeout(3600) // a large home folder can take a while
+            do {
+                s = try own.call(.index(path: path), as: Wire.IndexStats.self)
+            } catch DaemonClientError.remote(let e) {
+                throw LaserdotError(e)
+            } catch {
+                throw LaserdotError.unavailable("\(error)")
+            }
+        } else {
+            s = try call(.index(path: path), as: Wire.IndexStats.self)
+        }
         return s.incremental
             ? "\(s.added) added, \(s.removed) removed, \(s.renamed) renamed"
             : "\(s.files) files, \(s.folders) folders"

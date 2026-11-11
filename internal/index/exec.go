@@ -60,6 +60,9 @@ type Page struct {
 	Reverse bool
 	Offset  int
 	Limit   int
+	// Boost: entries the user opened (spec §6.2), 1–255; they rank first
+	// among equally good matches.
+	Boost map[uint32]uint8
 }
 
 // DefaultPage is relevance order, first 100.
@@ -384,7 +387,7 @@ func nameClauses(q *query.Compiled) [][]*query.NameMatcher {
 
 // relevanceKey: match quality, then shorter names, then shallower paths
 // (§10.1). Lower is better.
-func (s *Store) relevanceKey(clauses [][]*query.NameMatcher, penalty uint32, id uint32) uint64 {
+func (s *Store) relevanceKey(clauses [][]*query.NameMatcher, penalty uint32, id uint32, boost uint8) uint64 {
 	name := s.FoldedName(id)
 	q := uint64(penalty)
 	for _, clause := range clauses {
@@ -406,7 +409,9 @@ func (s *Store) relevanceKey(clauses [][]*query.NameMatcher, penalty uint32, id 
 		}
 		q += uint64(best)
 	}
-	return q<<42 | s.demotion(id)<<40 | uint64(min(len(name), 0xFFFF))<<20 | uint64(s.depth[id])
+	// match quality (13 bits) · opened less (8) · file/folder/hidden (2) ·
+	// name length (16) · depth (20)
+	return q<<50 | uint64(255-boost)<<42 | s.demotion(id)<<40 | uint64(min(len(name), 0xFFFF))<<20 | uint64(s.depth[id])
 }
 
 // demotion orders equally good matches the way Spotlight does: files first,
@@ -487,16 +492,21 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 	key := func(id uint32) RankKey {
 		switch srt {
 		case Relevance:
-			return RankKey{Num: s.relevanceKey(clauses, penalty, id)}
+			return RankKey{Num: s.relevanceKey(clauses, penalty, id, page.Boost[id])}
 		case ByName:
 			return RankKey{Text: s.FoldedName(id), IsText: true, Desc: page.Reverse}
+		}
+		if filterOnly {
+			// file/folder/hidden (2 bits) · opened less (8) · newest first (53)
+			m := uint64(max(0, min(s.Modified(id), 1<<53-1)))
+			if desc {
+				m = 1<<53 - 1 - m
+			}
+			return RankKey{Num: m | uint64(255-page.Boost[id])<<54 | s.demotion(id)<<62}
 		}
 		v := s.colKey(srt, id)
 		if desc {
 			v = ^v
-		}
-		if filterOnly {
-			v = v>>2 | s.demotion(id)<<62
 		}
 		return RankKey{Num: v}
 	}

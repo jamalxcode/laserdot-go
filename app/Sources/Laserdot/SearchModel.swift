@@ -16,6 +16,12 @@ final class SearchModel: ObservableObject {
         didSet { if query != oldValue { queryChanged() } }
     }
     @Published private(set) var results: [Hit] = []
+    /// The results in sections, like Spotlight: Top Hit, then Applications,
+    /// Documents, Images… in the order their best result ranks. `results` is
+    /// in this display order, so ↑/↓ and ⌘1–9 follow what is on screen.
+    @Published private(set) var sections: [ResultSection] = []
+    /// Clickable completions for the word being typed (spec §8.2).
+    @Published private(set) var completionChips: [Completion] = []
     @Published private(set) var total: UInt64 = 0
     @Published private(set) var elapsedMs: Double = 0
     /// The results on screen are for an earlier query; the current one is
@@ -97,6 +103,8 @@ final class SearchModel: ObservableObject {
     let engine: Engine
     private var generation = 0
     private let queue = DispatchQueue(label: "laserdot.search", qos: .userInitiated)
+    /// Indexing runs here, one folder after another, never ahead of searches.
+    private let indexQueue = DispatchQueue(label: "laserdot.index", qos: .utility)
 
     /// Example queries shown on an empty box (spec §8.5).
     let examples = [
@@ -149,15 +157,19 @@ final class SearchModel: ObservableObject {
         guideQueue.async { [weak self] in
             let h = engine.hint(query: q, cursor: caret, lang: appLang)
             let section = engine.sectionAt(query: q, cursor: caret)
+            let chips = Array(engine.completions(query: q, cursor: caret, lang: appLang).prefix(6))
             DispatchQueue.main.async {
                 guard let self, gen == self.generation else { return }
                 self.hint = h
                 self.currentSection = section
+                self.completionChips = chips
             }
         }
         selection = 0
         if q.trimmingCharacters(in: .whitespaces).isEmpty {
             searching = false
+            completionChips = []
+            sections = []
             results = []
             total = 0
             problem = nil
@@ -181,7 +193,7 @@ final class SearchModel: ObservableObject {
         coaching = []
         switch outcome {
         case .success(let r):
-            results = r.hits
+            (results, sections) = Self.grouped(r.hits)
             total = r.total
             elapsedMs = r.elapsedMs
             notes = r.notes
@@ -190,6 +202,7 @@ final class SearchModel: ObservableObject {
             if r.total == 0 { loadCoaching() }
         case .failure(let error):
             results = []
+            sections = []
             total = 0
             switch error as? LaserdotError {
             case let .query(message, start, end, suggestion)?:
@@ -219,6 +232,28 @@ final class SearchModel: ObservableObject {
         var out = String.UnicodeScalarView()
         out.append(contentsOf: scalars)
         query = String(out)
+    }
+
+    /// A completion chip was clicked.
+    func apply(_ c: Completion) {
+        replace(c.replaceStart, c.replaceEnd, with: c.insert)
+        focusSearch()
+    }
+
+    /// Narrow to one section's kind (its chip was clicked): adds kind:….
+    func narrow(to section: ResultSection) {
+        guard let filter = section.filter else { return }
+        let sep = query.hasSuffix(" ") ? "" : " "
+        query += sep + filter
+        focusSearch()
+    }
+
+    /// Chips that narrow the results to one kind, when they mix kinds and
+    /// the query does not already name one.
+    var kindChips: [ResultSection] {
+        guard !query.contains("kind:") else { return [] }
+        let kinds = sections.filter { $0.filter != nil }
+        return kinds.count >= 2 ? kinds : []
     }
 
     /// Tab: take the first completion for the word under the caret (§8.2).
@@ -281,6 +316,13 @@ final class SearchModel: ObservableObject {
     // MARK: history and pins (spec §8.6)
 
     /// Remember a query that was used (a result opened or revealed).
+    /// Opened results rank higher next time (spec §6.2); kept on this Mac.
+    private func noteOpened(_ h: Hit) {
+        guard h.volume == nil else { return } // the history covers this Mac's index
+        let (engine, path) = (self.engine, h.path)
+        queue.async { engine.recordOpen(path: path) }
+    }
+
     func remember() {
         let q = query.trimmingCharacters(in: .whitespaces)
         guard !q.isEmpty else { return }
@@ -320,6 +362,19 @@ final class SearchModel: ObservableObject {
 
     var selected: Hit? { results.indices.contains(selection) ? results[selection] : nil }
 
+    /// ⌘1–⌘9: open the nth result on screen.
+    func openNumbered(_ n: Int) {
+        guard results.indices.contains(n - 1) else { return }
+        selection = n - 1
+        open(results[n - 1])
+    }
+
+    /// ⌘Y: Quick Look, as in Finder.
+    func quickLook(_ hit: Hit? = nil) {
+        guard let h = hit ?? selected else { return }
+        QuickLook.shared.show(URL(fileURLWithPath: h.path))
+    }
+
     func focusSearch() {
         focusRequest &+= 1
     }
@@ -329,12 +384,14 @@ final class SearchModel: ObservableObject {
         // previous query.
         guard hit != nil || !searching, let h = hit ?? selected else { return }
         remember()
+        noteOpened(h)
         DiskAccessPrompt.shared.open(URL(fileURLWithPath: h.path))
     }
 
     func reveal(_ hit: Hit? = nil) {
         guard let h = hit ?? selected else { return }
         remember()
+        noteOpened(h)
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: h.path)])
     }
 
@@ -349,7 +406,7 @@ final class SearchModel: ObservableObject {
         let path = folder.path
         let name = folder.lastPathComponent
         onIndexing?(name)
-        queue.async { [weak self] in
+        indexQueue.async { [weak self] in
             var failure: String?
             do {
                 try engine.index(path: path)
@@ -372,5 +429,51 @@ final class SearchModel: ObservableObject {
         case LaserdotError.unavailable(let message): return message
         default: return (error as? LocalizedError)?.errorDescription ?? String(describing: error)
         }
+    }
+}
+
+/// A group of results on screen: `range` indexes `SearchModel.results`.
+struct ResultSection: Identifiable, Equatable {
+    let id: String
+    let title: String
+    let range: Range<Int>
+    /// The filter that narrows to this section (`kind:image`), if any.
+    let filter: String?
+}
+
+extension SearchModel {
+    /// The category a result is shown under.
+    static func category(_ h: Hit) -> String {
+        if h.kind == "app" { return "app" }
+        if h.isDir { return "folder" }
+        switch h.kind {
+        case "document", "image", "video", "audio", "archive", "code": return h.kind
+        default: return "other"
+        }
+    }
+
+    /// Top Hit (the best result), then one section per category in the order
+    /// of each category's best result; within a section the ranking order is
+    /// kept. One result, or none, needs no sections.
+    static func grouped(_ hits: [Hit]) -> ([Hit], [ResultSection]) {
+        guard hits.count > 1 else {
+            return (hits, hits.isEmpty ? [] : [ResultSection(id: "top", title: L("section.top"), range: 0..<1, filter: nil)])
+        }
+        var order: [String] = []
+        var byCategory: [String: [Hit]] = [:]
+        for h in hits.dropFirst() {
+            let c = category(h)
+            if byCategory[c] == nil { order.append(c) }
+            byCategory[c, default: []].append(h)
+        }
+        var out = [hits[0]]
+        var sections = [ResultSection(id: "top", title: L("section.top"), range: 0..<1, filter: nil)]
+        for c in order {
+            let list = byCategory[c] ?? []
+            sections.append(ResultSection(
+                id: c, title: L("section.\(c)"), range: out.count..<(out.count + list.count), filter: "kind:\(c)"))
+            out += list
+        }
+        return (out, sections)
     }
 }

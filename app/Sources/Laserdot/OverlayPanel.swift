@@ -9,13 +9,13 @@ final class OverlayPanel: NSPanel {
 }
 
 final class OverlayController: NSObject, NSWindowDelegate {
-    private let panel: OverlayPanel
+    let panel: OverlayPanel
     private let model: SearchModel
 
     init(model: SearchModel) {
         self.model = model
         panel = OverlayPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 480),
+            contentRect: NSRect(x: 0, y: 0, width: 920, height: 520),
             styleMask: [.borderless, .nonactivatingPanel, .fullSizeContentView],
             backing: .buffered,
             defer: false

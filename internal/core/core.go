@@ -114,6 +114,7 @@ type OpenReport struct {
 // exclusively while they change it. wmu serializes writers (the database
 // and the store change together).
 type Laserdot struct {
+	opens  openHistory
 	dbPath string
 	wmu    sync.Mutex
 	db     *index.Db
@@ -308,6 +309,16 @@ func (ld *Laserdot) ScanOptions() scan.Options {
 		for _, suffix := range []string{"", "-wal", "-shm", "-journal", ".roots", ".snapshot", ".snapshot.tmp"} {
 			opts.ExcludedPaths = append(opts.ExcludedPaths, filepath.Join(dir, b+suffix))
 		}
+	}
+	// ~/Library is app data, caches and settings, not the user's files:
+	// only iCloud Drive (Mobile Documents) is indexed there, as Spotlight
+	// shows it. Indexing the home folder therefore stays useful and small.
+	if home, err := os.UserHomeDir(); err == nil {
+		lib := filepath.Join(home, "Library")
+		if c, err := canonical(lib); err == nil {
+			lib = c
+		}
+		opts.OnlyChildren = map[string][]string{lib: {"Mobile Documents"}}
 	}
 	return opts
 }
@@ -524,6 +535,9 @@ func (ld *Laserdot) Stats() Stats {
 func (ld *Laserdot) Search(q string, opts SearchOptions) (*SearchResults, error) {
 	ld.mu.RLock()
 	defer ld.mu.RUnlock()
+	if opts.Page.Sort == index.Relevance {
+		opts.Page.Boost = ld.openBoosts(ld.store)
+	}
 	if len(ld.drives) == 0 {
 		r, _, err := searchStoreKeyed(ld.store, ld.content, q, opts)
 		return r, err
@@ -548,6 +562,10 @@ func (ld *Laserdot) Search(q string, opts SearchOptions) (*SearchResults, error)
 		if n > 0 {
 			d := ld.drives[n-1]
 			s, content, volume = d.store, nil, &d.name // content search covers this Mac only
+		}
+		sub.Page.Boost = nil // the open history is this Mac's (ids of its store)
+		if n == 0 {
+			sub.Page.Boost = opts.Page.Boost
 		}
 		r, keys, err := searchStoreKeyed(s, content, q, sub)
 		if err != nil {
@@ -595,7 +613,7 @@ func SearchStore(s *index.Store, q string, opts SearchOptions) (*SearchResults, 
 
 // contentRankBase: content hits rank after every name hit (§2.4.2), in
 // BM25 order.
-const contentRankBase = 1 << 48
+const contentRankBase = 1 << 60 // above every exact name key (< 2^56), below typo keys (≥ 2^62)
 
 // searchStoreKeyed is a search plus each hit's sort key, for merging
 // across indexes. content may be nil (a drive's index has none).

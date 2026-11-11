@@ -90,7 +90,9 @@ final class UpdateController: ObservableObject {
         switch s.state {
         case .downloaded:
             adopt(s)
-            if interactive || ready != nil { offerInstall() }
+            // A background download asks nothing: the menu and the window
+            // show an Update button, and quitting installs it.
+            if interactive { offerInstall() }
         case .upToDate:
             ready = nil
             if interactive { alert(L("update.upToDate"), info: String(format: L("update.youHave"), currentVersion)) }
@@ -108,6 +110,14 @@ final class UpdateController: ObservableObject {
             return
         }
         ready = s
+    }
+
+    /// Quitting with a downloaded update installs it, so the next launch is
+    /// the new version (with automatic updates on; nothing is asked).
+    func installOnQuit() {
+        guard autoCheck, let s = ready, let file = s.file,
+              let c = try? updater.prepare(file: URL(fileURLWithPath: file)) else { return }
+        _ = try? updater.install(c)
     }
 
     /// Ask, then install the downloaded update and relaunch.

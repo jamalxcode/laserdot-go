@@ -52,7 +52,9 @@ const (
 	OpSetContentSettings = "set_content_settings"
 	OpUpdateContent      = "update_content"
 	// Guidance (§8.3, §8.9.5).
-	OpCoach       = "coach"
+	OpCoach = "coach"
+	// OpOpened records that the user opened a result (Path), for ranking.
+	OpOpened      = "opened"
 	OpValueCounts = "value_counts"
 	// Typing assistance, served by the daemon because the app has no
 	// in-process core (Go port; the Rust app called these through FFI).

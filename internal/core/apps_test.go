@@ -10,7 +10,7 @@ import (
 // Apps are packages: one result each, their contents not indexed — as in
 // Finder and Spotlight. The same holds for changes inside them later.
 func TestAppsAreOneResult(t *testing.T) {
-	dir := t.TempDir()
+	dir, _ := filepath.EvalSymlinks(t.TempDir()) // macOS: /var → /private/var
 	root := filepath.Join(dir, "Applications")
 	for _, rel := range []string{
 		"Claude.app/Contents/Info.plist", "Claude.app/Contents/MacOS/Claude",
@@ -55,7 +55,7 @@ func TestAppsAreOneResult(t *testing.T) {
 
 // An index made before apps were opaque loses their contents on refresh.
 func TestAppContentsLeaveAnOlderIndex(t *testing.T) {
-	dir := t.TempDir()
+	dir, _ := filepath.EvalSymlinks(t.TempDir()) // macOS: /var → /private/var
 	root := filepath.Join(dir, "Documents")
 	write(t, root, "Tool.app/Contents/Info.plist", "x")
 	write(t, root, "notes.txt", "x")

@@ -50,6 +50,8 @@ public enum DaemonRequest: Encodable, Sendable {
     case filters(lang: String)
     /// The plain-text cheat sheet.
     case cheatSheet(lang: String)
+    /// The user opened a result: it ranks higher next time (spec §6.2).
+    case opened(path: String)
 
     /// The `op` tag.
     public var op: String {
@@ -59,6 +61,7 @@ public enum DaemonRequest: Encodable, Sendable {
         case .search: return "search"
         case .index: return "index"
         case .forget: return "forget"
+        case .opened: return "opened"
         case .refresh: return "refresh"
         case .roots: return "roots"
         case .stats: return "stats"
@@ -102,7 +105,7 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(offset, forKey: .offset)
             try c.encode(limit, forKey: .limit)
             try c.encode(typo, forKey: .typo)
-        case let .index(path), let .forget(path):
+        case let .index(path), let .forget(path), let .opened(path):
             try c.encode(path, forKey: .path)
         case let .drivePlan(mount), let .driveDetach(mount), let .driveDelete(mount), let .driveEject(mount):
             try c.encode(mount, forKey: .mount)

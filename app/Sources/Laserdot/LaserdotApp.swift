@@ -191,10 +191,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         let model = SearchModel(engine: engine)
         self.model = model
         overlay = OverlayController(model: model)
-        registerHotKey(prompt: true)
+        registerHotKey(prompt: !SelfTest.active)
         model.onStatus = { [weak self] status in
             self?.show(status)
-            self?.indexApplicationsOnce(status)
+            if !SelfTest.active { self?.indexDefaultsOnce(status) }
         }
         model.onIndexing = { [weak self] name in
             self?.statusLine = String(format: L("index.running"), name)
@@ -207,7 +207,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             alert.informativeText = reason + "\n\n" + L("index.failedHelp")
             alert.runFront()
         }
-        model.onNothingIndexed = { [weak self] in self?.offerFirstIndex() }
+        // Nothing to ask on first launch: the default folders are indexed
+        // automatically (indexDefaultsOnce).
         model.connect()
         let content = ContentModel(engine: engine)
         self.content = content
@@ -217,13 +218,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         drives.start()
         probeDuplicates()
         updates.stopDaemon = { [weak engine] in engine?.shutdown() }
+        if let out = SelfTest.outDir {
+            // CI: drive the real app and report what it shows (SelfTest.swift).
+            selfTest = SelfTestRunner(app: self, out: out)
+            selfTest?.start()
+            return
+        }
         updates.offerMoveToApplications()
         updates.startDailyChecks()
     }
 
+    private var selfTest: SelfTestRunner?
+    var engineForTests: Engine? { engine }
+    var overlayForTests: OverlayController? { overlay }
+
     /// Laserdot started laserdotd; it stops it when it quits.
     func applicationWillTerminate(_ notification: Notification) {
         engine?.shutdown()
+        updates.installOnQuit()
     }
 
     /// Closing the window keeps Laserdot (and ⌥Space) running; the Dock icon
@@ -293,39 +305,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     /// First launch: nothing is indexed, so searches would find nothing.
     /// Offer the home folder, or a folder of the user's choice.
-    /// Apps are what people look for first, so the Applications folders are
-    /// indexed once, without asking (each app is one result; its contents
-    /// are not indexed). Removing them later is respected.
-    private func indexApplicationsOnce(_ status: DaemonStatus) {
-        let key = "laserdot.applicationsIndexed"
+    /// Like Spotlight, Laserdot searches your files without being set up:
+    /// the apps and the home folder (minus ~/Library, except iCloud Drive) are
+    /// indexed once, without asking. Each app is one result. Folders removed
+    /// later stay removed.
+    private func indexDefaultsOnce(_ status: DaemonStatus) {
+        let key = "laserdot.defaultsIndexed"
         guard status.running, !UserDefaults.standard.bool(forKey: key), let model else { return }
         UserDefaults.standard.set(true, forKey: key)
         let home = FileManager.default.homeDirectoryForCurrentUser.path
-        for path in ["/Applications", "/System/Applications", home + "/Applications"] {
+        // Apps first: they are quick and what people look for first.
+        for path in ["/Applications", "/System/Applications", home] {
             var dir: ObjCBool = false
             guard FileManager.default.fileExists(atPath: path, isDirectory: &dir), dir.boolValue,
                   !status.folders.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
             model.index(folder: URL(fileURLWithPath: path))
-        }
-    }
-
-    private func offerFirstIndex() {
-        guard !UserDefaults.standard.bool(forKey: "laserdot.firstIndexOffered") else { return }
-        UserDefaults.standard.set(true, forKey: "laserdot.firstIndexOffered")
-        NSApp.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
-        alert.messageText = L("firstrun.title")
-        alert.informativeText = L("firstrun.body")
-        alert.addButton(withTitle: L("firstrun.home"))
-        alert.addButton(withTitle: L("firstrun.choose"))
-        alert.addButton(withTitle: L("drive.notNow"))
-        switch alert.runFront() {
-        case .alertFirstButtonReturn:
-            model?.index(folder: FileManager.default.homeDirectoryForCurrentUser)
-        case .alertSecondButtonReturn:
-            chooseFolder()
-        default:
-            break
         }
     }
 

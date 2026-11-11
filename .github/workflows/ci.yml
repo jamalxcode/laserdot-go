@@ -73,6 +73,40 @@ jobs:
           pkill -f "$d/Laserdot.app/Contents/MacOS/laserdotd" || true
           cat "$d/app.log"
           echo "Laserdot.app launched and kept running"
+      - name: Self-test of the real app (types into the overlay; English and Arabic; screenshots)
+        run: |
+          fx="$(mktemp -d)/fixtures"
+          mkdir -p "$fx/Projects" "$fx/Tool.app/Contents"
+          sips -s format jpeg -z 256 256 app/Resources/AppIcon.png --out "$fx/beach.jpg" >/dev/null
+          cp "$fx/beach.jpg" "$fx/holiday photo.jpeg"
+          sips -z 256 256 app/Resources/AppIcon.png --out "$fx/photo.png" >/dev/null
+          echo notes > "$fx/jpg notes.txt"
+          echo plan > "$fx/project plan.txt"
+          echo readme > "$fx/Projects/readme.md"
+          printf '%%PDF-1.4\n%%%%EOF\n' > "$fx/project.pdf"
+          echo '<plist/>' > "$fx/Tool.app/Contents/Info.plist"
+          status=0
+          for lang in en ar; do
+            out="$(mktemp -d)"
+            LASERDOT_DB="$out/data/index.db" LASERDOT_SELFTEST="$out" LASERDOT_SELFTEST_FOLDER="$fx" \
+              app/build/Laserdot.app/Contents/MacOS/Laserdot -AppleLanguages "($lang)" > "$out/app.log" 2>&1 &
+            pid=$!
+            for i in $(seq 1 120); do kill -0 "$pid" 2>/dev/null || break; sleep 1; done
+            if kill -0 "$pid" 2>/dev/null; then kill "$pid"; echo "::error::self-test ($lang) did not finish"; fi
+            pkill -f "$out/data" || true
+            tail -20 "$out/app.log"
+            cat "$out/report.json" || { echo "::error::no report ($lang)"; status=1; continue; }
+            python3 app/scripts/check-selftest.py "$out/report.json" "$lang" || status=1
+            # The screenshots, for review from the log (base64 PNG).
+            for f in "$out"/*.png; do
+              [ -f "$f" ] || continue
+              echo "=== SCREENSHOT $lang $(basename "$f")"
+              base64 -i "$f" | tr -d '\n'
+              echo
+              echo "=== END"
+            done
+          done
+          exit $status
       - name: The updater finds and downloads the newest release (no token, no API)
         run: |
           d=$(mktemp -d)

@@ -346,6 +346,11 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		return result(s.UpdateContent())
 	case ipc.OpCoach:
 		return ok(s.ld.Coach(req.Query))
+	case ipc.OpOpened:
+		if err := s.ld.RecordOpen(req.Path); err != nil {
+			return fail(ipc.ErrorOf(err))
+		}
+		return ok("ok")
 	case ipc.OpValueCounts:
 		return ok(s.ld.ValueCounts())
 	case ipc.OpHint:

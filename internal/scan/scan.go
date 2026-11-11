@@ -59,6 +59,9 @@ type Options struct {
 	OpaqueExts []string
 	// ExcludedPaths are never indexed (e.g. the index database itself).
 	ExcludedPaths []string
+	// OnlyChildren: in these folders, only the named children are indexed
+	// (~/Library: only Mobile Documents, i.e. iCloud Drive).
+	OnlyChildren map[string][]string
 	// StableInodes: the volume's inode numbers survive remounts. When not
 	// (FAT, exFAT) every inode is reported as 0.
 	StableInodes bool
@@ -173,10 +176,12 @@ func readDir(dir string, parent int, rootDev uint64, opts Options) ([]Entry, []E
 	}
 	var out []Entry
 	var errs []Error
+	only, restricted := opts.OnlyChildren[dir]
 	for _, de := range des {
 		name := de.Name()
 		path := filepath.Join(dir, name)
-		if (de.IsDir() && contains(opts.IgnoredDirs, name)) || IsPartialDownload(name) || contains(opts.ExcludedPaths, path) {
+		if (de.IsDir() && contains(opts.IgnoredDirs, name)) || IsPartialDownload(name) || contains(opts.ExcludedPaths, path) ||
+			(restricted && !contains(only, name)) {
 			continue
 		}
 		info, err := os.Lstat(path)
