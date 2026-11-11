@@ -440,53 +440,82 @@ struct ResultRow: View {
     var highlight: [String] = []
 
     private var light: Bool { selected && emphasized }
+    private var mainColor: Color { light ? Color.white : Color.primary }
+    private var subColor: Color { light ? Color.white.opacity(0.85) : Color.secondary }
+    private var background: Color {
+        selected ? (emphasized ? Color.accentColor : Color.secondary.opacity(0.2)) : Color.clear
+    }
+    private var subtitle: String { shortPath(hit.path) + " · " + friendlyDate(hit.modified) }
+    private var spoken: String {
+        let size = ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file)
+        let parts: [String] = [hit.name, hit.kind, size] + hit.badges + (hit.content ? [L("results.inContents")] : []) + [hit.path]
+        return parts.joined(separator: ", ")
+    }
 
     var body: some View {
         HStack(spacing: 10) {
             FileIcon(path: hit.path, size: 28, thumbnail: hit.kind == "image" || hit.kind == "video")
-            VStack(alignment: .leading, spacing: 2) {
-                Text(highlighted(hit.name, highlight)).lineLimit(1)
-                    .foregroundStyle(light ? Color.white : Color.primary)
-                Text(shortPath(hit.path) + " · " + friendlyDate(hit.modified))
-                    .font(.caption).lineLimit(1).truncationMode(.middle)
-                    .foregroundStyle(light ? Color.white.opacity(0.85) : Color.secondary)
-                    .help(hit.path)
-            }
+            names
             Spacer(minLength: 8)
-            if hit.content {
-                Label(L("results.inContents"), systemImage: "doc.text.magnifyingglass")
-                    .font(.caption2)
-                    .foregroundStyle(light ? Color.white.opacity(0.85) : Color.secondary)
-            }
-            if let volume = hit.volume {
-                Label(volume, systemImage: "externaldrive")
-                    .font(.caption2)
-                    .foregroundStyle(light ? Color.white.opacity(0.85) : Color.secondary)
-            }
-            ForEach(hit.badges.prefix(2), id: \.self) { b in
-                Text(b)
-                    .font(.caption2.monospacedDigit())
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .foregroundStyle(light ? Color.white : Color.primary)
-                    .background(Capsule().fill(light ? AnyShapeStyle(Color.white.opacity(0.25)) : AnyShapeStyle(.quaternary)))
-            }
-            if let number {
-                Text("⌘\(number)")
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(light ? Color.white.opacity(0.85) : Color.secondary)
-                    .accessibilityHidden(true)
-            }
+            trailing
         }
         .padding(.horizontal, 10)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(
-            ([hit.name, hit.kind, ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file)]
-                + hit.badges + (hit.content ? [L("results.inContents")] : []) + [hit.path]).joined(separator: ", ")
-        )
+        .accessibilityLabel(spoken)
         .accessibilityAddTraits(selected ? .isSelected : [])
         .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 8).fill(selected ? (emphasized ? Color.accentColor : Color.secondary.opacity(0.2)) : .clear))
+        .background(RoundedRectangle(cornerRadius: 8).fill(background))
+    }
+
+    private var names: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(highlighted(hit.name, highlight))
+                .lineLimit(1)
+                .foregroundStyle(mainColor)
+            Text(subtitle)
+                .font(.caption)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .foregroundStyle(subColor)
+                .help(hit.path)
+        }
+    }
+
+    @ViewBuilder private var trailing: some View {
+        if hit.content {
+            Label(L("results.inContents"), systemImage: "doc.text.magnifyingglass")
+                .font(.caption2)
+                .foregroundStyle(subColor)
+        }
+        if let volume = hit.volume {
+            Label(volume, systemImage: "externaldrive")
+                .font(.caption2)
+                .foregroundStyle(subColor)
+        }
+        ForEach(Array(hit.badges.prefix(2)), id: \.self) { b in
+            Badge(text: b, light: light)
+        }
+        if let number {
+            Text("⌘\(number)")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(subColor)
+                .accessibilityHidden(true)
+        }
+    }
+}
+
+/// A media badge on a row ("3840×2160", "hevc hdr10").
+struct Badge: View {
+    let text: String
+    let light: Bool
+
+    var body: some View {
+        Text(text)
+            .font(.caption2.monospacedDigit())
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .foregroundStyle(light ? Color.white : Color.primary)
+            .background(Capsule().fill(light ? AnyShapeStyle(Color.white.opacity(0.25)) : AnyShapeStyle(.quaternary)))
     }
 }
 
