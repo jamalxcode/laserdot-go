@@ -15,7 +15,7 @@ final class SearchModel: ObservableObject {
     @Published var query = "" {
         didSet { if query != oldValue { queryChanged() } }
     }
-    @Published private(set) var results: [Hit] = []
+    @Published var results: [Hit] = []
     /// Result order: relevance (sections), or name, size, date (one list).
     @Published var sort: SortKey = SortKey(rawValue: UserDefaults.standard.string(forKey: "laserdot.sort") ?? "") ?? .relevance {
         didSet {
@@ -37,12 +37,12 @@ final class SearchModel: ObservableObject {
     @Published private(set) var elapsedMs: Double = 0
     /// The results on screen are for an earlier query; the current one is
     /// still being answered.
-    @Published private(set) var searching = false
+    @Published var searching = false
     /// Changes with every answer, so the result list is rebuilt rather than
     /// patched (a patched lazy list could keep rows of the previous query).
     @Published private(set) var resultsID = 0
     /// Bumped by Edit ▸ Find (⌘F): the search field takes the keyboard.
-    @Published private(set) var focusRequest = 0
+    @Published var focusRequest = 0
     @Published private(set) var hint: String?
     /// The hint, unless it says nothing about what was typed.
     var visibleHint: String? {
@@ -56,10 +56,10 @@ final class SearchModel: ObservableObject {
     /// The user is working with the results (moved with ↑/↓ or clicked a
     /// row) rather than typing: Space opens Quick Look, as in Finder.
     /// Typing again (the query changes) ends it.
-    @Published private(set) var browsing = false
+    @Published var browsing = false
     /// Rows selected besides `selection` (⇧↑/↓, ⌘-click).
-    @Published private(set) var extraSelection = Set<Int>()
-    private var anchor = 0
+    @Published var extraSelection = Set<Int>()
+    var anchor = 0
     /// ⌘K: the actions for the selected result(s).
     @Published var showActions = false {
         didSet { actionIndex = 0; updateCompact() }
@@ -77,6 +77,8 @@ final class SearchModel: ObservableObject {
     @Published private(set) var notes: [String] = []
     @Published private(set) var unavailable: String?
     @Published var selection = 0
+    /// Space presses that reached the model (for the self-test's report).
+    var spacePresses = 0
     /// The last file operation, for Undo (⌥⌘Z) and the banner.
     @Published var undoStep: UndoStep?
     @Published var undoBannerVisible = false
@@ -138,8 +140,8 @@ final class SearchModel: ObservableObject {
     /// Pinned queries, shown as chips on an empty box (spec §8.6).
     @Published private(set) var pinned: [String] = UserDefaults.standard.stringArray(forKey: "laserdot.pinned") ?? []
     /// Recent queries, newest first (spec §8.6). Stays on this Mac.
-    private var history: [String] = UserDefaults.standard.stringArray(forKey: "laserdot.history") ?? []
-    private var historyIndex = -1
+    var history: [String] = UserDefaults.standard.stringArray(forKey: "laserdot.history") ?? []
+    var historyIndex = -1
 
     var onStatus: ((DaemonStatus) -> Void)?
     /// Indexing started (the folder's name), for the menu's status line.
@@ -547,154 +549,6 @@ final class SearchModel: ObservableObject {
         guard !q.isEmpty else { return }
         if let i = pinned.firstIndex(of: q) { pinned.remove(at: i) } else { pinned.append(q) }
         UserDefaults.standard.set(pinned, forKey: "laserdot.pinned")
-    }
-
-    // MARK: results
-
-    func move(_ delta: Int) {
-        if showActions {
-            actionIndex = max(0, min(actions.count - 1, actionIndex + delta))
-            return
-        }
-        if isCommandMode {
-            commandIndex = max(0, min(commandEntries.count - 1, commandIndex + delta))
-            return
-        }
-        guard !results.isEmpty else {
-            recall(delta < 0 ? 1 : -1)
-            return
-        }
-        extraSelection = []
-        selection = max(0, min(results.count - 1, selection + delta))
-        anchor = selection
-        browsing = true
-    }
-
-    /// ⇧↑/↓: grow the selection from where it started.
-    func extend(_ delta: Int) {
-        guard !results.isEmpty, !showActions, !isCommandMode else { return }
-        if extraSelection.isEmpty { anchor = selection }
-        selection = max(0, min(results.count - 1, selection + delta))
-        extraSelection = Set(min(anchor, selection)...max(anchor, selection))
-        browsing = true
-    }
-
-    /// A click: plain selects, ⌘ adds or removes, ⇧ selects a range.
-    func click(_ i: Int) {
-        browsing = true
-        let flags = NSEvent.modifierFlags
-        if flags.contains(.command) {
-            if extraSelection.isEmpty { extraSelection = [selection] }
-            if extraSelection.contains(i) && extraSelection.count > 1 {
-                extraSelection.remove(i)
-            } else {
-                extraSelection.insert(i)
-            }
-            selection = i
-        } else if flags.contains(.shift) {
-            if extraSelection.isEmpty { anchor = selection }
-            selection = i
-            extraSelection = Set(min(anchor, i)...max(anchor, i))
-        } else {
-            extraSelection = []
-            selection = i
-            anchor = i
-        }
-    }
-
-    func isSelected(_ i: Int) -> Bool { i == selection || extraSelection.contains(i) }
-
-    /// The selected results, in list order (one, or several).
-    var selectedHits: [Hit] {
-        if extraSelection.isEmpty { return selected.map { [$0] } ?? [] }
-        return extraSelection.sorted().compactMap { results.indices.contains($0) ? results[$0] : nil }
-    }
-
-    /// Return: open, or run the highlighted action or command.
-    func submit() {
-        if showActions {
-            let a = actions
-            if a.indices.contains(actionIndex) { a[actionIndex].run() }
-            showActions = false
-        } else if isCommandMode {
-            runCommand()
-        } else if extraSelection.count > 1 {
-            selectedHits.forEach { open($0) }
-        } else {
-            open()
-        }
-    }
-
-    /// Esc: close what is open (actions, cheat sheet), else the overlay.
-    func escape(close: () -> Void) {
-        if showActions {
-            showActions = false
-        } else if showCheatSheet {
-            showCheatSheet = false
-        } else if isCommandMode {
-            query = ""
-        } else {
-            close()
-        }
-    }
-
-    /// ⌘K: the actions for the selection.
-    func toggleActions() {
-        guard !selectedHits.isEmpty else { return }
-        showActions.toggle()
-    }
-
-    /// ⌘Y: Quick Look, as in Finder.
-    func quickLook(_ hit: Hit? = nil) {
-        guard let h = hit ?? selected else { return }
-        let urls = results.map { URL(fileURLWithPath: $0.path) }
-        let i = results.firstIndex { $0.path == h.path } ?? 0
-        QuickLook.shared.show(urls.isEmpty ? [URL(fileURLWithPath: h.path)] : urls, at: i)
-    }
-
-    /// Space: Quick Look for the selected result while browsing the results
-    /// (true: handled); otherwise the field types a space.
-    /// Space presses that reached the model (for the self-test's report).
-    private(set) var spacePresses = 0
-
-    func spaceKey() -> Bool {
-        spacePresses += 1
-        // A second space in a row (the query already ends in one) also
-        // previews: no need to press ↓ for the highlighted result.
-        guard browsing || query.hasSuffix(" "), !results.isEmpty, selected != nil,
-              !showActions, !isCommandMode, !showCheatSheet else { return false }
-        if QuickLook.shared.isVisible {
-            QuickLook.shared.close()
-        } else {
-            quickLook()
-        }
-        return true
-    }
-
-    func focusSearch() {
-        focusRequest &+= 1
-    }
-
-    func open(_ hit: Hit? = nil) {
-        // Return while a search is pending would open a result of the
-        // previous query.
-        guard hit != nil || !searching, let h = hit ?? selected else { return }
-        remember()
-        noteOpened(h)
-        DiskAccessPrompt.shared.open(URL(fileURLWithPath: h.path))
-    }
-
-    func reveal(_ hit: Hit? = nil) {
-        guard let h = hit ?? selected else { return }
-        remember()
-        noteOpened(h)
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: h.path)])
-    }
-
-    func copyPath(_ hit: Hit? = nil) {
-        guard let h = hit ?? selected else { return }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(h.path, forType: .string)
     }
 
     func index(folder: URL) {
