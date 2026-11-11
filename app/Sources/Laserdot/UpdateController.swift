@@ -8,6 +8,11 @@ final class UpdateController: ObservableObject {
     /// A downloaded update, ready to install.
     @Published private(set) var ready: UpdateStatus?
     @Published private(set) var checking = false
+    /// Settings ▸ General ▸ Check for updates automatically (on by default).
+    @Published var autoCheck = UserDefaults.standard.object(forKey: UpdateController.autoKey) as? Bool ?? true {
+        didSet { UserDefaults.standard.set(autoCheck, forKey: Self.autoKey) }
+    }
+    static let autoKey = "laserdot.update.auto"
 
     /// Stops the daemon before the app is replaced.
     var stopDaemon: () -> Void = {}
@@ -32,6 +37,7 @@ final class UpdateController: ObservableObject {
     }
 
     private func checkIfDue() {
+        guard autoCheck else { return }
         let last = UserDefaults.standard.object(forKey: Self.lastCheckKey) as? Date ?? .distantPast
         if Date().timeIntervalSince(last) > 24 * 3600 { check(interactive: false) }
     }

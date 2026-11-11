@@ -18,6 +18,10 @@ struct LaserdotApp: App {
         .defaultSize(width: 860, height: 600)
         .commands { LaserdotCommands(delegate: delegate, updates: delegate.updates) }
 
+        Settings {
+            SettingsView(delegate: delegate, updates: delegate.updates)
+        }
+
         MenuBarExtra("Laserdot", systemImage: "scope") {
             StatusMenu(delegate: delegate, updates: delegate.updates)
         }
@@ -52,7 +56,8 @@ struct StatusMenu: View {
         }
         Button(L("menu.checkUpdates")) { updates.check(interactive: true) }
             .disabled(updates.checking)
-        Button(L("menu.fullDiskAccess")) { DiskAccessPrompt.shared.askFromMenu() }
+        SettingsLink { Text(L("menu.settings")) }
+            .keyboardShortcut(",")
         Divider()
         Text(delegate.statusLine)
         Text(delegate.networkLine)
@@ -62,7 +67,8 @@ struct StatusMenu: View {
     }
 }
 
-/// The main window: search, and a status bar (index size, network, update).
+/// The main window: search, and one status bar (results, index size,
+/// network, update) — standard window chrome, not the overlay's card.
 struct MainWindow: View {
     @ObservedObject var delegate: AppDelegate
     @ObservedObject var updates: UpdateController
@@ -76,19 +82,26 @@ struct MainWindow: View {
             }
             Divider()
             HStack(spacing: 12) {
-                Text(delegate.statusLine)
-                Text(delegate.networkLine).foregroundStyle(.secondary)
+                if let model = delegate.model {
+                    ResultsSummary(model: model)
+                }
                 Spacer()
                 if updates.checking {
                     ProgressView().controlSize(.small)
-                    Text(L("update.checking")).foregroundStyle(.secondary)
+                    Text(L("update.checking"))
                 }
                 if let r = updates.ready {
                     Button(String(format: L("update.button"), r.latest ?? "")) { updates.offerInstall() }
                         .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                }
+                Text(delegate.statusLine)
+                if !delegate.networkLine.isEmpty {
+                    Label(delegate.networkLine, systemImage: "lock.shield")
                 }
             }
             .font(.callout)
+            .foregroundStyle(.secondary)
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
         }
@@ -96,11 +109,13 @@ struct MainWindow: View {
     }
 }
 
-/// The menu bar: File (index, duplicates), Library (drives, content search,
-/// hot key) and Check for Updates in the app menu.
+/// The menu bar: Check for Updates in the app menu (Settings… comes from the
+/// Settings scene), File (index, duplicates), Edit ▸ Find (⌘F), Library
+/// (drives, content search) and Help (the search syntax).
 struct LaserdotCommands: Commands {
     @ObservedObject var delegate: AppDelegate
     @ObservedObject var updates: UpdateController
+    @Environment(\.openWindow) private var openWindow
 
     var body: some Commands {
         CommandGroup(after: .appInfo) {
@@ -109,7 +124,20 @@ struct LaserdotCommands: Commands {
             if let r = updates.ready {
                 Button(String(format: L("update.button"), r.latest ?? "")) { updates.offerInstall() }
             }
-            Button(L("menu.fullDiskAccess")) { DiskAccessPrompt.shared.askFromMenu() }
+        }
+        CommandGroup(after: .pasteboard) {
+            Divider()
+            Button(L("menu.find")) {
+                openWindow(id: "main")
+                delegate.model?.focusSearch()
+            }
+            .keyboardShortcut("f")
+        }
+        CommandGroup(replacing: .help) {
+            Button(L("menu.syntax")) {
+                openWindow(id: "main")
+                delegate.model?.showCheatSheet = true
+            }
         }
         CommandGroup(replacing: .newItem) {
             Button(L("menu.search")) { delegate.toggleOverlay() }
@@ -125,11 +153,6 @@ struct LaserdotCommands: Commands {
             }
             if let content = delegate.content {
                 ContentMenu(model: content)
-            }
-            Menu(String(format: L("menu.hotkey"), delegate.hotKeyChoice.label)) {
-                ForEach(HotKeyChoice.all, id: \.label) { c in
-                    Button(c.label) { delegate.useHotKey(c) }
-                }
             }
         }
     }
@@ -231,8 +254,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                 backing: .buffered, defer: false)
             w.title = L("dupes.title")
             w.isReleasedWhenClosed = false
+            w.contentMinSize = NSSize(width: 560, height: 380)
             w.contentView = NSHostingView(rootView: DuplicatesView(model: DuplicatesModel(engine: engine)))
             w.center()
+            w.setFrameAutosaveName("Duplicates") // reopen where the user left it
             duplicates = w
         }
         NSApp.activate(ignoringOtherApps: true)

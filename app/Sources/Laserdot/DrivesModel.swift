@@ -163,9 +163,12 @@ final class DrivesModel: ObservableObject {
     func delete(_ d: Drive) {
         let alert = NSAlert()
         alert.messageText = String(format: L("drive.delete.title"), d.name)
+        alert.informativeText = L("drive.delete.text")
         alert.alertStyle = .warning
-        alert.addButton(withTitle: L("drive.delete"))
-        alert.addButton(withTitle: L("drive.notNow"))
+        // Alert buttons are verbs without an ellipsis; Cancel stays the
+        // default-safe choice (Escape).
+        alert.addButton(withTitle: L("drive.delete.confirm")).hasDestructiveAction = true
+        alert.addButton(withTitle: L("action.cancel")).keyEquivalent = "\u{1b}"
         guard alert.runFront() == .alertFirstButtonReturn else { return }
         let mount = d.mount
         run(d.name) { engine in _ = try engine.driveDelete(mount: mount) }

@@ -24,6 +24,8 @@ final class SearchModel: ObservableObject {
     /// Changes with every answer, so the result list is rebuilt rather than
     /// patched (a patched lazy list could keep rows of the previous query).
     @Published private(set) var resultsID = 0
+    /// Bumped by Edit ▸ Find (⌘F): the search field takes the keyboard.
+    @Published private(set) var focusRequest = 0
     @Published private(set) var hint: String?
     @Published private(set) var problem: Problem?
     @Published private(set) var notes: [String] = []
@@ -317,6 +319,10 @@ final class SearchModel: ObservableObject {
     }
 
     var selected: Hit? { results.indices.contains(selection) ? results[selection] : nil }
+
+    func focusSearch() {
+        focusRequest &+= 1
+    }
 
     func open(_ hit: Hit? = nil) {
         // Return while a search is pending would open a result of the

@@ -10,6 +10,10 @@ struct SearchView: View {
     /// The hot-key overlay has a fixed size; the main window resizes.
     var fixedSize = true
     @FocusState private var focused: Bool
+    @Environment(\.controlActiveState) private var activeState
+    /// The selected row uses the accent colour while this window has the
+    /// keyboard (the overlay always does), and grey otherwise — as lists do.
+    private var emphasized: Bool { fixedSize || activeState == .key }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -69,13 +73,23 @@ struct SearchView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            Divider()
-            footer
+            // The main window shows results and status in its own status bar.
+            if fixedSize {
+                Divider()
+                footer
+            }
         }
         .frame(width: fixedSize ? 720 : nil, height: fixedSize ? 480 : nil)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background {
+            // The floating card is the overlay's look; the main window keeps
+            // the standard window background.
+            if fixedSize {
+                RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.regularMaterial)
+            }
+        }
         .overlay(hiddenShortcuts)
         .onAppear { focused = true }
+        .onChange(of: model.focusRequest) { _, _ in focused = true }
     }
 
     @ViewBuilder private var hintLine: some View {
@@ -137,7 +151,7 @@ struct SearchView: View {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(Array(model.results.enumerated()), id: \.element.path) { i, hit in
-                            ResultRow(hit: hit, selected: i == model.selection)
+                            ResultRow(hit: hit, selected: i == model.selection, emphasized: emphasized)
                                 .contentShape(Rectangle())
                                 .onTapGesture(count: 2) { model.open(hit) }
                                 .onTapGesture { model.selection = i }
@@ -199,11 +213,7 @@ struct SearchView: View {
 
     private var footer: some View {
         HStack {
-            if model.searching {
-                Text(L("results.searching"))
-            } else if model.total > 0 {
-                Text(String(format: L("results.count"), Int64(model.total), model.elapsedMs))
-            }
+            ResultsSummary(model: model)
             Spacer()
             Label(
                 model.networkBlocked ? L("network.blocked") : L("network.open"),
@@ -223,13 +233,31 @@ struct SearchView: View {
             Button("") { model.copyPath() }.keyboardShortcut("c", modifiers: [.command, .shift])
         }
         .opacity(0)
+        .accessibilityHidden(true) // keyboard shortcuts only; the context menu has these actions
         .allowsHitTesting(false)
+    }
+}
+
+/// "28 results · 0.3 ms", or "Searching…" while the query is answered.
+struct ResultsSummary: View {
+    @ObservedObject var model: SearchModel
+
+    var body: some View {
+        if model.searching {
+            Text(L("results.searching"))
+        } else if model.total > 0 {
+            Text(String(format: L("results.count"), Int64(model.total), model.elapsedMs))
+        }
     }
 }
 
 struct ResultRow: View {
     let hit: Hit
     let selected: Bool
+    /// Accent highlight with white text (the window has the keyboard).
+    var emphasized = true
+
+    private var light: Bool { selected && emphasized }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -238,25 +266,28 @@ struct ResultRow: View {
                 .frame(width: 28, height: 28)
             VStack(alignment: .leading, spacing: 2) {
                 Text(hit.name).fontWeight(.medium).lineLimit(1)
-                Text(hit.path).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                    .foregroundStyle(light ? Color.white : Color.primary)
+                Text(hit.path).font(.caption).lineLimit(1).truncationMode(.middle)
+                    .foregroundStyle(light ? Color.white.opacity(0.85) : Color.secondary)
             }
             Spacer(minLength: 8)
             if hit.content {
                 Label(L("results.inContents"), systemImage: "doc.text.magnifyingglass")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(light ? Color.white.opacity(0.85) : Color.secondary)
             }
             if let volume = hit.volume {
                 Label(volume, systemImage: "externaldrive")
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(light ? Color.white.opacity(0.85) : Color.secondary)
             }
             ForEach(hit.badges, id: \.self) { b in
                 Text(b)
                     .font(.caption2.monospacedDigit())
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(.quaternary))
+                    .foregroundStyle(light ? Color.white : Color.primary)
+                    .background(Capsule().fill(light ? AnyShapeStyle(Color.white.opacity(0.25)) : AnyShapeStyle(.quaternary)))
             }
         }
         .padding(.horizontal, 10)
@@ -267,7 +298,7 @@ struct ResultRow: View {
         )
         .accessibilityAddTraits(selected ? .isSelected : [])
         .padding(.vertical, 6)
-        .background(RoundedRectangle(cornerRadius: 8).fill(selected ? Color.accentColor.opacity(0.25) : .clear))
+        .background(RoundedRectangle(cornerRadius: 8).fill(selected ? (emphasized ? Color.accentColor : Color.secondary.opacity(0.2)) : .clear))
     }
 }
 
