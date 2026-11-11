@@ -26,7 +26,8 @@ struct SearchField: NSViewRepresentable {
         f.font = .systemFont(ofSize: 22)
         f.placeholderString = placeholder
         f.usesSingleLineMode = true
-        f.alignment = .natural
+        // AppKit does not know the app runs right to left (see appLayoutDirection).
+        f.alignment = appLayoutDirection == .rightToLeft ? .right : .left
         f.baseWritingDirection = .natural
         f.cell?.wraps = false
         f.cell?.isScrollable = true
