@@ -241,3 +241,4 @@
 "tour.back" = "Back";
 "tour.next" = "Next";
 "tour.start" = "Start Searching";
+"results.countOne" = "%lld result · %.1f ms";

@@ -380,7 +380,7 @@ struct ResultsSummary: View {
         if model.searching {
             Text(L("results.searching"))
         } else if model.total > 0 && !model.isHome {
-            Text(String(format: L("results.count"), Int64(model.total), model.elapsedMs))
+            Text(String(format: L(model.total == 1 ? "results.countOne" : "results.count"), Int64(model.total), model.elapsedMs))
         }
     }
 }

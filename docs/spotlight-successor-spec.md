@@ -2,7 +2,7 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.22 (draft)
+**Version:** 1.23 (draft)
 **Date:** 2026-11-11 — v1.18–v1.22 record the owner's decisions while using the app; the conversation behind them is
 in `docs/design-conversation.md`
 **Target platform:** macOS 14+, Apple Silicon
@@ -62,6 +62,7 @@ A private, media-aware **file, media, and disk** search tool for macOS. It match
   - No exact hit → auto-fallback to partial/token matching (word order ignored)
   - Transposition and single-character typo tolerance, implemented as bounded regex alternatives generated **per word** at query time — no fuzzy engine, still pure regex
   - Typo variants are generated only for words of 4+ characters, only when exact matching returns fewer than a threshold of results, and typo matches always rank below exact matches
+  - *Revised (v1.23):* three-letter words get only swapped neighbours (`pfd` → `pdf`); any other edit of three letters matches almost everything. When every result is only a typo match the app says "No exact matches — showing similar names"
   - *Result order (v1.18, the owner's request; like Spotlight):* by relevance, results are ordered by how well the name matches (exact, then prefix, then word, then substring; typo matches last); among equally good matches, **files come before folders and hidden items (dot files and anything inside a dot folder such as `.obsidian` or `.git`) come last**, then shorter names, then shallower paths. A query with no name words (`jpg`, `kind:video`, `res:4k`) is newest first with the same files → folders → hidden order. While a new query is being answered the app fades the previous results and shows "Searching…", and Return does not open a result of the previous query
   - Words containing digits never get typo variants (`2024` must not match `2023`)
   - Each typo variant contributes its longest literal piece to an any-of trigram prefilter group, so typo fallback stays index-assisted rather than scanning every name
@@ -447,6 +448,7 @@ white       = " " | "\t" | "\n" ;
 - **13.3** Bundled: LGPL ffmpeg libraries/binaries (Tier 2 and actions only), built without network protocols. No exiftool — EXIF is parsed in Rust
 - **13.4** CLI sharing the same index and query syntax for scripting
 - **13.5** URL scheme `laserdot://search?q=...` and Shortcuts actions (search, open result, start index)
+- **13.6b** *Folders and exclusions (v1.23, the owner's critique):* Settings ▸ Folders lists every indexed folder (add, remove) and the folders never indexed. An excluded folder is skipped by every walk and rescan, and excluding a folder removes what was indexed there (an indexed folder inside it is forgotten); the list lives in this Mac's index settings (`exclude`, `include`, `exclusions` ops). Words inside files are searched in the whole home folder by default (Documents, Desktop and Downloads before). Settings ▸ General ▸ Clear History forgets recent searches and the open history (`clear_opens`); pins stay. Laserdot opens at login by default (asked once, for the copy in Applications) so the index stays current after a restart
 - **13.6a** *Default scope (v1.20, the owner's critique):* nothing to set up. The app indexes the apps and the home folder once, without asking (no first-run prompt). In `~/Library` only `Mobile Documents` (iCloud Drive) is indexed (`OnlyChildren`); the rest is app data and caches. Indexing runs on its own connection to the daemon, so searches are never held up
 - **13.6** User-configurable index scopes and ignore patterns (node_modules, .venv, caches), with churn detection auto-excluding hot directories; auto-excluded directories can be permanently re-included
   - *Decided (v1.19, the owner's report that `claude.app` found nothing):* macOS packages are opaque like `.git`: a folder named `*.app`, `.appex`, `.framework`, `.bundle`, `.plugin`, `.kext`, `.xpc`, `.prefPane`, `.qlgenerator`, `.mdimporter`, `.saver`, `.photoslibrary` or `.musiclibrary` is one result (apps are `kind:app`; the type word `apps` finds them) and its contents are not indexed; contents indexed before this leave the index on the next refresh. The app indexes `/Applications`, `/System/Applications` and `~/Applications` once, without asking, since apps are what people look for first

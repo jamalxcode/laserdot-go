@@ -51,7 +51,7 @@ downloads.
 |---|---|
 | ↑ ↓ | move through results (⇧↑ ⇧↓ or ⌘-click select several) |
 | Return / ⌘1–⌘9 | open the selected / the numbered result |
-| Space (after ↑↓ or a click) | Quick Look: pictures large, videos and songs playing |
+| Space (after ↑↓ or a click), or Space twice | Quick Look: pictures large, videos and songs playing |
 | ⌘K | actions: Open with…, Show in Finder, Copy file or path, Share, Rename, Move to Trash |
 | ⌘↩ / ⌘⇧C | Show in Finder / copy the path |
 | ⌘D | pin the search (pins show on the empty box) |
@@ -60,13 +60,17 @@ downloads.
 
 The preview pane on the right shows a large thumbnail, plays videos and songs, and pages through PDFs.
 
+**Settings** (⌘,): the search shortcut, open at login, automatic updates, **Folders** (what is indexed, and folders
+that are never indexed), **Content Search**, **Drives**, and **Clear History**. **Help** has the search syntax, the
+welcome tour, What's New, and **Save Diagnostics** (a file for a bug report, with every path removed).
+
 ## Where things are kept
 
 Everything stays on your Mac, in `~/Library/Application Support/laserdot/` (**Settings → General → Index → Show in
 Finder**):
 
 - `index.db` — names, sizes, dates, media details; `index.db.snapshot` — a copy for a fast start.
-- `content.db` — the words inside documents in the folders listed under **Settings → Content Search**.
+- `content.db` — the words inside documents (your whole home folder unless you change **Settings → Content Search**).
 - Opened-results history and settings live in the same index; nothing is ever sent anywhere.
 
 **External drives** keep their own index on the drive, in a hidden `/Volumes/<drive>/.laserdot/` folder

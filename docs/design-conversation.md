@@ -132,6 +132,30 @@ are recognized. A full rebuild is only for a damaged index. Skipping even the li
 was ruled out in the original design: FSEvents ids belong to one Mac, and drives move between Macs (Issue 001,
 Design Decision Log).
 
+## 8. The second critique (0.6.0)
+
+**Asked:** "fix all except 15" (15 was, again, the Apple Developer ID signature).
+
+| # | Critique | Decided |
+|---|---|---|
+| 1 | You can't see or change what's indexed | Settings ▸ Folders: every indexed folder (add, remove) and **Never Index** folders, skipped for good and removed from the index |
+| 2 | No way to clear history | Settings ▸ General ▸ Clear History: recent searches and the opened-results history (pins stay) |
+| 3 | The index goes stale when Laserdot is closed | Open at login on by default (once, for the copy in Applications) |
+| 4 | No "What's new" | `CHANGELOG.md` is bundled; its notes show in the update prompt, after an update, and in Help |
+| 5 | Space needs ↓ first | A second Space in a row previews the highlighted result |
+| 6 | Only 100 results | Scrolling to the end loads more; an answer of one kind only (all pictures) is not capped at five |
+| 7 | Short typos | Three-letter words forgive swapped letters (`pfd` → `pdf`) — not any edit, which would match almost everything; "showing similar names" when nothing matched exactly |
+| 8 | Contents only in three folders | The whole home folder, by default |
+| 9 | Old-looking Duplicates window | Copies side by side, with thumbnails, the recommended one marked |
+| 10 | Drives only in menus | Settings ▸ Drives: each drive, where its index is and how big, its actions |
+| 11 | No tour | A three-page welcome on first launch (Help ▸ Welcome Tour) |
+| 12 | No bug reports | Help ▸ Save Diagnostics: a file you choose to share, with every path removed |
+| 13 | VoiceOver untested | CI now reads the running app with the accessibility API, as VoiceOver does — GitHub's Mac allows it, and it reads the result rows |
+| 14 | A flaky test | Mounting a disk image is retried, in the app's updater too |
+
+Found on the way by the new checks: Quick Look sometimes stayed open when asked to close, and would not reopen
+after being closed with Space; both fixed.
+
 ---
 
 ## How the work was done
