@@ -53,8 +53,9 @@ downloads.
 | ↑ ↓ | move through results (⇧↑ ⇧↓ or ⌘-click select several) |
 | Return / ⌘1–⌘9 | open the selected / the numbered result |
 | Space (after ↑↓ or a click), or Space twice | Quick Look: pictures large, videos and songs playing |
-| ⌘K | actions: Open with…, Show in Finder, Copy file, path or link, Share, Search in This Folder, Compress, Move to…, Open in Terminal, Rename, Move to Trash |
-| ⌥⌘Z | undo the last Move to Trash, Rename, Move to… or Compress (or click **Undo** on the bar) |
+| ⌘K | actions: Open with…, Show in Finder, Copy file, path or link, Share, Search in This Folder, Tags…, Compress, Move to…, Open in Terminal, Rename, Move to Trash |
+| ⌥⌘Z | undo the last Move to Trash, Rename, Move to…, Compress or tag change (or click **Undo** on the bar); press again for the one before — Laserdot remembers 20 steps for a week, even after quitting |
+| ↑ in the empty box | your earlier searches |
 | ⌘↩ / ⌘⇧C | Show in Finder / copy the path |
 | ⌘D | pin the search (pins show on the empty box) |
 | Tab / ⌥1–⌥9 | complete a filter / press a suggestion chip |
@@ -68,10 +69,11 @@ document found by its words, the passage where they are. Drop a folder on the wi
 in Shortcuts with **Open URL**).
 
 **Settings** (⌘,): the search shortcut, open at login, pausing background work on battery, automatic updates (and
-**Go Back** to the version before the last update), **Folders** (what is indexed, and folders that are never
-indexed), **Content Search**, **Drives**, and **Privacy** (what is kept and its size, Clear History, **Erase All
+**Go Back** to the version before the last update), **Folders** (what is indexed, folders that are never
+indexed, and what Laserdot couldn't read, with how to fix it), **Content Search**, **Drives**, and **Privacy** (what is kept and its size, Clear History, **Erase All
 Laserdot Data**). **Help** has the search syntax, the
-welcome tour, What's New, and **Save Diagnostics** (a file for a bug report, with every path removed).
+welcome tour, What's New, and **Save Diagnostics** (a file for a bug report, with every path removed; it also shows
+how long Laserdot took to start).
 
 ## Where things are kept
 
@@ -127,8 +129,9 @@ VERSION=0.8.0 app/scripts/bundle.sh      # → app/build/Laserdot.app
 
 CI builds and tests on Linux and macOS, bundles the app, launches it, runs the updater against GitHub, and runs
 the **self-test**: the real app types into its own ⌥Space window, checks what it shows (results, sections, hints,
-commands, actions, Quick Look, Rename, Move to…, Compress, Undo, content passages, Settings) in English and Arabic,
-measures its launch time, and saves screenshots
+commands, actions, Quick Look, Rename, Move to…, Compress, Tags, Undo, search history, dropping a folder, content
+passages, the unreadable list, the Keychain, Settings and, last, Erase All Data) in English and Arabic, measures its
+launch time, and saves screenshots
 (`app/Sources/Laserdot/SelfTest.swift`, judged by `app/scripts/check-selftest.py`).
 
 A speed test on a Mac (`app/scripts/perf-mac.sh`) indexes 100,000 files, times searches and measures the

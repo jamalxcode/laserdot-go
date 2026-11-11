@@ -233,7 +233,7 @@
 "tour.2.a" = "⌥Space opens Laserdot anywhere";
 "tour.2.b" = "↑↓ then Space — Quick Look; Return opens";
 "tour.2.c" = "⌘K — Open with, Copy, Share, Rename, Move to Trash";
-"tour.2.d" = "⌘1–⌘9 opens a result straight away";
+"tour.2.d" = "⌘1–⌘9 opens a result; ↑ in the empty box brings back earlier searches";
 "tour.3.title" = "Private by design";
 "tour.3.a" = "The search engine is blocked from the network by macOS — see the lock";
 "tour.3.b" = "The index stays on this Mac; drives keep their own";
@@ -301,3 +301,16 @@
 "update.goBack.help" = "Not happy with this version? The one before it was kept.";
 "update.goBack.title" = "Go back to Laserdot %@?";
 "update.goBack.text" = "Laserdot %@ is replaced by the version you had before, and restarts. It is not updated to this version again automatically.";
+
+/* 0.9.0 */
+"action.tags" = "Tags…";
+"tags.title" = "Tags for “%@”";
+"tags.titleMany" = "Tags for %ld items";
+"tags.new" = "New tag";
+"tags.save" = "Save";
+"undo.tagged" = "Changed the tags of %ld item(s)";
+"unreadable.title" = "Couldn't read %ld item(s)";
+"unreadable.permission" = "No permission";
+"unreadable.error" = "Could not be read";
+"unreadable.permissionHelp" = "macOS did not allow Laserdot to read some of these. Full Disk Access fixes that; then remove the folder and add it again.";
+"unreadable.more" = "…and %ld more";

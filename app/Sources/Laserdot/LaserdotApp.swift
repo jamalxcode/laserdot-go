@@ -54,7 +54,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     var duplicates: NSWindow?
     @Published private(set) var model: SearchModel?
     let updates = UpdateController()
-    var overlay: OverlayController?
+    /// The ⌥Space window, made just after launch (not during it, so the
+    /// app is up sooner) or on first use.
+    var overlayStorage: OverlayController?
+    var overlay: OverlayController? {
+        if overlayStorage == nil, let model { overlayStorage = OverlayController(model: model) }
+        return overlayStorage
+    }
+    /// Milliseconds from process start to the end of launching, and to the
+    /// first answer from laserdotd (Save Diagnostics shows both).
+    var launchMS = -1
+    var readyMS = -1
     var hotKey: HotKey?
     @Published private(set) var hotKeyChoice = HotKeyChoice.saved
 
@@ -74,9 +84,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         self.engine = engine
         let model = SearchModel(engine: engine)
         self.model = model
-        overlay = OverlayController(model: model)
         registerHotKey(prompt: !SelfTest.active)
         model.onStatus = { [weak self] status in
+            if let self, self.readyMS < 0, status.running { self.readyMS = msSinceProcessStart() }
             self?.show(status)
             if !SelfTest.active { self?.indexDefaultsOnce(status) }
         }
@@ -98,12 +108,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         folders = FoldersModel(engine: engine)
         let content = ContentModel(engine: engine)
         self.content = content
-        content.refresh()
         let drives = DrivesModel(engine: engine)
         self.drives = drives
-        drives.start()
-        probeDuplicates()
         updates.stopDaemon = { [weak engine] in engine?.shutdown() }
+        // After the first frame: nothing here is needed to show a window.
+        DispatchQueue.main.async { [weak self] in
+            _ = self?.overlay
+            content.refresh()
+            drives.start()
+            self?.probeDuplicates()
+        }
+        launchMS = msSinceProcessStart()
         if let out = SelfTest.outDir {
             // CI: drive the real app and report what it shows (SelfTest.swift).
             selfTest = SelfTestRunner(app: self, out: out)

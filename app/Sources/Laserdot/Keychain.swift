@@ -13,13 +13,14 @@ enum Keychain {
         return q
     }
 
-    static func save(_ secret: String, for drive: String) {
+    @discardableResult
+    static func save(_ secret: String, for drive: String) -> OSStatus {
         SecItemDelete(query(drive) as CFDictionary)
         var q = query(drive)
         q[kSecValueData as String] = Data(secret.utf8)
         q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
         q[kSecAttrLabel as String] = service
-        SecItemAdd(q as CFDictionary, nil)
+        return SecItemAdd(q as CFDictionary, nil)
     }
 
     static func load(for drive: String) -> String? {

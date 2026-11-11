@@ -76,3 +76,14 @@ let menuBarIcon: NSImage = {
     img.accessibilityDescription = "Laserdot"
     return img
 }()
+
+/// Milliseconds since this process started (launch time).
+func msSinceProcessStart() -> Int {
+    var info = kinfo_proc()
+    var size = MemoryLayout<kinfo_proc>.stride
+    var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
+    guard sysctl(&mib, 4, &info, &size, nil, 0) == 0 else { return -1 }
+    let t = info.kp_proc.p_un.__p_starttime
+    let started = Double(t.tv_sec) + Double(t.tv_usec) / 1e6
+    return Int((Date().timeIntervalSince1970 - started) * 1000)
+}

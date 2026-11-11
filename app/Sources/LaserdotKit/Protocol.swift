@@ -62,6 +62,8 @@ public enum DaemonRequest: Encodable, Sendable {
     case background(paused: Bool)
     /// The passage of a document where the query's words were found.
     case snippet(path: String, query: String)
+    /// What the last full index of each folder could not read.
+    case unreadable
     /// Folders never indexed: list, add, remove.
     case exclusions
     case exclude(path: String)
@@ -81,6 +83,7 @@ public enum DaemonRequest: Encodable, Sendable {
         case .storage: return "storage"
         case .background: return "background"
         case .snippet: return "snippet"
+        case .unreadable: return "unreadable"
         case .exclusions: return "exclusions"
         case .exclude: return "exclude"
         case .include: return "include"
@@ -162,7 +165,7 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(path, forKey: .path)
             try c.encode(query, forKey: .query)
         case .ping, .status, .refresh, .roots, .stats, .shutdown, .drives, .contentStatus, .updateContent, .valueCounts,
-             .clearOpens, .exclusions:
+             .clearOpens, .exclusions, .unreadable:
             break
         }
     }
@@ -781,6 +784,19 @@ public enum Wire {
             pending = try c.value(.pending, or: 0)
             bytes = try c.value(.bytes, or: 0)
         }
+    }
+
+    /// `unreadable`: entries the last full index could not read.
+    public struct Unreadable: Decodable, Sendable {
+        public var total: Int
+        public var items: [UnreadableItem]
+    }
+
+    public struct UnreadableItem: Decodable, Sendable, Hashable {
+        public var path: String
+        /// "permission" or "error".
+        public var reason: String
+        public var detail: String
     }
 
     /// `storage`: a folder's entries by total size.

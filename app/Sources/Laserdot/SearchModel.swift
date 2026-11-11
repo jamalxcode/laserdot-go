@@ -80,7 +80,10 @@ final class SearchModel: ObservableObject {
     /// Space presses that reached the model (for the self-test's report).
     var spacePresses = 0
     /// The last file operation, for Undo (⌥⌘Z) and the banner.
-    @Published var undoStep: UndoStep?
+    /// File operations that Undo (⌥⌘Z, the banner) can reverse, newest
+    /// last; kept across launches for a week (UndoStep.load).
+    @Published var undoStack: [UndoStep] = UndoStep.load()
+    var undoStep: UndoStep? { undoStack.last }
     @Published var undoBannerVisible = false
     /// Words from inside the selected document (content matches).
     @Published private(set) var snippet: String?

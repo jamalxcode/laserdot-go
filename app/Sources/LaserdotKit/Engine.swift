@@ -565,6 +565,11 @@ public final class Engine: @unchecked Sendable {
     }
 
     /// What fills a folder ("" = the indexed folders), largest first.
+    /// What the indexed folders' last full index could not read.
+    public func unreadable() throws -> Wire.Unreadable {
+        try call(.unreadable, as: Wire.Unreadable.self)
+    }
+
     /// Words from inside a document around the query's words ("" when none).
     public func snippet(path: String, query: String) throws -> String {
         try call(.snippet(path: path, query: query), as: String.self)

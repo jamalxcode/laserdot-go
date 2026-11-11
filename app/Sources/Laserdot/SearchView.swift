@@ -69,17 +69,7 @@ struct SearchView: View {
         }
         .overlay(hiddenShortcuts)
         // Drop a folder (or a file: its folder) to search inside it.
-        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
-            guard let p = providers.first else { return false }
-            _ = p.loadObject(ofClass: URL.self) { url, _ in
-                guard let url else { return }
-                var isDir: ObjCBool = false
-                FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-                let dir = isDir.boolValue ? url.path : url.deletingLastPathComponent().path
-                DispatchQueue.main.async { model.searchInFolder(dir); model.focusSearch() }
-            }
-            return true
-        }
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in model.handleDrop(providers) }
     }
 
     // MARK: header

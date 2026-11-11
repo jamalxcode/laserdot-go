@@ -26,7 +26,7 @@ def check(ok, what):
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
 for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
-             "compress", "compressed", "compressundone", "snippet", "searchin", "url", "similar", "home"):
+             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "history", "drop", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -144,6 +144,19 @@ snip = steps["snippet"]
 check("memo.txt" in snip["results"], f"zebra finds memo.txt by its words (got {snip['results']})")
 check("zebra" in snip["snippet"], f"the preview shows where (got {snip['snippet']!r})")
 
+# Tags: added from ⌘K, searchable, and Undo takes them off.
+check(steps["tagged"]["results"] == ["beach.jpg"], f"tag:red finds the tagged file (got {steps['tagged']['results']})")
+check(steps["untagged"]["results"] == [], f"Undo removed the tag (got {steps['untagged']['results']})")
+for a in ("tags",):
+    check(a in steps["actions"]["action_ids"], f"⌘K offers {a}")
+
+# ↑ in the empty box: the last search comes back.
+check(steps["history"]["query"] == "holiday", f"↑ recalls the last search (got {steps['history']['query']!r})")
+
+# A folder dropped on the window.
+drop = steps["drop"]
+check(drop["query"].startswith('in:"') and "readme.md" in drop["results"], f"dropping Projects searches in it (got {drop['query']!r}, {drop['results']})")
+
 # Search in This Folder.
 sin = steps["searchin"]
 check(sin["query"].startswith('in:"') and sin["query"].rstrip().endswith('/Projects"'), f"the query is in:\"…/Projects\" (got {sin['query']!r})")
@@ -154,6 +167,26 @@ check(report.get("paused_on") is True and report.get("paused_off") is False, f"b
 check(report.get("saved_width") == 1000 and report.get("saved_height") == 600, f"the overlay size is remembered (got {report.get('saved_width')}x{report.get('saved_height')})")
 items = {i["id"]: i["bytes"] for i in report.get("privacy_items", [])}
 check(items.get("index", 0) > 0, f"the Privacy page shows the index size (got {items})")
+# What could not be read is listed.
+check("/Locked" in report.get("unreadable", []), f"the locked folder is listed as unreadable (got {report.get('unreadable')})")
+
+# Remembered passphrases (login Keychain).
+kc = report.get("keychain", "")
+if kc.startswith("unavailable"):
+    print(f"skip Keychain: this CI machine's Keychain is locked ({kc})")
+else:
+    check(kc == "ok", f"a passphrase is saved, read back and forgotten (got {kc!r})")
+
+# Erase All Laserdot Data (last).
+er = report.get("erase", {})
+check(er.get("data_before") is True and er.get("data_gone") is True, f"Erase deletes the data folder (got {er})")
+check(er.get("daemon_stopped") is True, f"Erase stops the index (got {er})")
+check(er.get("welcomed") is True and er.get("no_reindex") is True, f"after Erase: no tour, no automatic indexing (got {er})")
+check(er.get("history_gone") is True, f"Erase forgets the search history (got {er})")
+if not kc.startswith("unavailable"):
+    check(er.get("passphrases") == 0, f"Erase forgets the passphrases (got {er.get('passphrases')})")
+
+print(f"info ready to search: {report.get('ready_ms')} ms after start")
 launch = report.get("launch_ms", -1)
 print(f"info cold launch to ready: {launch} ms (target < 300 ms on a real Mac)")
 check(0 < launch < 5000, f"the app is ready in under 5 s on CI (got {launch} ms)")

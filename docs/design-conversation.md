@@ -200,6 +200,25 @@ a paid account).
 | 11 | Slow CI | The ffmpeg build is cached on main too, before each release |
 | 12 | Passphrase typed every time | Optional: remember it in the Keychain; the drive unlocks by itself |
 
+## 11. The fifth critique (0.9.0)
+
+**Asked:** "critique laserdot again"; then, for the first point (unsigned updates), "ensure i only have access to
+this repo to modify it and thats all for now", and "fix everything else, except 11" (11 was more languages).
+
+| # | Critique | Decided |
+|---|---|---|
+| 1 | Anyone who got into the repo could ship a bad update | Only the owner can change the repo: no collaborators, read-only workflow tokens, outside pull requests need approval, `main` can't be deleted or force-pushed |
+| 2 | Undo only remembers the last action | A list of 20 steps, kept for a week, even after quitting |
+| 3 | New features never ran on a Mac | The self-test drops a folder, uses the Keychain, and erases all data |
+| 4 | Indexing slower than planned | No read-back after writing; probing overlaps writing; more readers |
+| 5 | Launch time not proven | Shown in Save Diagnostics; the slow parts wait until after launch |
+| 6 | The self-test is slow | It waits for results instead of fixed pauses |
+| 7 | No search history | ↑ in the empty box |
+| 8 | No Finder tags from ⌘K | ⌘K ▸ Tags…, undoable |
+| 9 | Unreadable files vanish silently | Settings ▸ Folders lists them, with the fix |
+| 10 | Big documents slow the preview | A time limit and a cache |
+| 12 | Two big source files | Split |
+
 ---
 
 ## How the work was done

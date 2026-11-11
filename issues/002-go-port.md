@@ -264,3 +264,11 @@ Binding unless revisited deliberately; each is also in the spec.
   split (SearchView → ResultRows, PreviewPane, TextHelpers; SearchModel → +Actions, +Grouping). The self-test now
   renames, moves, compresses and undoes each, checks the passage, Search in This Folder, battery pausing, the
   remembered window size, the Privacy page and the launch time; `perf-mac.sh` reports the daemon's peak memory.
+
+- **0.9.0 (2026-11-11), the fifth critique:** the repository is locked to the owner (Repo admin `access-lock`:
+  no collaborators, read-only workflow tokens, approval for outside pull requests, `main` protected from deletion
+  and force pushes). Undo list kept across launches, ⌘K ▸ Tags…, ↑ for earlier searches, the "couldn't read" list
+  (`unreadable` op), snippet time limit and cache, faster full indexing (no read-back: 1.31 → 0.98 s for 100k files
+  on Linux; `TestIndexKeepsTheSameIndexAsReopening` proves the result is identical), a quicker launch and its time in
+  Save Diagnostics; LaserdotApp.swift and SearchModel.swift split. The self-test waits for results instead of fixed
+  pauses and adds tags, history, drop, the unreadable list, the Keychain and, last, Erase All Data.

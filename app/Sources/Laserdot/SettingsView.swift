@@ -189,6 +189,8 @@ final class FoldersModel: ObservableObject {
     @Published private(set) var indexed: [String] = []
     @Published private(set) var excluded: [String] = []
     @Published private(set) var busy = false
+    /// What could not be read (no permission, broken files).
+    @Published private(set) var unreadable: Wire.Unreadable?
     private let engine: Engine
     private let queue = DispatchQueue(label: "laserdot.folders", qos: .userInitiated)
 
@@ -201,9 +203,11 @@ final class FoldersModel: ObservableObject {
         queue.async { [weak self] in
             let folders = engine.status().folders.sorted()
             let excluded = engine.exclusions()
+            let unreadable = try? engine.unreadable()
             DispatchQueue.main.async {
                 self?.indexed = folders
                 self?.excluded = excluded
+                self?.unreadable = unreadable
             }
         }
     }
@@ -260,6 +264,9 @@ struct FoldersSettings: View {
                 if model.busy { ProgressView().controlSize(.small) }
             }
             .buttonStyle(.borderless)
+            if let u = model.unreadable, u.total > 0 {
+                UnreadableRow(report: u)
+            }
             Text(L("settings.excluded")).font(.headline).padding(.top, 6)
             Text(L("settings.excludedHelp")).font(.caption).foregroundStyle(.secondary)
             folderList(model.excluded, selection: $selectedExcluded)
@@ -365,5 +372,48 @@ struct DrivesSettings: View {
         }
         .fixedSize()
         .disabled(model.busy != nil)
+    }
+}
+
+/// "Couldn't read 12 items" with the list, and what to do about it.
+struct UnreadableRow: View {
+    let report: Wire.Unreadable
+    @State private var open = false
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $open) {
+            VStack(alignment: .leading, spacing: 4) {
+                if report.items.contains(where: { $0.reason == "permission" }) {
+                    HStack {
+                        Text(L("unreadable.permissionHelp")).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button(L("fda.openSettings")) { DiskAccessPrompt.shared.askFromMenu() }
+                            .controlSize(.small)
+                    }
+                }
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 2) {
+                        ForEach(report.items, id: \.self) { item in
+                            HStack(spacing: 6) {
+                                Image(systemName: item.reason == "permission" ? "lock" : "exclamationmark.triangle")
+                                    .foregroundStyle(.secondary)
+                                    .accessibilityLabel(L(item.reason == "permission" ? "unreadable.permission" : "unreadable.error"))
+                                Text(item.path).font(.caption).lineLimit(1).truncationMode(.middle)
+                                    .help(item.detail)
+                                    .textSelection(.enabled)
+                            }
+                        }
+                        if report.total > report.items.count {
+                            Text(String(format: L("unreadable.more"), report.total - report.items.count))
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .frame(maxHeight: 110)
+            }
+        } label: {
+            Label(String(format: L("unreadable.title"), report.total), systemImage: "exclamationmark.triangle")
+                .foregroundStyle(.orange)
+        }
     }
 }

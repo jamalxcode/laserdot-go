@@ -63,6 +63,7 @@ extension SearchModel {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(links.joined(separator: "\n"), forType: .string)
             },
+            ActionItem(id: "tags", title: L("action.tags"), symbol: "tag") { [weak self] in self?.editTags(hits) },
             ActionItem(id: "compress", title: L("action.compress"), symbol: "doc.zipper") { [weak self] in self?.compress(hits) },
             ActionItem(id: "moveTo", title: L("action.moveTo"), symbol: "folder.badge.gearshape") { [weak self] in self?.move(hits) },
         ]
@@ -202,35 +203,64 @@ extension SearchModel {
         showActions = false
     }
 
+    /// A folder (or a file: its folder) dropped on the window: search inside it.
+    func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard let p = providers.first, p.canLoadObject(ofClass: URL.self) else { return false }
+        _ = p.loadObject(ofClass: URL.self) { [weak self] url, _ in
+            guard let url else { return }
+            var isDir: ObjCBool = false
+            FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+            let dir = isDir.boolValue ? url.path : url.deletingLastPathComponent().path
+            DispatchQueue.main.async {
+                self?.searchInFolder(dir)
+                self?.focusSearch()
+            }
+        }
+        return true
+    }
+
     // MARK: Undo
 
     func offerUndo(_ step: UndoStep) {
-        undoStep = step
+        undoStack.append(step)
+        undoStack = Array(undoStack.suffix(UndoStep.keep))
+        UndoStep.save(undoStack)
         let id = step.id
-        // The banner goes away after a while; ⌥⌘Z still works until the next action.
+        // The banner goes away after a while; ⌥⌘Z still works.
         DispatchQueue.main.asyncAfter(deadline: .now() + 12) { [weak self] in
             if self?.undoStep?.id == id { self?.undoBannerVisible = false }
         }
         undoBannerVisible = true
     }
 
-    /// Puts things back: moved/renamed/trashed files return, a new zip goes to the Trash.
+    /// Reverses the newest step: moved, renamed and trashed files go back,
+    /// a new zip goes to the Trash, tags are put back. Pressing again
+    /// reverses the one before.
     @discardableResult
     func undo() -> Bool {
-        guard let step = undoStep else { return false }
-        undoStep = nil
+        guard let step = undoStack.popLast() else { return false }
+        UndoStep.save(undoStack)
         undoBannerVisible = false
+        let fm = FileManager.default
         var ok = true
-        for (from, to) in step.moves.reversed() {
+        for m in step.moves.reversed() {
+            // Only if the file is still where it went, and nothing took its old place.
+            guard fm.fileExists(atPath: m.to), !fm.fileExists(atPath: m.from) else { ok = false; continue }
             do {
-                guard !FileManager.default.fileExists(atPath: from.path) else { ok = false; continue }
-                try FileManager.default.moveItem(at: to, to: from)
+                try fm.moveItem(atPath: m.to, toPath: m.from)
             } catch {
                 ok = false
             }
         }
-        if !step.created.isEmpty {
-            NSWorkspace.shared.recycle(step.created) { [weak self] _, _ in
+        for t in step.tags {
+            var url = URL(fileURLWithPath: t.path)
+            var values = URLResourceValues()
+            values.tagNames = t.old
+            do { try url.setResourceValues(values) } catch { ok = false }
+        }
+        let created = step.created.map { URL(fileURLWithPath: $0) }.filter { fm.fileExists(atPath: $0.path) }
+        if !created.isEmpty {
+            NSWorkspace.shared.recycle(created) { [weak self] _, _ in
                 DispatchQueue.main.async { self?.refreshSoon() }
             }
         }
@@ -259,9 +289,35 @@ extension SearchModel {
 }
 
 /// One file operation that Undo can reverse.
-struct UndoStep {
-    let id = UUID()
+struct UndoStep: Codable {
+    struct Move: Codable { var from: String; var to: String }
+    struct TagChange: Codable { var path: String; var old: [String] }
+
+    var id = UUID()
+    var date = Date()
     let title: String
-    var moves: [(URL, URL)] = []
-    var created: [URL] = []
+    var moves: [Move] = []
+    var created: [String] = []
+    var tags: [TagChange] = []
+
+    init(title: String, moves: [(URL, URL)] = [], created: [URL] = [], tags: [TagChange] = []) {
+        self.title = title
+        self.moves = moves.map { Move(from: $0.0.path, to: $0.1.path) }
+        self.created = created.map(\.path)
+        self.tags = tags
+    }
+
+    static let keep = 20
+    static let key = "laserdot.undo"
+    static let maxAge: TimeInterval = 7 * 86400
+
+    static func load() -> [UndoStep] {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let steps = try? JSONDecoder().decode([UndoStep].self, from: data) else { return [] }
+        return steps.filter { Date().timeIntervalSince($0.date) < maxAge }
+    }
+
+    static func save(_ steps: [UndoStep]) {
+        if let data = try? JSONEncoder().encode(steps) { UserDefaults.standard.set(data, forKey: key) }
+    }
 }

@@ -105,6 +105,8 @@ jobs:
           cp internal/media/testdata/song.mp3 "$fx/song.mp3"
           cp internal/media/testdata/dupes/clip.mp4 "$fx/clip copy.mp4"
           echo trash me > "$fx/trashme.txt"
+          # A folder Laserdot may not read: listed under "couldn't read".
+          mkdir -p "$fx/Locked" && echo x > "$fx/Locked/inside.txt" && chmod 000 "$fx/Locked"
           status=0
           for lang in en ar; do
             echo trash me > "$fx/trashme.txt" # the run before moved it to the Trash

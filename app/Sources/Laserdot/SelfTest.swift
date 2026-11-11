@@ -1,5 +1,6 @@
 import AppKit
 import LaserdotKit
+import Security
 
 /// CI's check of the real, bundled app (LASERDOT_SELFTEST=<output folder>,
 /// LASERDOT_SELFTEST_FOLDER=<files to index>). It does what a person does —
@@ -31,7 +32,7 @@ final class SelfTestRunner {
             finish(error: "no engine or LASERDOT_SELFTEST_FOLDER")
             return
         }
-        extra["launch_ms"] = Self.msSinceLaunch()
+        extra["launch_ms"] = app.launchMS
         DispatchQueue.global().async {
             // The fixtures' words are searchable too (content search).
             _ = try? engine.setContentFolder(folder: folder, add: true)
@@ -56,6 +57,9 @@ final class SelfTestRunner {
         let typed: String
         var before: (() -> Void)?
         var after: (() -> Void)?
+        /// What the screen must show before it is recorded (files changed
+        /// on disk reach the index through the watcher; this waits for it).
+        var until: ((SearchModel) -> Bool)?
     }
 
     private func run() {
@@ -92,16 +96,16 @@ final class SelfTestRunner {
             Step(name: "trash", typed: "trashme", after: {
                 model.actions.first { $0.id == "trash" }?.run()
             }),
-            Step(name: "trashed", typed: "trashme"),
+            Step(name: "trashed", typed: "trashme", until: { $0.results.isEmpty }),
             // Undo (the banner's button, ⌥⌘Z) brings it back from the Trash.
-            Step(name: "untrashed", typed: "trashme", before: { model.undo() }),
+            Step(name: "untrashed", typed: "trashme", before: { model.undo() }, until: { $0.results.map(\.name) == ["trashme.txt"] }),
             // Rename, then Move to…, then Undo puts it back where it was.
             Step(name: "rename", typed: "renameme", after: {
                 if let h = model.results.first(where: { $0.name == "renameme.txt" }) {
                     model.renameFile(h, to: "renamed ok.txt")
                 }
             }),
-            Step(name: "renamed", typed: "renamed ok"),
+            Step(name: "renamed", typed: "renamed ok", until: { $0.results.map(\.name) == ["renamed ok.txt"] }),
             Step(name: "moveto", typed: "renamed ok", before: {
                 try? FileManager.default.createDirectory(atPath: folder + "/Moved Here", withIntermediateDirectories: true)
             }, after: {
@@ -109,16 +113,36 @@ final class SelfTestRunner {
                     model.moveFiles([h], to: URL(fileURLWithPath: folder + "/Moved Here"))
                 }
             }),
-            Step(name: "movedto", typed: "renamed ok"),
-            Step(name: "moveundone", typed: "renamed ok", before: { model.undo() }),
+            Step(name: "movedto", typed: "renamed ok", until: { $0.results.first?.path.contains("/Moved Here/") == true }),
+            Step(name: "moveundone", typed: "renamed ok", before: { model.undo() },
+                 until: { $0.results.count == 1 && !$0.results[0].path.contains("/Moved Here/") }),
             // Compress makes beach.jpg.zip beside it; Undo moves the zip to the Trash.
             Step(name: "compress", typed: "beach", after: {
                 if let h = model.results.first(where: { $0.name == "beach.jpg" }) { model.compressFiles([h]) { _ in } }
             }),
-            Step(name: "compressed", typed: "zip"),
-            Step(name: "compressundone", typed: "zip", before: { model.undo() }),
+            Step(name: "compressed", typed: "zip", until: { $0.results.contains { $0.name == "beach.jpg.zip" } }),
+            Step(name: "compressundone", typed: "zip", before: { model.undo() },
+                 until: { !$0.results.contains { $0.name == "beach.jpg.zip" } }),
             // The words inside a document: the preview shows where.
-            Step(name: "snippet", typed: "zebra"),
+            Step(name: "snippet", typed: "zebra", until: { $0.snippet != nil }),
+            // ⌘K ▸ Tags…: a Finder tag, searchable; Undo takes it off.
+            Step(name: "tag", typed: "beach", after: {
+                if let h = model.results.first(where: { $0.name == "beach.jpg" }) {
+                    model.setTags([h], adding: ["Red"], removing: [])
+                }
+            }),
+            Step(name: "tagged", typed: "tag:red", until: { $0.results.map(\.name) == ["beach.jpg"] }),
+            Step(name: "untagged", typed: "tag:red", before: { model.undo() }, until: { $0.results.isEmpty }),
+            // ↑ in the empty box brings back the last search.
+            Step(name: "history", typed: "", before: {
+                model.query = "holiday"
+                model.remember()
+                model.query = ""
+            }, after: { model.move(-1) }),
+            // A folder dropped on the window: search inside it.
+            Step(name: "drop", typed: "", before: {
+                _ = model.handleDrop([NSItemProvider(object: URL(fileURLWithPath: folder + "/Projects") as NSURL)])
+            }, until: { $0.query.hasPrefix("in:") && !$0.results.isEmpty }),
             // ⌘K ▸ Search in This Folder.
             Step(name: "searchin", typed: "", before: { model.searchInFolder(folder + "/Projects") }),
             // A laserdot:// link opens the overlay with its search.
@@ -155,9 +179,9 @@ final class SelfTestRunner {
         after(0.5) {
             step.before?()
             self.type(step.typed, into: overlay.panel) {
-                self.after(2) {
+                self.settle(model, until: step.until) {
                     step.after?()
-                    self.after(0.6) {
+                    self.after(step.after == nil ? 0.1 : 0.6) {
                         self.capture(step.name, model: model, window: overlay.panel)
                         let next = { self.runSteps(steps.dropFirst(), model: model, overlay: overlay) }
                         // CI reads the screen with an accessibility client
@@ -174,6 +198,21 @@ final class SelfTestRunner {
     }
 
     private func mainWindowAndSettings(model: SearchModel, overlay: OverlayController) {
+        // Remembered passphrases: saved, read back, forgotten (login Keychain).
+        let status = Keychain.save("selftest-secret", for: "laserdot-selftest")
+        if status != errSecSuccess {
+            extra["keychain"] = "unavailable \(status)"
+        } else {
+            let read = Keychain.load(for: "laserdot-selftest")
+            let counted = Keychain.count()
+            Keychain.forget("laserdot-selftest")
+            let gone = Keychain.load(for: "laserdot-selftest") == nil
+            extra["keychain"] = read == "selftest-secret" && counted >= 1 && gone ? "ok" : "failed read=\(read != nil) count=\(counted) gone=\(gone)"
+        }
+        extra["ready_ms"] = app.readyMS
+        if let engine = app.engineForTests {
+            extra["unreadable"] = (try? engine.unreadable())?.items.map { relative($0.path) } ?? ["?"]
+        }
         // Battery: background work pauses and resumes.
         if let engine = app.engineForTests {
             extra["paused_on"] = engine.setBackground(paused: true) ?? false
@@ -196,14 +235,14 @@ final class SelfTestRunner {
     /// what they show.
     private func windowsTour(model: SearchModel, done: @escaping () -> Void) {
         app.showStorage()
-        after(3) {
+        waitFor(5, { self.app.storageModel?.report != nil }) {
             if let w = NSApp.windows.first(where: { $0.isVisible && $0.title == L("menu.storageTitle") }) {
                 self.screenshot(w, name: "storage")
             }
             self.extra["storage_items"] = self.app.storageModel?.report?.items.count ?? -1
             self.app.showDuplicates()
             self.app.duplicatesModel?.scan()
-            self.after(8) {
+            self.waitFor(12, { self.app.duplicatesModel?.report != nil }) {
                 if let w = NSApp.windows.first(where: { $0.isVisible && $0.title == L("dupes.title") }) {
                     self.screenshot(w, name: "duplicates")
                 }
@@ -251,9 +290,30 @@ final class SelfTestRunner {
                 if let settings = self.settingsWindow() {
                     self.screenshot(settings, name: "settings")
                 }
+                self.eraseAndCheck()
                 self.finish(error: nil)
             }
         }
+    }
+
+    /// Settings ▸ Privacy ▸ Erase All Laserdot Data, last (without the
+    /// relaunch): the data folder, the passphrases and the settings go, the
+    /// daemon stops and stays stopped.
+    private func eraseAndCheck() {
+        guard let engine = app.engineForTests else { return }
+        Keychain.save("selftest-secret", for: "laserdot-erase-check")
+        let dir = (Paths.defaultDbPath as NSString).deletingLastPathComponent
+        let before = FileManager.default.fileExists(atPath: dir)
+        app.eraseAll(relaunch: false)
+        var r: [String: Any] = [:]
+        r["data_before"] = before
+        r["data_gone"] = !FileManager.default.fileExists(atPath: dir)
+        r["daemon_stopped"] = DaemonClient.connectLive(socketPath: engine.socketPath) == nil
+        r["passphrases"] = Keychain.count()
+        r["welcomed"] = UserDefaults.standard.bool(forKey: "laserdot.welcomed")
+        r["no_reindex"] = UserDefaults.standard.bool(forKey: "laserdot.defaultsIndexed")
+        r["history_gone"] = UserDefaults.standard.stringArray(forKey: "laserdot.history") == nil
+        extra["erase"] = r
     }
 
     // MARK: helpers
@@ -270,6 +330,41 @@ final class SelfTestRunner {
             }
         }
         poll(0)
+    }
+
+    /// Wait until the results stop changing (at most 2.5 s), or until
+    /// `until` holds (at most 8 s, searching again now and then so a change
+    /// the watcher has just indexed shows up).
+    private func settle(_ model: SearchModel, until: ((SearchModel) -> Bool)?, done: @escaping () -> Void) {
+        let started = Date()
+        var lastID = model.resultsID, stableSince = Date(), lastRequery = Date()
+        func poll() {
+            let now = Date()
+            if model.resultsID != lastID { lastID = model.resultsID; stableSince = now }
+            let waited = now.timeIntervalSince(started)
+            let stable = !model.searching && now.timeIntervalSince(stableSince) >= 0.3 && waited >= 0.4
+            let ok = until?(model) ?? true
+            if (stable && ok) || waited > (until == nil ? 2.5 : 8) {
+                done()
+                return
+            }
+            if stable && !ok && now.timeIntervalSince(lastRequery) > 1 {
+                lastRequery = now
+                model.queryChanged()
+            }
+            after(0.1, poll)
+        }
+        poll()
+    }
+
+    /// Wait until `ready` holds, at most `limit` seconds.
+    private func waitFor(_ limit: Double, _ ready: @escaping () -> Bool, then: @escaping () -> Void) {
+        let started = Date()
+        func poll() {
+            // A moment more once ready, so the window has drawn it.
+            if ready() || Date().timeIntervalSince(started) > limit { after(0.4, then) } else { after(0.2, poll) }
+        }
+        poll()
     }
 
     private func after(_ seconds: Double, _ f: @escaping () -> Void) {
@@ -315,22 +410,17 @@ final class SelfTestRunner {
                     window.sendEvent(e)
                 }
             }
-            after(0.12, next)
+            after(0.08, next)
         }
         next()
     }
 
     private var folder: String { ProcessInfo.processInfo.environment["LASERDOT_SELFTEST_FOLDER"] ?? "" }
 
-    /// Milliseconds since this process started (cold launch time).
-    static func msSinceLaunch() -> Int {
-        var info = kinfo_proc()
-        var size = MemoryLayout<kinfo_proc>.stride
-        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
-        guard sysctl(&mib, 4, &info, &size, nil, 0) == 0 else { return -1 }
-        let t = info.kp_proc.p_un.__p_starttime
-        let started = Double(t.tv_sec) + Double(t.tv_usec) / 1e6
-        return Int((Date().timeIntervalSince1970 - started) * 1000)
+    /// A path inside the fixtures, from the fixtures folder (/var and /private/var alike).
+    private func relative(_ path: String) -> String {
+        let real = realpath(folder, nil).map { p in defer { free(p) }; return String(cString: p) } ?? folder
+        return path.replacingOccurrences(of: real, with: "").replacingOccurrences(of: folder, with: "")
     }
 
     private func capture(_ name: String, model: SearchModel, window: NSWindow) {
@@ -363,8 +453,7 @@ final class SelfTestRunner {
         r["sizes"] = model.results.map { Int($0.size) }
         r["selected_count"] = model.selectedHits.count
         r["section_ids"] = model.sections.map(\.id)
-        let real = realpath(folder, nil).map { p in defer { free(p) }; return String(cString: p) } ?? folder // /var → /private/var
-        r["paths"] = model.results.map { $0.path.replacingOccurrences(of: real, with: "").replacingOccurrences(of: folder, with: "") }
+        r["paths"] = model.results.map { relative($0.path) }
         r["undo"] = model.undoStep?.title ?? ""
         r["undo_banner"] = model.undoBannerVisible
         r["snippet"] = model.snippet ?? ""

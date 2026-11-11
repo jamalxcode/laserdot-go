@@ -3,6 +3,16 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.0
+
+- Undo remembers more: press ⌥⌘Z again to undo the step before, even after quitting (up to 20 steps, for a week).
+- ⌘K ▸ Tags…: add or remove Finder tags (Undo works here too).
+- ↑ in the empty search box brings back your earlier searches.
+- Settings ▸ Folders says what Laserdot couldn't read (for example, folders macOS didn't allow) and how to fix it.
+- Faster indexing, and the window is ready sooner after launch.
+- The passage of a big PDF or Word document appears faster the second time, and never holds up the preview.
+- Save Diagnostics shows the launch time and how many files couldn't be read.
+
 ## 0.8.0
 
 - Undo: after Move to Trash, Rename, Move to… or Compress, a bar offers **Undo** (also ⌥⌘Z and Edit ▸ Undo).
