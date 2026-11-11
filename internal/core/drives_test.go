@@ -293,3 +293,43 @@ func TestUnmountedDrivesDetachAndSortingMergesAcrossIndexes(t *testing.T) {
 		t.Error("this Mac's results stay")
 	}
 }
+
+// An index kept on this Mac for a read-only drive is deleted once the
+// drive is no longer mounted; one for a drive still mounted stays.
+func TestOffDriveIndexGoesWithTheDrive(t *testing.T) {
+	m := newMac(t)
+	camera := makeDrive(t, m.vols, "Camera")
+	card := makeDrive(t, m.vols, "Card")
+	for _, d := range []string{camera, card} {
+		if _, err := m.ld.CreateDriveIndex(d, DriveOptions{ForceOffDrive: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dirs := func() int {
+		des, _ := os.ReadDir(filepath.Join(m.base, "data/drives"))
+		return len(des)
+	}
+	if dirs() != 2 {
+		t.Fatalf("setup: %d indexes", dirs())
+	}
+	if got := m.ld.PurgeOffDriveIndexes(); len(got) != 0 {
+		t.Fatalf("deleted while mounted: %v", got)
+	}
+	// The camera is unplugged.
+	if err := os.RemoveAll(camera); err != nil {
+		t.Fatal(err)
+	}
+	m.ld.SyncDrives()
+	got := m.ld.PurgeOffDriveIndexes()
+	if len(got) != 1 || dirs() != 1 {
+		t.Fatalf("after unplugging: deleted %v, %d left", got, dirs())
+	}
+	expect(t, dnames(t, m.ld, "notes"), "notes.txt") // the card is still searchable
+	// The card is unplugged too; nothing of either is left.
+	os.RemoveAll(card)
+	m.ld.SyncDrives()
+	m.ld.PurgeOffDriveIndexes()
+	if dirs() != 0 {
+		t.Errorf("%d indexes left", dirs())
+	}
+}

@@ -632,3 +632,47 @@ func (ld *Laserdot) closeDrives() {
 	}
 	ld.drives = nil
 }
+
+// PurgeOffDriveIndexes deletes the indexes kept on this Mac (drives that
+// were read-only) of drives that are not mounted now: an index of a drive
+// should not stay behind once the drive is gone (the owner's rule, for
+// confidentiality). Indexes on a drive leave with it and are not touched.
+// laserdotd runs it at start, every minute, after mounts change, and when
+// it quits. Returns the folders deleted.
+func (ld *Laserdot) PurgeOffDriveIndexes() []string {
+	base := ld.drivesDataDir()
+	des, err := os.ReadDir(base)
+	if err != nil {
+		return nil
+	}
+	ld.mu.RLock()
+	mounted := scan.ListVolumes(ld.volumes.Dir, ld.volumes.MountsOnly)
+	keep := map[string]bool{}
+	for _, v := range mounted {
+		keep[volumeKey(v)] = true
+	}
+	attached := 0
+	for _, d := range ld.drives {
+		if !d.onDrive {
+			keep[filepath.Base(d.dir)] = true
+		}
+		attached++
+	}
+	ld.mu.RUnlock()
+	// No volumes listed while drives are attached: the listing failed, not
+	// every drive left. Wait for the next check rather than delete.
+	if len(mounted) == 0 && attached > 0 {
+		return nil
+	}
+	var removed []string
+	for _, de := range des {
+		if !de.IsDir() || keep[de.Name()] {
+			continue
+		}
+		p := filepath.Join(base, de.Name())
+		if os.RemoveAll(p) == nil {
+			removed = append(removed, p)
+		}
+	}
+	return removed
+}

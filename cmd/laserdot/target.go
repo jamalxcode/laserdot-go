@@ -34,6 +34,7 @@ func open(db string, local bool) (target, error) {
 	if err != nil {
 		return nil, err
 	}
+	ld.PurgeOffDriveIndexes() // indexes of drives that are gone (see laserdotd)
 	return &direct{ld}, nil
 }
 

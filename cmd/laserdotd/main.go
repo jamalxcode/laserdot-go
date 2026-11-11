@@ -127,6 +127,15 @@ func run() error {
 	}
 	defer ld.Close()
 	ld.SetVolumeConfig(vols)
+	// Indexes kept on this Mac for drives that are gone are deleted: now,
+	// every minute, after mounts change, and when laserdotd quits.
+	purge := func(when string) {
+		for _, p := range ld.PurgeOffDriveIndexes() {
+			fmt.Fprintf(os.Stderr, "laserdotd: deleted the index of a drive that is gone (%s): %s\n", when, p)
+		}
+	}
+	purge("start")
+	defer purge("quit")
 	how := "rebuilt from SQLite"
 	if ld.Stats().FromSnapshot {
 		how = "mapped from the snapshot"
@@ -167,6 +176,7 @@ func run() error {
 				return
 			case <-time.After(time.Minute):
 			}
+			purge("periodic check")
 			if wrote, err := ld.Checkpoint(); err != nil {
 				fmt.Fprintln(os.Stderr, "laserdotd: could not write the snapshot:", err)
 			} else if wrote {

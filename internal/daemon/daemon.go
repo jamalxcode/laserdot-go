@@ -141,6 +141,13 @@ func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
 			for _, m := range gone {
 				log("detached drive " + m)
 			}
+			if len(gone) > 0 {
+				// A drive left: its index kept on this Mac (read-only
+				// drives) goes too.
+				for _, p := range s.ld.PurgeOffDriveIndexes() {
+					log("deleted the index of a drive that is gone: " + p)
+				}
+			}
 			if len(attached)+len(gone) > 0 {
 				s.rootsChanged()
 			}
