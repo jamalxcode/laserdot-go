@@ -46,6 +46,32 @@ Choices made by the owner (2026-11-10):
 - **G4 — drives, duplicates, content search, guidance, snapshot, Tier 2**, then the Swift app pointed at the Go
   daemon.
 
+## Design decision log (the app, 2026-11-10 → 11)
+
+Decisions the owner made while using the app (the conversation and the reasons: `docs/design-conversation.md`).
+Binding unless revisited deliberately; each is also in the spec.
+
+- **Network:** only the Laserdot Updater helper may use the network, and only to reach github.com for releases
+  (§7.4). The app shell is not OS-sandboxed (it could not hand protected files to Preview/VLC) and keeps the rule
+  by having no network code, enforced in CI; `laserdotd` keeps its OS network block (§7.1).
+- **Distribution:** the repository and its releases are public; only the owner can push or publish. Updates need no
+  token or account: the version comes from the `releases/latest` web redirect (the API is a fallback, its anonymous
+  limit is often used up), and a background download installs on quit.
+- **Search like Spotlight:** type words and plain-language words stand for filters, explained on the hint line,
+  turned off by quotes (§2.7); equally good matches rank files → folders → hidden, opened results first (§2.2,
+  §6.2); a Top Hit then sections of five; apps and other packages are one result (§13.6).
+- **Nothing to set up:** apps and the home folder are indexed without asking (`~/Library` skipped except iCloud
+  Drive); no first-run prompt (§13.6a).
+- **Confidentiality of drives:** a writable drive keeps its own index; a read-only drive's index on this Mac is
+  deleted as soon as the drive is gone — at start, every minute, when a drive leaves, on quit (§9, v1.22). FSEvents ids
+  are still never stored for drives; a returning drive is reconciled by a diff.
+- **The app's screen is tested:** the self-test drives the real bundled app in CI (typing, Space, ⌘K, `>`,
+  Settings) in English and Arabic and saves screenshots; a stale `laserdotd` is replaced by version; Arabic is laid
+  out right-to-left explicitly on every window.
+- **Interaction:** Space opens Quick Look once ↑/↓ or a click has moved into the results (while typing it types);
+  ⌘K actions, ⌘1–⌘9, `>` commands; Apple's HIG (Settings window, Find, Help menu, accent selection).
+- **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account).
+
 ## Progress
 
 - **G1 started (2026-11-10):** repository, docs, CI. `internal/fold` ported with the Rust tests plus a fuzz test,

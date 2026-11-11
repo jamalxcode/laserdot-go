@@ -15,6 +15,8 @@ feature, read its code and tests there, and port the tests first.
 
 ## Key documents
 
+- `docs/design-conversation.md` — what the owner asked for while using the app, and what was decided and why.
+  Read it before changing app behavior; Issue 002's "Design decision log (the app)" lists the binding rules.
 - `docs/spotlight-successor-spec.md` — full feature spec. Section numbers (§) below refer to it. Written for the
   Rust build; where Go changes a mechanism (not a behavior), Issue 002 records the mapping.
 - `issues/001-spotlight-successor.md` — the epic: user stories, decisions, per-milestone notes from the Rust build,
@@ -32,7 +34,8 @@ When the spec and an issue disagree, flag it to the user rather than silently pi
    calls `net.Dial`/`net.Listen` with anything but `"unix"`. No telemetry, analytics, crash reporters.
    **The one exception** (granted by the owner, spec §7.4): the bundled `Laserdot Updater` helper
    (`app/Sources/LaserdotUpdater`) may reach GitHub only — on request or once a day — to find and download a
-   release. Laserdot itself and `laserdotd` stay network-blocked; CI fails if network code (URLSession,
+   release (public releases, no token; the version from the `releases/latest` redirect, the API only as a
+   fallback). Laserdot itself and `laserdotd` stay network-blocked; CI fails if network code (URLSession,
    Network.framework…) appears anywhere else in the app. Do not widen the exception without the owner.
    **The app shell is not OS-sandboxed** (owner's decision, spec §7.1): a sandboxed app cannot hand protected
    files to Preview or a player. It keeps the rule by having no network code (CI-enforced); `laserdotd` keeps its
@@ -105,7 +108,7 @@ app/scripts/build-go.sh            # app/build/go/{laserdotd,laserdot} + the reg
 (cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
 VERSION=0.2.0 app/scripts/bundle.sh   # → app/build/Laserdot.app (laserdotd, Helpers/Laserdot Updater.app)
 app/scripts/make-dmg.sh out/Laserdot-0.2.0.dmg
-git tag v0.2.0 && git push origin v0.2.0   # the Release workflow builds and publishes the .dmg
+gh workflow run release.yml --ref main -f version=0.2.0   # or push a v* tag: builds and publishes the .dmg
 ```
 
 Run gofmt, vet and the full test suite before committing.
@@ -127,6 +130,12 @@ Run gofmt, vet and the full test suite before committing.
   them, `Guidance.swift` answers from `Registry.generated.swift`. Rerun `app/scripts/build-go.sh` after changing the
   registry (CI fails on a stale file) and add the filter's Arabic description in `Guidance.swift` too (a Swift test
   enforces it). Swift compiles only on macOS: the CI `app` job builds, tests and bundles it.
+- **Self-test (the app's real screen):** CI runs the bundled app with `LASERDOT_SELFTEST` (`SelfTest.swift`): it
+  types into the ⌥Space window with key events, presses ↓/Space/⌘K, opens Settings, and writes a report that
+  `app/scripts/check-selftest.py` judges, in English and Arabic; the screenshots are printed base64 in the job log
+  (`=== SCREENSHOT <lang> <name>`) — decode them to look at the UI. Extend it for every visible change.
+- Regenerate `app/Sources/LaserdotKit/Registry.generated.swift` (`go run ./app/scripts/registry > …`) whenever the
+  registry, the cheat sheet or the type/plain-language words change — CI fails on a stale file.
 
 ## Conventions
 

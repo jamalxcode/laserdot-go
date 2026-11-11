@@ -2,8 +2,9 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.17 (draft)
-**Date:** 2026-11-10
+**Version:** 1.22 (draft)
+**Date:** 2026-11-11 — v1.18–v1.22 record the owner's decisions while using the app; the conversation behind them is
+in `docs/design-conversation.md`
 **Target platform:** macOS 14+, Apple Silicon
 **Distribution:** Direct download, signed + notarized, non-sandboxed
 

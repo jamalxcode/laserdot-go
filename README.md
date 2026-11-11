@@ -1,47 +1,124 @@
-# laserdot-go
+# Laserdot
 
-laserdot in Go: private, media-aware file search for macOS — a Spotlight successor that can't phone home.
+Private, media-aware search for your Mac — a Spotlight successor that cannot phone home.
 
-- **Fast and live:** its own in-memory index; filters are bitmap operations, names are matched by regex behind a
-  trigram prefilter.
-- **Media-aware:** resolution, codecs, HDR, frame rate, channels, per-track languages, subtitles, EXIF, music tags.
-- **Plain input, regex underneath:** type `invoice march`, `report*` or `res:4k -sample`.
-- **Arabic-aware:** `أحمد` = `احمد`, `فاتورة` = `فاتوره`, `٢٠٢٤` = `2024`, `café` = `cafe`.
-- **No network, no AI, no telemetry**, enforced by the OS sandbox and checked in CI.
+- **Finds things the way you say them:** `jpg`, `photos last week`, `big videos`, `pdf yesterday`, `invoice march`,
+  `4k hdr`. Arabic too: `صور الاسبوع الماضي`, `فاتورة ٢٠٢٤`.
+- **Knows your media:** resolution, codecs, HDR, frame rate, audio channels, track languages, subtitles, camera
+  EXIF, music tags — searchable without opening a file (`res:4k codec:hevc`, `lang:ar channels:5.1`).
+- **Fast and live:** its own in-memory index; results appear as you type and stay current as files change.
+- **Drives that remember:** an external drive keeps its own index, so it is searchable on any Mac with Laserdot.
+- **Duplicates by quality:** finds identical files, similar pictures and re-encoded videos and keeps the best copy.
+  It never deletes: files are moved to the Trash or a folder you choose, after a preview.
+- **Private by construction:** no AI, no telemetry, no accounts. The search engine is blocked from the network by
+  macOS itself; the one exception is the updater, which only talks to GitHub to fetch new versions.
 
-The spec is [`docs/spotlight-successor-spec.md`](docs/spotlight-successor-spec.md). The port's plan and progress are
-in [`issues/002-go-port.md`](issues/002-go-port.md). The original Rust implementation is `jamalxcode/laserdot`.
+## Install
 
-## Status
+1. Download the latest **Laserdot-x.y.z.dmg** from [Releases](https://github.com/jamalxcode/laserdot-go/releases/latest).
+2. Open it and drag **Laserdot** to **Applications**.
+3. Open Laserdot. It indexes your apps and your home folder by itself (skipping `~/Library`, except iCloud Drive).
+   macOS may ask to let it read Desktop, Documents or Downloads — click **Allow**.
 
-The port is feature-complete against the Rust build: search (names, media, contents), live updates, portable drive
-indexes (encrypted ones too), the duplicate finder, guidance in English and Arabic, the memory-mapped snapshot,
-the daemon, the CLI and the SwiftUI app. See Issue 002 for the deviations from the Rust build.
+Updates install themselves: Laserdot checks once a day, downloads a new version in the background and installs it
+when you quit (or now, from **Check for Updates…**). No account or token is needed.
 
-| Phase | State |
+The app is signed ad hoc, not with an Apple Developer ID, so the first launch may need **right-click → Open**.
+
+## Using it
+
+Press **⌥Space** anywhere (change it in **Settings**), or use the Laserdot window.
+
+| You type | You get |
 |---|---|
-| G1 daemon + search | done |
-| G2 media (Tier 1 parsers, media filters, track groups) | done |
-| G3 live updates (watchers, update engine, lifecycle) | done |
-| G4 drives, duplicates, content, guidance, snapshot, Tier 2, app | done |
+| `invoice march` | names with both words, in any order (and documents containing them) |
+| `jpg`, `avi`, `ppt` | that file type (`jpg` = .jpg, .jpeg, .jpe; `ppt` = all PowerPoint files) |
+| `photos`, `videos`, `music`, `apps` | that kind of file |
+| `today`, `yesterday`, `last week`, `this month` | files changed then |
+| `big`, `huge`, `small` | files over 100 MB, over 1 GB, under 100 KB |
+| `4k`, `1080p`, `hdr`, `screenshots` | videos by resolution or HDR, screenshots |
+| `"avi"` | the word itself in names (quotes turn the clever words off) |
+| `res:4k codec:hevc -sample` | precise filters (**⌘/** lists them all) |
+| `> dup` | commands: Find Duplicates, Settings, Eject a drive… |
 
-## Build
+The hint under the box says what a clever word stands for, e.g. *“last week means since:7d”*.
+
+**Results** come like Spotlight's: a **Top Hit**, then Applications, Documents, Images, Videos, Folders… (five each,
+**Show all** for more). Files you open often rise to the top. The empty box shows what you opened recently and new
+downloads.
+
+| Key | Does |
+|---|---|
+| ↑ ↓ | move through results (⇧↑ ⇧↓ or ⌘-click select several) |
+| Return / ⌘1–⌘9 | open the selected / the numbered result |
+| Space (after ↑↓ or a click) | Quick Look: pictures large, videos and songs playing |
+| ⌘K | actions: Open with…, Show in Finder, Copy file or path, Share, Rename, Move to Trash |
+| ⌘↩ / ⌘⇧C | Show in Finder / copy the path |
+| ⌘D | pin the search (pins show on the empty box) |
+| Tab | complete a filter |
+| Esc | close actions, the cheat sheet, then the window |
+
+The preview pane on the right shows a large thumbnail, plays videos and songs, and pages through PDFs.
+
+## Where things are kept
+
+Everything stays on your Mac, in `~/Library/Application Support/laserdot/` (**Settings → General → Index → Show in
+Finder**):
+
+- `index.db` — names, sizes, dates, media details; `index.db.snapshot` — a copy for a fast start.
+- `content.db` — the words inside documents in the folders listed under **Settings → Content Search**.
+- Opened-results history and settings live in the same index; nothing is ever sent anywhere.
+
+**External drives** keep their own index on the drive, in a hidden `/Volumes/<drive>/.laserdot/` folder
+(`index.db`, `volume.json`), with paths relative to the drive — so it works on any Mac. Laserdot asks before indexing
+a drive and can encrypt the index with a passphrase that is never written down. When the drive comes back, only
+new or changed files are read again. A **read-only** drive cannot hold its index, so it is kept on this Mac in
+`…/laserdot/drives/` — and deleted as soon as that drive is no longer connected (checked at start, every minute,
+when a drive leaves, and on quit).
+
+## Privacy
+
+- `laserdotd`, the search engine that reads your files, asks macOS to deny it all network access before anything
+  else; the app shows it (the lock icon) and CI tests it.
+- The app itself contains no network code (CI fails the build if any appears outside the updater).
+- The **Laserdot Updater** helper is the only networked part, by the owner's decision: it contacts github.com only,
+  once a day or when asked, sends no data about you or your files, and only downloads a release.
+- No AI, no embeddings, no telemetry, no crash reporter.
+
+## For developers
+
+Go core and daemon (pure Go, no cgo) + a SwiftUI shell that talks to the daemon over a Unix socket.
 
 ```bash
-go build ./...
-go test ./...
+go build ./... && go test ./... && go vet ./... && gofmt -l .
 go run ./cmd/laserdot index ~/Documents
-go run ./cmd/laserdot search 'invoice march'
-go run ./cmd/laserdotd &            # optional: the CLI then goes through the daemon
-go run ./cmd/laserdot status
+go run ./cmd/laserdot search 'photos last week'
+go run ./cmd/laserdotd &                 # the CLI then goes through the daemon
+go run ./cmd/laserdot help-syntax        # the cheat sheet, from the filter registry
 ```
 
-Pure Go (no cgo); the Go version is in `go.mod`.
-
-The menu-bar app (macOS only) talks to `laserdotd` over its Unix socket:
+The app (macOS):
 
 ```bash
-app/scripts/build-go.sh             # laserdotd + laserdot into app/build/go, and the app's registry
+app/scripts/build-go.sh                  # laserdotd + CLI, and the app's registry (rerun after registry changes)
 (cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
-app/scripts/bundle.sh               # → app/build/Laserdot.app (unsigned; CI uploads Laserdot-unsigned.zip)
+VERSION=0.5.2 app/scripts/bundle.sh      # → app/build/Laserdot.app
 ```
+
+CI builds and tests on Linux and macOS, bundles the app, launches it, runs the updater against GitHub, and runs
+the **self-test**: the real app types into its own ⌥Space window, checks what it shows (results, sections, hints,
+commands, actions, Quick Look, Settings) in English and Arabic, and saves screenshots
+(`app/Sources/Laserdot/SelfTest.swift`, judged by `app/scripts/check-selftest.py`).
+
+Releases: run the **Release** workflow with a version (or push a `v*` tag); it builds, launch-tests and publishes
+`Laserdot-<version>.dmg`.
+
+## Documents
+
+- [`docs/spotlight-successor-spec.md`](docs/spotlight-successor-spec.md) — the spec, the source of truth for behavior.
+- [`docs/design-conversation.md`](docs/design-conversation.md) — what the owner asked for in the app's first weeks,
+  and what was decided and why.
+- [`issues/001-spotlight-successor.md`](issues/001-spotlight-successor.md) — the epic and the Design Decision Log.
+- [`issues/002-go-port.md`](issues/002-go-port.md) — the Go port: mapping from Rust, progress, as-built notes.
+
+The original Rust implementation is `jamalxcode/laserdot`.
