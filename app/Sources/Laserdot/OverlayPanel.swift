@@ -65,6 +65,11 @@ final class OverlayController: NSObject, NSWindowDelegate {
         }
         panel.makeKeyAndOrderFront(nil)
         model.focusSearch() // the query field takes the keyboard each time
+        // When Quick Look closes, the overlay takes the keyboard back.
+        QuickLook.shared.onClose = { [weak self] in
+            guard let self, self.panel.isVisible else { return }
+            self.panel.makeKeyAndOrderFront(nil)
+        }
         model.connect()
     }
 
@@ -73,6 +78,10 @@ final class OverlayController: NSObject, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        hide()
+        // Quick Look takes the keyboard while it shows a result: stay.
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !QuickLook.shared.isVisible, !self.panel.isKeyWindow else { return }
+            self.hide()
+        }
     }
 }

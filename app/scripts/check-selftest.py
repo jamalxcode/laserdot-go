@@ -23,7 +23,7 @@ def check(ok, what):
 
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
-for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "home"):
+for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -76,6 +76,12 @@ check(len(cmds) >= 1, f"> offers commands (got {cmds})")
 # ⌘K actions for the selection.
 acts = steps["actions"]["actions"]
 check(len(acts) >= 6, f"⌘K lists the actions (got {acts})")
+
+# Space after ↓ opens Quick Look (and is not typed into the query).
+space = steps["space"]
+check(space["query"] == "jpg", f"Space was not typed into the query (got {space['query']!r})")
+check(space["browsing"], "↓ moved into the results")
+check(space["quicklook"], "Space opened Quick Look")
 
 # The empty box shows what was opened.
 home = steps["home"]

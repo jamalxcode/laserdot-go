@@ -65,6 +65,12 @@ final class SelfTestRunner {
             Step(name: "pdftoday", typed: "pdf today"),
             Step(name: "commands", typed: ">dup"),
             Step(name: "actions", typed: "jpg", after: { model.toggleActions() }),
+            // ↓ into the results, then Space through the app's event queue
+            // (as a real key press arrives): Quick Look opens.
+            Step(name: "space", typed: "jpg", after: {
+                self.key(String(UnicodeScalar(UInt16(NSDownArrowFunctionKey))!), code: 125, into: overlay.panel)
+                self.post(" ", code: 49, to: overlay.panel)
+            }),
             Step(name: "home", typed: "", before: {
                 engine.recordOpen(path: folder + "/beach.jpg")
                 model.loadHome()
@@ -83,6 +89,7 @@ final class SelfTestRunner {
             mainWindowAndSettings(model: model, overlay: overlay)
             return
         }
+        QuickLook.shared.close()
         model.query = ""
         after(0.5) {
             step.before?()
@@ -125,6 +132,28 @@ final class SelfTestRunner {
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: f)
     }
 
+    private func keyEvent(_ c: String, code: UInt16, kind: NSEvent.EventType, window: NSWindow) -> NSEvent? {
+        NSEvent.keyEvent(
+            with: kind, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+            windowNumber: window.windowNumber, context: nil, characters: c, charactersIgnoringModifiers: c,
+            isARepeat: false, keyCode: code)
+    }
+
+    /// A key straight to the window.
+    private func key(_ c: String, code: UInt16, into window: NSWindow) {
+        for kind in [NSEvent.EventType.keyDown, .keyUp] {
+            if let e = keyEvent(c, code: code, kind: kind, window: window) { window.sendEvent(e) }
+        }
+    }
+
+    /// A key through the app's event queue, like a real key press (event
+    /// monitors see it).
+    private func post(_ c: String, code: UInt16, to window: NSWindow) {
+        for kind in [NSEvent.EventType.keyDown, .keyUp] {
+            if let e = keyEvent(c, code: code, kind: kind, window: window) { NSApp.postEvent(e, atStart: false) }
+        }
+    }
+
     /// One key event per character, delivered to the window as macOS would.
     private func type(_ text: String, into window: NSWindow, done: @escaping () -> Void) {
         var chars = Array(text)
@@ -163,6 +192,9 @@ final class SelfTestRunner {
             "actions": model.showActions ? model.actions.map(\.title) : [],
             "highlight": model.highlightWords,
             "visible_hint": model.visibleHint ?? "",
+            "browsing": model.browsing,
+            "quicklook": QuickLook.shared.isVisible,
+            "key_window_is_overlay": NSApp.keyWindow === window,
             "accessibility": labels,
         ])
         screenshot(window, name: name)

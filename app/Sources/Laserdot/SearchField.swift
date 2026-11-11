@@ -15,6 +15,8 @@ struct SearchField: NSViewRepresentable {
     var onMove: (Int) -> Void
     /// ⇧↑/⇧↓: grow the selection.
     var onExtend: (Int) -> Void = { _ in }
+    /// Space: true if it was used (Quick Look) instead of typed.
+    var onSpace: () -> Bool = { false }
     var onTab: () -> Void
     var onSubmit: () -> Void
     var onEscape: () -> Void
@@ -37,7 +39,20 @@ struct SearchField: NSViewRepresentable {
         f.setAccessibilityLabel(placeholder)
         f.setContentHuggingPriority(.defaultLow, for: .horizontal)
         DispatchQueue.main.async { f.window?.makeFirstResponder(f) }
+        // Space reaches the field as text, not as a command: catch it before
+        // the field does, when it is meant for Quick Look.
+        let coordinator = context.coordinator
+        coordinator.monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak f, weak coordinator] e in
+            guard let f, let coordinator, e.window === f.window, f.currentEditor() != nil, e.keyCode == 49,
+                  e.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty else { return e }
+            return coordinator.parent.onSpace() ? nil : e
+        }
         return f
+    }
+
+    static func dismantleNSView(_ f: NSTextField, coordinator: Coordinator) {
+        if let m = coordinator.monitor { NSEvent.removeMonitor(m) }
+        coordinator.monitor = nil
     }
 
     func updateNSView(_ f: NSTextField, context: Context) {
@@ -60,6 +75,7 @@ struct SearchField: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: SearchField
         var focusToken: Int
+        var monitor: Any?
 
         init(_ parent: SearchField) {
             self.parent = parent

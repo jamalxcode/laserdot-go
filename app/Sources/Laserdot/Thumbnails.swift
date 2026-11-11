@@ -62,26 +62,56 @@ struct FileIcon: View {
     }
 }
 
-/// ⌘Y: the system Quick Look panel for a result, as in Finder.
-final class QuickLook: NSObject, QLPreviewPanelDataSource {
+/// Space (or ⌘Y): the system Quick Look panel, as in Finder — pictures
+/// large, videos and songs playing, documents readable. It gets every
+/// result, so its arrows step through them; Space or Esc closes it.
+final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     static let shared = QuickLook()
     private var items: [URL] = []
+    /// Called when the panel closes (the overlay takes the keyboard back).
+    var onClose: (() -> Void)?
 
-    func show(_ url: URL) {
-        items = [url]
-        guard let panel = QLPreviewPanel.shared() else { return }
+    var isVisible: Bool { QLPreviewPanel.sharedPreviewPanelExists() && QLPreviewPanel.shared().isVisible }
+
+    func show(_ urls: [URL], at index: Int) {
+        guard !urls.isEmpty, let panel = QLPreviewPanel.shared() else { return }
+        items = urls
         panel.dataSource = self
+        panel.delegate = self
         NSApp.activate(ignoringOtherApps: true)
-        if panel.isVisible {
-            panel.reloadData()
-        } else {
-            panel.makeKeyAndOrderFront(nil)
-        }
+        panel.reloadData()
+        panel.currentPreviewItemIndex = max(0, min(index, urls.count - 1))
+        if !panel.isVisible { panel.makeKeyAndOrderFront(nil) }
+    }
+
+    func show(_ url: URL) { show([url], at: 0) }
+
+    func close() {
+        if isVisible { QLPreviewPanel.shared().orderOut(nil) }
+        onClose?()
+    }
+
+    /// Space opens it, Space again closes it.
+    func toggle(_ urls: [URL], at index: Int) {
+        if isVisible { close() } else { show(urls, at: index) }
     }
 
     func numberOfPreviewItems(in panel: QLPreviewPanel!) -> Int { items.count }
 
     func previewPanel(_ panel: QLPreviewPanel!, previewItemAt index: Int) -> QLPreviewItem! {
         items[index] as NSURL
+    }
+
+    /// Space inside the panel closes it, as in Finder.
+    func previewPanel(_ panel: QLPreviewPanel!, handle event: NSEvent!) -> Bool {
+        if event.type == .keyDown, event.keyCode == 49 {
+            close()
+            return true
+        }
+        return false
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        DispatchQueue.main.async { self.onClose?() }
     }
 }

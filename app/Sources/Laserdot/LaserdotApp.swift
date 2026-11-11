@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import LaserdotKit
+import Quartz
 import SwiftUI
 
 /// Laserdot is both a Dock app and a menu-bar app (spec §6.4, §13.1): a main
@@ -234,6 +235,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     private var selfTest: SelfTestRunner?
+
+    // Quick Look's controller (the app delegate is at the end of every
+    // responder chain): the panel gets its items from QuickLook.shared.
+    override func acceptsPreviewPanelControl(_ panel: QLPreviewPanel!) -> Bool { true }
+
+    override func beginPreviewPanelControl(_ panel: QLPreviewPanel!) {
+        panel.dataSource = QuickLook.shared
+        panel.delegate = QuickLook.shared
+    }
+
+    override func endPreviewPanelControl(_ panel: QLPreviewPanel!) {}
 
     /// What `>` in the search box offers: the menus' actions, typed.
     func commands() -> [ActionItem] {

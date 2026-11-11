@@ -42,6 +42,10 @@ final class SearchModel: ObservableObject {
     private var allHits: [Hit] = []
     /// Sections whose "Show all" was clicked.
     private var expanded = Set<String>()
+    /// The user is working with the results (moved with ↑/↓ or clicked a
+    /// row) rather than typing: Space opens Quick Look, as in Finder.
+    /// Typing again (the query changes) ends it.
+    @Published private(set) var browsing = false
     /// Rows selected besides `selection` (⇧↑/↓, ⌘-click).
     @Published private(set) var extraSelection = Set<Int>()
     private var anchor = 0
@@ -177,6 +181,7 @@ final class SearchModel: ObservableObject {
         extraSelection = []
         expanded = []
         showActions = false
+        browsing = false
         if isCommandMode {
             // `>`: commands, not a search.
             commandIndex = 0
@@ -476,6 +481,7 @@ final class SearchModel: ObservableObject {
         extraSelection = []
         selection = max(0, min(results.count - 1, selection + delta))
         anchor = selection
+        browsing = true
     }
 
     /// ⇧↑/↓: grow the selection from where it started.
@@ -484,10 +490,12 @@ final class SearchModel: ObservableObject {
         if extraSelection.isEmpty { anchor = selection }
         selection = max(0, min(results.count - 1, selection + delta))
         extraSelection = Set(min(anchor, selection)...max(anchor, selection))
+        browsing = true
     }
 
     /// A click: plain selects, ⌘ adds or removes, ⇧ selects a range.
     func click(_ i: Int) {
+        browsing = true
         let flags = NSEvent.modifierFlags
         if flags.contains(.command) {
             if extraSelection.isEmpty { extraSelection = [selection] }
@@ -648,7 +656,21 @@ final class SearchModel: ObservableObject {
     /// ⌘Y: Quick Look, as in Finder.
     func quickLook(_ hit: Hit? = nil) {
         guard let h = hit ?? selected else { return }
-        QuickLook.shared.show(URL(fileURLWithPath: h.path))
+        let urls = results.map { URL(fileURLWithPath: $0.path) }
+        let i = results.firstIndex { $0.path == h.path } ?? 0
+        QuickLook.shared.show(urls.isEmpty ? [URL(fileURLWithPath: h.path)] : urls, at: i)
+    }
+
+    /// Space: Quick Look for the selected result while browsing the results
+    /// (true: handled); otherwise the field types a space.
+    func spaceKey() -> Bool {
+        guard browsing, !results.isEmpty, selected != nil, !showActions, !isCommandMode, !showCheatSheet else { return false }
+        if QuickLook.shared.isVisible {
+            QuickLook.shared.close()
+        } else {
+            quickLook()
+        }
+        return true
     }
 
     func focusSearch() {

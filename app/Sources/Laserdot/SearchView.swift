@@ -76,6 +76,7 @@ struct SearchView: View {
                 focusToken: model.focusRequest,
                 onMove: { d in model.showCheatSheet ? model.moveCheat(d) : model.move(d) },
                 onExtend: { d in model.extend(d) },
+                onSpace: { model.spaceKey() },
                 onTab: { model.showCheatSheet ? model.nextCheatSection() : model.acceptCompletion() },
                 onSubmit: { model.showCheatSheet ? model.insertSelectedCheat() : model.submit() },
                 onEscape: { model.escape(close: close) }
@@ -410,7 +411,9 @@ struct ShortcutBar: View {
         if model.results.isEmpty {
             return [k(">", L("keys.commands")), k("⌘/", L("keys.syntax"))]
         }
-        return [k("↩", L("action.open")), k("⌘↩", L("action.reveal")), k("⌘Y", L("action.quickLook")), k("⌘K", L("keys.actions"))]
+        // Space works once ↑/↓ or a click has moved into the results.
+        let look = model.browsing ? k("space", L("action.quickLook")) : k("↓ space", L("action.quickLook"))
+        return [k("↩", L("action.open")), look, k("⌘↩", L("action.reveal")), k("⌘K", L("keys.actions"))]
     }
 }
 
