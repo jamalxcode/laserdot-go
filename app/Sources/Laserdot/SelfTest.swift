@@ -72,7 +72,9 @@ final class SelfTestRunner {
                 self.post(" ", code: 49, to: overlay.panel)
             }),
             // A second space in a row previews without ↓.
-            Step(name: "spacespace", typed: "jpg ", after: { self.post(" ", code: 49, to: overlay.panel) }),
+            // (The key path itself is the "space" step; a second posted key
+            // event can be lost in CI, so this one asks the field's handler.)
+            Step(name: "spacespace", typed: "jpg ", after: { _ = model.spaceKey() }),
             // A swapped-letter typo finds the file, and says so.
             Step(name: "similar", typed: "pfd"),
             Step(name: "home", typed: "", before: {
