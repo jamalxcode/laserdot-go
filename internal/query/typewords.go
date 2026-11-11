@@ -44,7 +44,7 @@ func init() {
 		"presentations": {"ppt", "pptx", "pps", "ppsx", "key"}, "keynote": {"key"},
 		"excel": {"xls", "xlsx", "csv", "numbers"}, "spreadsheet": {"xls", "xlsx", "csv", "numbers"},
 		"spreadsheets": {"xls", "xlsx", "csv", "numbers"},
-		"اكسل": {"xls", "xlsx", "csv", "numbers"},
+		"اكسل":         {"xls", "xlsx", "csv", "numbers"},
 	} {
 		extWords[fold.Fold(w)] = g
 	}
