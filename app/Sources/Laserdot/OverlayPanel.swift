@@ -30,7 +30,8 @@ final class OverlayController: NSObject, NSWindowDelegate {
         panel.hasShadow = true
         panel.isMovableByWindowBackground = true
         panel.delegate = self
-        panel.contentView = NSHostingView(rootView: SearchView(model: model, close: { [weak self] in self?.hide() }))
+        panel.contentView = NSHostingView(rootView: SearchView(model: model, close: { [weak self] in self?.hide() })
+            .environment(\.layoutDirection, appLayoutDirection))
     }
 
     func toggle() {

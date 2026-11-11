@@ -26,6 +26,8 @@ struct SearchField: NSViewRepresentable {
         f.font = .systemFont(ofSize: 22)
         f.placeholderString = placeholder
         f.usesSingleLineMode = true
+        f.alignment = .natural
+        f.baseWritingDirection = .natural
         f.cell?.wraps = false
         f.cell?.isScrollable = true
         f.delegate = context.coordinator

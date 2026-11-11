@@ -14,12 +14,14 @@ struct LaserdotApp: App {
     var body: some Scene {
         WindowGroup("Laserdot", id: "main") {
             MainWindow(delegate: delegate, updates: delegate.updates)
+                .environment(\.layoutDirection, appLayoutDirection)
         }
         .defaultSize(width: 860, height: 600)
         .commands { LaserdotCommands(delegate: delegate, updates: delegate.updates) }
 
         Settings {
             SettingsView(delegate: delegate, updates: delegate.updates)
+                .environment(\.layoutDirection, appLayoutDirection)
         }
 
         MenuBarExtra("Laserdot", systemImage: "scope") {
@@ -270,7 +272,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             w.title = L("dupes.title")
             w.isReleasedWhenClosed = false
             w.contentMinSize = NSSize(width: 560, height: 380)
-            w.contentView = NSHostingView(rootView: DuplicatesView(model: DuplicatesModel(engine: engine)))
+            w.contentView = NSHostingView(rootView: DuplicatesView(model: DuplicatesModel(engine: engine))
+                .environment(\.layoutDirection, appLayoutDirection))
             w.center()
             w.setFrameAutosaveName("Duplicates") // reopen where the user left it
             duplicates = w
@@ -350,6 +353,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 /// The app's language for guidance (hints, filter descriptions): the
 /// localization the app's own strings use.
 let appLang: String = appResources.preferredLocalizations.first ?? "en"
+
+/// The layout direction of the app's language: right to left in Arabic.
+/// Set on every window's root view, so the layout follows the strings
+/// shown rather than what AppKit derives from the bundle.
+let appLayoutDirection: LayoutDirection =
+    Locale.Language(identifier: appLang).characterDirection == .rightToLeft ? .rightToLeft : .leftToRight
 
 /// Global shortcuts the overlay can use (spec §6.4).
 struct HotKeyChoice {

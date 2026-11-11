@@ -162,7 +162,8 @@ final class SelfTestRunner {
     private func finish(error: String?) {
         let report: [String: Any] = [
             "lang": appLang,
-            "layout_rtl": NSApp.userInterfaceLayoutDirection == .rightToLeft,
+            "layout_rtl": appLayoutDirection == .rightToLeft,
+            "appkit_rtl": NSApp.userInterfaceLayoutDirection == .rightToLeft,
             "error": error ?? "",
             "steps": steps,
             "screenshots": shots,
