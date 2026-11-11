@@ -12,7 +12,7 @@ public struct UpdateStatus: Codable, Equatable, Sendable {
         /// A newer release was downloaded to `file`.
         case downloaded
         /// No GitHub token yet (the helper asks for one when run on request).
-        case needsToken = "needs_token"
+        case needsToken = "needs_token" // written by updaters before 0.2.3
         case failed
     }
 

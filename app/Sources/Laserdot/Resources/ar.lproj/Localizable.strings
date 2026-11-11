@@ -113,7 +113,6 @@
 "update.upToDate" = "Laserdot محدّث";
 "update.youHave" = "لديك الإصدار %@.";
 "update.failed" = "تعذّر تحديث Laserdot";
-"update.needsToken" = "يلزم رمز GitHub لتنزيل التحديثات. اختر «التحقق من التحديثات…» مجددًا والصق الرمز عند الطلب.";
 "update.timeout" = "لم يستجب برنامج التحديث.";
 "update.noHelper" = "هذه النسخة من Laserdot بلا برنامج تحديث (نسخة تطوير).";
 "move.title" = "نقل Laserdot إلى التطبيقات؟";

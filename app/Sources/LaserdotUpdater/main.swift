@@ -1,117 +1,49 @@
 import AppKit
 import Foundation
 import LaserdotKit
-import Security
 
 // Laserdot Updater: the one part of Laserdot allowed on the network — an
 // exception the owner granted for updates (spec §7.1, §7.4). It talks only
 // to GitHub (api.github.com, and the storage host GitHub redirects release
-// downloads to), sends nothing but the token and the request, and runs only
+// downloads to), sends no credentials and nothing about the Mac, and runs only
 // when the app asks: on "Check for Updates…" or the daily check. Laserdot and
-// laserdotd stay network-blocked by the OS; this helper is a separate app,
-// launched by macOS rather than by Laserdot, so it does not inherit the block.
+// laserdotd stay network-blocked; this helper is a separate app, launched by
+// macOS rather than by Laserdot, so it does not inherit the block.
+//
+// The releases are public, so no token is needed. Only the owner can publish
+// one; the app still checks the download (bundle id, signature) before it
+// installs it (Updater.prepare).
 //
 // Usage: Laserdot Updater --app <Laserdot.app> [--interactive]
-// It writes UpdateStatus (update.json) and exits. With --interactive it may
-// ask for a GitHub token (kept in the Keychain) and report problems.
+// It writes UpdateStatus (update.json) and exits. With --interactive it
+// reports problems in an alert.
 
 let repo = "jamalxcode/laserdot-go"
 let apiHost = "api.github.com"
-let keychainService = "app.laserdot.updater"
-let keychainAccount = "github-token"
+let allowedHosts: Set<String> = [apiHost, "github.com", "objects.githubusercontent.com",
+                                 "release-assets.githubusercontent.com"]
 
-// MARK: Keychain
-
-func readToken() -> String? {
-    let q: [String: Any] = [
-        kSecClass as String: kSecClassGenericPassword,
-        kSecAttrService as String: keychainService,
-        kSecAttrAccount as String: keychainAccount,
-        kSecReturnData as String: true,
-        kSecMatchLimit as String: kSecMatchLimitOne,
-    ]
-    var out: CFTypeRef?
-    guard SecItemCopyMatching(q as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-    let t = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-    return t.isEmpty ? nil : t
-}
-
-func saveToken(_ token: String) {
-    deleteToken()
-    let q: [String: Any] = [
-        kSecClass as String: kSecClassGenericPassword,
-        kSecAttrService as String: keychainService,
-        kSecAttrAccount as String: keychainAccount,
-        kSecAttrLabel as String: "Laserdot Updater (GitHub token)",
-        kSecValueData as String: Data(token.utf8),
-    ]
-    SecItemAdd(q as CFDictionary, nil)
-}
-
-func deleteToken() {
-    let q: [String: Any] = [
-        kSecClass as String: kSecClassGenericPassword,
-        kSecAttrService as String: keychainService,
-        kSecAttrAccount as String: keychainAccount,
-    ]
-    SecItemDelete(q as CFDictionary)
-}
-
-// MARK: UI (interactive runs only)
-
-func askForToken(reason: String?) -> String? {
-    NSApp.activate(ignoringOtherApps: true)
-    let alert = NSAlert()
-    alert.messageText = "Laserdot updates"
-    alert.informativeText = (reason.map { $0 + "\n\n" } ?? "") + """
-        Laserdot's releases are private on GitHub. Paste a GitHub token that can read \
-        \(repo) (a fine-grained token with Contents: Read-only for that repository). \
-        It is kept in your Keychain and sent only to GitHub.
-        """
-    let field = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 320, height: 24))
-    field.placeholderString = "github_pat_…"
-    alert.accessoryView = field
-    alert.addButton(withTitle: "Save")
-    alert.addButton(withTitle: "Cancel")
-    alert.addButton(withTitle: "Create a Token…")
-    alert.window.initialFirstResponder = field
-    switch alert.runModal() {
-    case .alertFirstButtonReturn:
-        let t = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        return t.isEmpty ? nil : t
-    case .alertThirdButtonReturn:
-        NSWorkspace.shared.open(URL(string: "https://github.com/settings/personal-access-tokens/new")!)
-        return askForToken(reason: nil)
-    default:
-        return nil
-    }
-}
-
-// MARK: HTTP
-
-/// Drops the token when GitHub redirects a download to its storage host:
-/// the token is only ever sent to api.github.com.
+/// Follows redirects only to GitHub's own hosts, over HTTPS.
 final class RedirectGuard: NSObject, URLSessionTaskDelegate {
     func urlSession(_ session: URLSession, task: URLSessionTask, willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest, completionHandler: @escaping (URLRequest?) -> Void) {
-        var r = request
-        if r.url?.host != apiHost {
-            r.setValue(nil, forHTTPHeaderField: "Authorization")
+        guard let u = request.url, u.scheme == "https", let h = u.host, allowedHosts.contains(h) else {
+            completionHandler(nil)
+            return
         }
-        completionHandler(r)
+        completionHandler(request)
     }
 }
 
 let session = URLSession(configuration: .ephemeral, delegate: RedirectGuard(), delegateQueue: nil)
 
-struct HTTPError: Error {
+struct HTTPError: Error, LocalizedError {
     let status: Int
-    let message: String
+    var errorDescription: String? { "GitHub answered HTTP \(status)." }
 }
 
-func request(_ path: String, token: String, accept: String) -> URLRequest {
-    var r = URLRequest(url: URL(string: "https://\(apiHost)\(path)")!)
-    r.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+func request(_ url: URL, accept: String) -> URLRequest {
+    var r = URLRequest(url: url)
     r.setValue(accept, forHTTPHeaderField: "Accept")
     r.setValue("2022-11-28", forHTTPHeaderField: "X-GitHub-Api-Version")
     r.setValue("Laserdot-Updater", forHTTPHeaderField: "User-Agent")
@@ -121,16 +53,12 @@ func request(_ path: String, token: String, accept: String) -> URLRequest {
 
 func fetch(_ r: URLRequest) throws -> Data {
     let done = DispatchSemaphore(value: 0)
-    var result: Result<Data, Error> = .failure(HTTPError(status: 0, message: "no answer"))
+    var result: Result<Data, Error> = .failure(HTTPError(status: 0))
     session.dataTask(with: r) { data, response, error in
         defer { done.signal() }
         if let error { result = .failure(error); return }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status), let data else {
-            let body = data.map { String(decoding: $0.prefix(300), as: UTF8.self) } ?? ""
-            result = .failure(HTTPError(status: status, message: body))
-            return
-        }
+        guard (200..<300).contains(status), let data else { result = .failure(HTTPError(status: status)); return }
         result = .success(data)
     }.resume()
     done.wait()
@@ -144,10 +72,7 @@ func download(_ r: URLRequest, to dest: URL) throws {
         defer { done.signal() }
         if let error { failure = error; return }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        guard (200..<300).contains(status), let tmp else {
-            failure = HTTPError(status: status, message: "download failed")
-            return
-        }
+        guard (200..<300).contains(status), let tmp else { failure = HTTPError(status: status); return }
         do {
             try? FileManager.default.removeItem(at: dest)
             try FileManager.default.moveItem(at: tmp, to: dest)
@@ -159,9 +84,9 @@ func download(_ r: URLRequest, to dest: URL) throws {
 
 struct Release: Decodable {
     struct Asset: Decodable {
-        let id: Int
         let name: String
         let size: Int
+        let browser_download_url: URL
     }
     let tag_name: String
     let assets: [Asset]
@@ -198,40 +123,26 @@ guard let current = AppVersion(bundle: appURL) else {
     finish(UpdateStatus(state: .failed, message: "Laserdot.app not found at \(appURL.path)"))
 }
 
-var token = readToken()
-var reason: String?
-for _ in 0..<3 {
-    if token == nil {
-        guard interactive, let t = askForToken(reason: reason) else { finish(UpdateStatus(state: .needsToken)) }
-        saveToken(t)
-        token = t
+do {
+    let api = URL(string: "https://\(apiHost)/repos/\(repo)/releases/latest")!
+    let rel = try JSONDecoder().decode(Release.self, from: fetch(request(api, accept: "application/vnd.github+json")))
+    let latest = rel.tag_name.hasPrefix("v") ? String(rel.tag_name.dropFirst()) : rel.tag_name
+    guard AppVersion(short: current.short, build: "0") < AppVersion(short: latest, build: "0") else {
+        finish(UpdateStatus(state: .upToDate, latest: latest))
     }
-    do {
-        let data = try fetch(request("/repos/\(repo)/releases/latest", token: token!, accept: "application/vnd.github+json"))
-        let rel = try JSONDecoder().decode(Release.self, from: data)
-        let latest = rel.tag_name.hasPrefix("v") ? String(rel.tag_name.dropFirst()) : rel.tag_name
-        guard AppVersion(short: current.short, build: "0") < AppVersion(short: latest, build: "0") else {
-            finish(UpdateStatus(state: .upToDate, latest: latest))
-        }
-        guard let asset = rel.assets.first(where: { $0.name.lowercased().hasPrefix("laserdot") && $0.name.lowercased().hasSuffix(".dmg") }) else {
-            finish(UpdateStatus(state: .failed, latest: latest, message: "release \(rel.tag_name) has no Laserdot .dmg"))
-        }
-        let folder = UpdateStatus.downloadsFolder
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        let dest = folder.appendingPathComponent(asset.name)
-        let have = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int) ?? nil
-        if have != asset.size {
-            try download(request("/repos/\(repo)/releases/assets/\(asset.id)", token: token!, accept: "application/octet-stream"), to: dest)
-        }
-        finish(UpdateStatus(state: .downloaded, latest: latest, file: dest.path))
-    } catch let e as HTTPError where e.status == 401 || e.status == 403 || e.status == 404 {
-        // A token that cannot read the repository: ask again (interactive).
-        deleteToken()
-        token = nil
-        reason = "GitHub did not accept the token (HTTP \(e.status))."
-        if !interactive { finish(UpdateStatus(state: .needsToken, message: reason)) }
-    } catch {
-        finish(UpdateStatus(state: .failed, message: error.localizedDescription))
+    guard let asset = rel.assets.first(where: { $0.name.lowercased().hasPrefix("laserdot") && $0.name.lowercased().hasSuffix(".dmg") }),
+          asset.browser_download_url.scheme == "https", let h = asset.browser_download_url.host, allowedHosts.contains(h),
+          !asset.name.contains("/") else {
+        finish(UpdateStatus(state: .failed, latest: latest, message: "release \(rel.tag_name) has no Laserdot .dmg"))
     }
+    let folder = UpdateStatus.downloadsFolder
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    let dest = folder.appendingPathComponent(asset.name)
+    let have = (try? FileManager.default.attributesOfItem(atPath: dest.path)[.size] as? Int) ?? nil
+    if have != asset.size {
+        try download(request(asset.browser_download_url, accept: "application/octet-stream"), to: dest)
+    }
+    finish(UpdateStatus(state: .downloaded, latest: latest, file: dest.path))
+} catch {
+    finish(UpdateStatus(state: .failed, message: (error as? LocalizedError)?.errorDescription ?? error.localizedDescription))
 }
-finish(UpdateStatus(state: .failed, message: reason ?? "no token"))

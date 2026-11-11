@@ -209,4 +209,4 @@ Choices made by the owner (2026-11-10):
   by its code (CI rejects network APIs outside the update helper). `laserdotd` still denies itself the network
   (on macOS it now re-executes under the profile itself, the path the daemon tests cover). Full Disk Access is
   optional (menu item; offered when indexing a protected folder fails).
-
+- **Updates without a token (0.2.3).** The owner rejected the token prompt and allowed the code to be public, as long as nobody else can change it. The repository is now public: GitHub lets only the owner push or publish releases, and outside pull requests need the owner's merge (CI runs them read-only, without secrets). The updater reads `releases/latest` and downloads the `.dmg` without credentials, following redirects only to GitHub hosts. 0.2.2 and earlier still ask for a token, so those copies need one manual install of 0.2.3.

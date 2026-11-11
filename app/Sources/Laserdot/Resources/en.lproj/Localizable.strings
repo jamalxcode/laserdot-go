@@ -113,7 +113,6 @@
 "update.upToDate" = "Laserdot is up to date";
 "update.youHave" = "You have version %@.";
 "update.failed" = "Could not update Laserdot";
-"update.needsToken" = "A GitHub token is needed to download updates. Choose Check for Updates… again and paste one when asked.";
 "update.timeout" = "The updater did not answer.";
 "update.noHelper" = "This copy of Laserdot has no updater (a development build).";
 "move.title" = "Move Laserdot to Applications?";

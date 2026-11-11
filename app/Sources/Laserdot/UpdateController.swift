@@ -36,8 +36,7 @@ final class UpdateController: ObservableObject {
         if Date().timeIntervalSince(last) > 24 * 3600 { check(interactive: false) }
     }
 
-    /// Run the helper. Interactive: it may ask for a GitHub token, and the
-    /// result is reported in an alert.
+    /// Run the helper. Interactive: the result is reported in an alert.
     func check(interactive: Bool) {
         guard !checking else { return }
         guard let helper = helperURL else {
@@ -89,9 +88,7 @@ final class UpdateController: ObservableObject {
         case .upToDate:
             ready = nil
             if interactive { alert(L("update.upToDate"), info: String(format: L("update.youHave"), currentVersion)) }
-        case .needsToken:
-            if interactive { alert(L("update.failed"), info: L("update.needsToken")) }
-        case .failed:
+        case .needsToken, .failed:
             break // the helper already showed interactive failures
         }
     }
