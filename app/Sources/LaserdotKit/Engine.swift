@@ -209,6 +209,8 @@ public struct CleanupOutcome: Sendable {
 
 /// A mounted drive for the Drives menu (spec §9.6).
 public struct Drive: Hashable, Sendable {
+    /// The drive's identity (its index's volume id), once it has an index.
+    public var id: String?
     public var name: String
     public var mount: String
     /// `unindexed`, `attached`, `detached`, `locked` or `unreadable`.
@@ -254,6 +256,8 @@ public final class Engine: @unchecked Sendable {
     private let logLock = NSLock()
     /// Ops this daemon answered `unsupported`; forgotten on reconnect.
     private var unsupported = Set<String>()
+    /// Set by `retire()`: no more requests, and no daemon is started again.
+    private var retired = false
     /// Guidance runs on a connection of its own, so typing never waits for
     /// an index or a scan on the shared one.
     private let guideLock = NSLock()
@@ -402,7 +406,7 @@ public final class Engine: @unchecked Sendable {
     public func drives() throws -> [Drive] {
         try call(.drives, as: [Wire.DriveInfo].self).map { d in
             Drive(
-                name: d.name, mount: d.mount, state: d.state.state, detail: d.state.detail, readOnly: d.readOnly,
+                id: d.id, name: d.name, mount: d.mount, state: d.state.state, detail: d.state.detail, readOnly: d.readOnly,
                 encrypted: d.encrypted, onDrive: d.onDrive, complete: d.complete, entries: d.entries,
                 totalBytes: d.totalBytes, freeBytes: d.freeBytes, indexBytes: d.indexBytes)
         }
@@ -561,13 +565,30 @@ public final class Engine: @unchecked Sendable {
     }
 
     /// What fills a folder ("" = the indexed folders), largest first.
+    /// Words from inside a document around the query's words ("" when none).
+    public func snippet(path: String, query: String) throws -> String {
+        try call(.snippet(path: path, query: query), as: String.self)
+    }
+
     public func storage(path: String, limit: Int = 60) throws -> Wire.StorageReport {
         try call(.storage(path: path, limit: limit), as: Wire.StorageReport.self)
     }
 
     /// Pause background work (contents, Tier 2) or resume it.
-    public func setBackground(paused: Bool) {
-        _ = try? call(.background(paused: paused), as: [String: Bool].self)
+    /// Returns whether background work is now paused (nil: no answer).
+    @discardableResult
+    public func setBackground(paused: Bool) -> Bool? {
+        (try? call(.background(paused: paused), as: [String: Bool].self))?["paused"]
+    }
+
+    /// Read the text of new and changed documents now (it also happens in
+    /// the background on its own).
+    public func updateContent() throws {
+        _ = try call(.updateContent, as: Discard.self)
+    }
+
+    private struct Discard: Decodable {
+        init(from decoder: Decoder) throws {}
     }
 
     /// Index the text of files in `folder` too (or stop, with `add` false).
@@ -643,6 +664,20 @@ public final class Engine: @unchecked Sendable {
 
     // MARK: lifecycle
 
+    /// Stop the daemon, whoever started it, and never start one again
+    /// (Erase All Data: nothing may write the index while it is deleted).
+    public func retire() {
+        lock.lock()
+        retired = true
+        lock.unlock()
+        shutdown()
+        if let live = DaemonClient.connectLive(socketPath: socketPath) {
+            _ = try? live.call(.shutdown, as: String.self)
+        }
+        let deadline = Date().addingTimeInterval(5)
+        while DaemonClient.connectLive(socketPath: socketPath) != nil && Date() < deadline { usleep(50_000) }
+    }
+
     /// Stop a daemon this engine started (one started elsewhere keeps running).
     public func shutdown() {
         lock.lock()
@@ -663,6 +698,7 @@ public final class Engine: @unchecked Sendable {
     public func call<T: Decodable>(_ request: DaemonRequest, as type: T.Type = T.self) throws -> T {
         lock.lock()
         defer { lock.unlock() }
+        if retired { throw LaserdotError.unavailable("Laserdot is stopping") }
         if unsupported.contains(request.op) {
             throw LaserdotError.unsupported("`\(request.op)` is not supported by this laserdotd")
         }

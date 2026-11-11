@@ -17,8 +17,9 @@ Private, media-aware search for your Mac — a Spotlight successor that cannot p
 
 1. Download the latest **Laserdot-x.y.z.dmg** from [Releases](https://github.com/jamalxcode/laserdot-go/releases/latest).
 2. Open it and drag **Laserdot** to **Applications**.
-3. Open Laserdot. It indexes your apps and your home folder by itself (skipping `~/Library`, except iCloud Drive).
-   macOS may ask to let it read Desktop, Documents or Downloads — click **Allow**.
+3. Open Laserdot. A short tour explains what macOS will ask; when you close it, Laserdot indexes your apps and your
+   home folder by itself (skipping `~/Library`, except iCloud Drive). When macOS asks to let it read Desktop,
+   Documents or Downloads, click **Allow**.
 
 Updates install themselves: Laserdot checks once a day, downloads a new version in the background and installs it
 when you quit (or now, from **Check for Updates…**). No account or token is needed.
@@ -52,20 +53,24 @@ downloads.
 | ↑ ↓ | move through results (⇧↑ ⇧↓ or ⌘-click select several) |
 | Return / ⌘1–⌘9 | open the selected / the numbered result |
 | Space (after ↑↓ or a click), or Space twice | Quick Look: pictures large, videos and songs playing |
-| ⌘K | actions: Open with…, Show in Finder, Copy file, path or link, Share, Compress, Move to…, Open in Terminal, Rename, Move to Trash |
+| ⌘K | actions: Open with…, Show in Finder, Copy file, path or link, Share, Search in This Folder, Compress, Move to…, Open in Terminal, Rename, Move to Trash |
+| ⌥⌘Z | undo the last Move to Trash, Rename, Move to… or Compress (or click **Undo** on the bar) |
 | ⌘↩ / ⌘⇧C | Show in Finder / copy the path |
 | ⌘D | pin the search (pins show on the empty box) |
 | Tab / ⌥1–⌥9 | complete a filter / press a suggestion chip |
 | Esc | close actions, the cheat sheet, then the window |
 
-The preview pane on the right shows a large thumbnail, plays videos and songs, and pages through PDFs.
+The preview pane on the right shows a large thumbnail, plays videos and songs, pages through PDFs, and for a
+document found by its words, the passage where they are. Drop a folder on the window to search inside it.
 
 **Library ▸ Storage** (⇧⌘S) shows what fills your disk, folder by folder, and the largest files. The sort menu
 (arrows next to the pin) orders results by name, size or date. `laserdot://search?q=…` links open a search (use them
 in Shortcuts with **Open URL**).
 
-**Settings** (⌘,): the search shortcut, open at login, pausing background work on battery, automatic updates, **Folders** (what is indexed, and folders
-that are never indexed), **Content Search**, **Drives**, and **Clear History**. **Help** has the search syntax, the
+**Settings** (⌘,): the search shortcut, open at login, pausing background work on battery, automatic updates (and
+**Go Back** to the version before the last update), **Folders** (what is indexed, and folders that are never
+indexed), **Content Search**, **Drives**, and **Privacy** (what is kept and its size, Clear History, **Erase All
+Laserdot Data**). **Help** has the search syntax, the
 welcome tour, What's New, and **Save Diagnostics** (a file for a bug report, with every path removed).
 
 ## Where things are kept
@@ -76,10 +81,14 @@ Finder**):
 - `index.db` — names, sizes, dates, media details; `index.db.snapshot` — a copy for a fast start.
 - `content.db` — the words inside documents (your whole home folder unless you change **Settings → Content Search**).
 - Opened-results history and settings live in the same index; nothing is ever sent anywhere.
+- **Settings → Privacy** shows each of these with its size; **Erase All Laserdot Data** deletes them all (and the
+  remembered passphrases) and starts over with nothing indexed.
+- The version before the last update is kept in `~/Library/Application Support/Laserdot Previous Version/`.
 
 **External drives** keep their own index on the drive, in a hidden `/Volumes/<drive>/.laserdot/` folder
 (`index.db`, `volume.json`), with paths relative to the drive — so it works on any Mac. Laserdot asks before indexing
-a drive and can encrypt the index with a passphrase that is never written down. When the drive comes back, only
+a drive and can encrypt the index with a passphrase that is never written down (unless you tick **Remember in my
+Keychain**: then macOS's Keychain keeps it and the drive unlocks by itself). When the drive comes back, only
 new or changed files are read again. A **read-only** drive cannot hold its index, so it is kept on this Mac in
 `…/laserdot/drives/` — and deleted as soon as that drive is no longer connected (checked at start, every minute,
 when a drive leaves, and on quit).
@@ -113,13 +122,17 @@ The app (macOS):
 ```bash
 app/scripts/build-go.sh                  # laserdotd + CLI, and the app's registry (rerun after registry changes)
 (cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
-VERSION=0.5.2 app/scripts/bundle.sh      # → app/build/Laserdot.app
+VERSION=0.8.0 app/scripts/bundle.sh      # → app/build/Laserdot.app
 ```
 
 CI builds and tests on Linux and macOS, bundles the app, launches it, runs the updater against GitHub, and runs
 the **self-test**: the real app types into its own ⌥Space window, checks what it shows (results, sections, hints,
-commands, actions, Quick Look, Settings) in English and Arabic, and saves screenshots
+commands, actions, Quick Look, Rename, Move to…, Compress, Undo, content passages, Settings) in English and Arabic,
+measures its launch time, and saves screenshots
 (`app/Sources/Laserdot/SelfTest.swift`, judged by `app/scripts/check-selftest.py`).
+
+A speed test on a Mac (`app/scripts/perf-mac.sh`) indexes 100,000 files, times searches and measures the
+daemon's memory.
 
 Releases: run the **Release** workflow with a version (or push a `v*` tag); it builds, launch-tests and publishes
 `Laserdot-<version>.dmg`.

@@ -180,6 +180,26 @@ song (it would have caught the crash). Released at once as 0.6.1.
 | 11 | Mouse-only buttons | ⌥1–⌥9 for chips, ⌘→ for Show all |
 | 12 | Generic menu-bar icon | A drawn laser-dot icon |
 
+## 10. The fourth critique (0.8.0)
+
+**Asked:** "critique laserdot again", then "fix all except 13" (13 was an Apple Developer ID signature, which needs
+a paid account).
+
+| # | Critique | Decided |
+|---|---|---|
+| 1 | File actions cannot be undone | An Undo bar after Move to Trash, Rename, Move to…, Compress; ⌥⌘Z and Edit ▸ Undo |
+| 2 | No way to wipe Laserdot's data, or see it | Settings ▸ Privacy: what is kept and its size; Erase All Laserdot Data |
+| 3 | A bad update cannot be undone | The version before is kept; Settings ▸ General ▸ Go Back |
+| 4 | macOS prompts come without warning | A tour page explains them; indexing starts when the tour closes |
+| 5 | Content hits do not say where the words are | The preview shows the passage, the words in bold |
+| 6 | No "search here" | ⌘K ▸ Search in This Folder; drop a folder on the window |
+| 7 | Indexing slower than the spec | Writes batched (about twice as fast); measured on a Mac in CI |
+| 8 | Memory and launch time not measured | CI reports the daemon's peak memory and the app's launch time |
+| 9 | Many actions untested | The self-test renames, moves, compresses and undoes, and checks pausing and resizing |
+| 10 | Very long source files | Split by job |
+| 11 | Slow CI | The ffmpeg build is cached on main too, before each release |
+| 12 | Passphrase typed every time | Optional: remember it in the Keychain; the drive unlocks by itself |
+
 ---
 
 ## How the work was done

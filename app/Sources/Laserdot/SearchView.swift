@@ -3,6 +3,7 @@ import AppKit
 import LaserdotKit
 import PDFKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// The search UI, in the ⌥Space overlay and in the main window: the query
 /// field, a hint only when it helps, suggestion chips, the results in
@@ -46,6 +47,9 @@ struct SearchView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                if model.undoBannerVisible, let step = model.undoStep {
+                    UndoBanner(step: step, model: model)
+                }
                 // The main window shows status and keys in its own status bar.
                 if fixedSize {
                     Divider()
@@ -64,6 +68,18 @@ struct SearchView: View {
             }
         }
         .overlay(hiddenShortcuts)
+        // Drop a folder (or a file: its folder) to search inside it.
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
+            guard let p = providers.first else { return false }
+            _ = p.loadObject(ofClass: URL.self) { url, _ in
+                guard let url else { return }
+                var isDir: ObjCBool = false
+                FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+                let dir = isDir.boolValue ? url.path : url.deletingLastPathComponent().path
+                DispatchQueue.main.async { model.searchInFolder(dir); model.focusSearch() }
+            }
+            return true
+        }
     }
 
     // MARK: header
@@ -372,6 +388,8 @@ struct SearchView: View {
             Button("") { model.copyPath() }.keyboardShortcut("c", modifiers: [.command, .shift])
             Button("") { model.quickLook() }.keyboardShortcut("y", modifiers: .command)
             Button("") { model.toggleActions() }.keyboardShortcut("k", modifiers: .command)
+            Button("") { model.undo() }.keyboardShortcut("z", modifiers: [.command, .option])
+                .disabled(model.undoStep == nil)
             // While browsing results only: typing keeps ⌘→ (end of line).
             Button("") { model.expandSelectedSection() }.keyboardShortcut(.rightArrow, modifiers: .command)
                 .disabled(!model.browsing)

@@ -105,10 +105,11 @@ final class DrivesModel: ObservableObject {
         let encrypt = NSButton(checkboxWithTitle: L("drive.index.encrypt"), target: nil, action: nil)
         let pass = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         pass.placeholderString = L("drive.passphrase")
-        let stack = NSStackView(views: [encrypt, pass])
+        let remember = NSButton(checkboxWithTitle: L("drive.remember"), target: nil, action: nil)
+        let stack = NSStackView(views: [encrypt, pass, remember])
         stack.orientation = .vertical
         stack.alignment = .leading
-        stack.frame = NSRect(x: 0, y: 0, width: 260, height: 54)
+        stack.frame = NSRect(x: 0, y: 0, width: 260, height: 80)
         alert.accessoryView = stack
         alert.addButton(withTitle: L(rebuild ? "drive.rebuild" : "drive.index"))
         alert.addButton(withTitle: L("drive.notNow"))
@@ -116,12 +117,17 @@ final class DrivesModel: ObservableObject {
         switch alert.runFront() {
         case .alertFirstButtonReturn:
             let secret = encrypt.state == .on && !pass.stringValue.isEmpty ? pass.stringValue : nil
+            let keep = remember.state == .on
             let mount = d.mount
             run(String(format: L("drive.indexing"), d.name)) { engine in
                 if rebuild {
                     _ = try engine.driveRebuild(mount: mount, passphrase: secret)
                 } else {
                     _ = try engine.driveIndex(mount: mount, passphrase: secret)
+                }
+                // The drive has an id now; remember the passphrase under it.
+                if let secret, keep, let id = try engine.drives().first(where: { $0.mount == mount })?.id {
+                    Keychain.save(secret, for: id)
                 }
             }
         case .alertThirdButtonReturn:
@@ -139,14 +145,22 @@ final class DrivesModel: ObservableObject {
         alert.messageText = String(format: L("drive.unlock.title"), d.name)
         let pass = NSSecureTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
         pass.placeholderString = L("drive.passphrase")
-        alert.accessoryView = pass
+        let remember = NSButton(checkboxWithTitle: L("drive.remember"), target: nil, action: nil)
+        let stack = NSStackView(views: [pass, remember])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.frame = NSRect(x: 0, y: 0, width: 260, height: 52)
+        alert.accessoryView = stack
         alert.addButton(withTitle: L("drive.unlock"))
         alert.addButton(withTitle: L("drive.notNow"))
         guard alert.runFront() == .alertFirstButtonReturn else { return }
         let secret = pass.stringValue
+        let keep = remember.state == .on
         let mount = d.mount
+        let id = d.id
         run(String(format: L("drive.unlock.title"), d.name)) { engine in
             try engine.driveUnlock(mount: mount, passphrase: secret)
+            if keep, let id { Keychain.save(secret, for: id) }
         }
     }
 
@@ -183,6 +197,24 @@ final class DrivesModel: ObservableObject {
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: d.mount)])
     }
 
+    private func autoUnlock(_ d: Drive, id: String, secret: String) {
+        let engine = self.engine
+        let mount = d.mount
+        busy = String(format: L("drive.unlock.title"), d.name)
+        queue.async { [weak self] in
+            let ok = (try? engine.driveUnlock(mount: mount, passphrase: secret)) != nil
+            DispatchQueue.main.async {
+                self?.busy = nil
+                if !ok {
+                    // Changed or wrong: forget it and ask.
+                    Keychain.forget(id)
+                    self?.promptUnlock(d)
+                }
+                self?.refresh()
+            }
+        }
+    }
+
     /// The first time an unindexed drive mounts this
     /// session, offer to index it (unless the user said never).
     private func offerNewDrives() {
@@ -195,7 +227,12 @@ final class DrivesModel: ObservableObject {
         }
         for d in drives where d.state == "locked" && !offered.contains(d.mount) {
             offered.insert(d.mount)
-            promptUnlock(d)
+            // A remembered passphrase unlocks it without asking.
+            if let id = d.id, let secret = Keychain.load(for: id) {
+                autoUnlock(d, id: id, secret: secret)
+            } else {
+                promptUnlock(d)
+            }
             return
         }
     }

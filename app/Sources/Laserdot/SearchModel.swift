@@ -77,6 +77,11 @@ final class SearchModel: ObservableObject {
     @Published private(set) var notes: [String] = []
     @Published private(set) var unavailable: String?
     @Published var selection = 0
+    /// The last file operation, for Undo (⌥⌘Z) and the banner.
+    @Published var undoStep: UndoStep?
+    @Published var undoBannerVisible = false
+    /// Words from inside the selected document (content matches).
+    @Published private(set) var snippet: String?
     @Published var showCheatSheet = false {
         didSet {
             if showCheatSheet && !oldValue { loadCounts() }
@@ -403,6 +408,22 @@ final class SearchModel: ObservableObject {
         (results, sections) = arranged(allHits)
         selection = results.firstIndex { $0.path == current } ?? 0
         resultsID &+= 1
+    }
+
+    /// For a document found by its words, the passage that holds them.
+    func loadSnippet(for hit: Hit) {
+        snippet = nil
+        guard hit.content, hit.volume == nil else { return }
+        let words = highlightWords.joined(separator: " ")
+        guard !words.isEmpty else { return }
+        let engine = self.engine
+        let path = hit.path
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let text = (try? engine.snippet(path: path, query: words)) ?? ""
+            DispatchQueue.main.async {
+                if self?.selected?.path == path { self?.snippet = text.isEmpty ? nil : text }
+            }
+        }
     }
 
     /// The words of the query that match names, for bold highlighting.

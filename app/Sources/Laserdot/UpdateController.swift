@@ -28,6 +28,35 @@ final class UpdateController: ObservableObject {
 
     var currentVersion: String { updater.currentVersion?.description ?? "?" }
 
+    /// The version kept from before the last update ("Go back to 0.7.0").
+    var previousVersion: String? { updater.previousVersion?.short }
+
+    /// After going back, the version left is not installed again
+    /// automatically; a newer one is.
+    static let skipKey = "laserdot.update.skip"
+
+    func offerGoBack() {
+        guard let v = previousVersion else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let a = NSAlert()
+        a.messageText = String(format: L("update.goBack.title"), v)
+        a.informativeText = String(format: L("update.goBack.text"), currentVersion)
+        a.addButton(withTitle: String(format: L("update.goBack"), v))
+        a.addButton(withTitle: L("action.cancel")).keyEquivalent = "\u{1b}"
+        guard a.runFront() == .alertFirstButtonReturn else { return }
+        do {
+            stopDaemon()
+            let leaving = updater.currentVersion?.short
+            let target = try updater.goBack()
+            UserDefaults.standard.set(leaving, forKey: Self.skipKey)
+            ready = nil
+            Updater.relaunch(target)
+            NSApp.terminate(nil)
+        } catch {
+            alert(L("update.failed"), info: (error as? LocalizedError)?.errorDescription ?? "\(error)")
+        }
+    }
+
     /// Check now if the last check is a day old, and every hour after that
     /// look again whether a day has passed.
     func startDailyChecks() {
@@ -50,6 +79,8 @@ final class UpdateController: ObservableObject {
             return
         }
         checking = true
+        // Asking for updates means the version gone back from is welcome again.
+        if interactive { UserDefaults.standard.removeObject(forKey: Self.skipKey) }
         UserDefaults.standard.set(Date(), forKey: Self.lastCheckKey)
         let started = Date()
         let cfg = NSWorkspace.OpenConfiguration()
@@ -106,6 +137,12 @@ final class UpdateController: ObservableObject {
         guard let f = s.file, FileManager.default.fileExists(atPath: f), let latest = s.latest,
               let cur = updater.currentVersion,
               AppVersion(short: cur.short, build: "0") < AppVersion(short: latest, build: "0") else {
+            ready = nil
+            return
+        }
+        // The version the user went back from: only a newer one installs.
+        if let skip = UserDefaults.standard.string(forKey: Self.skipKey),
+           !(AppVersion(short: skip, build: "0") < AppVersion(short: latest, build: "0")) {
             ready = nil
             return
         }

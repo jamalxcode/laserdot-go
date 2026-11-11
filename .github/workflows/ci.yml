@@ -108,6 +108,9 @@ jobs:
           status=0
           for lang in en ar; do
             echo trash me > "$fx/trashme.txt" # the run before moved it to the Trash
+            rm -rf "$fx/Moved Here" "$fx/renamed ok.txt" "$fx"/beach.jpg*.zip
+            echo rename me > "$fx/renameme.txt"
+            echo "Meeting notes: the zebra budget was approved on Monday." > "$fx/memo.txt"
             out="$(mktemp -d)"
             hold=""; [ "$lang" = en ] && hold=1
             LASERDOT_DB="$out/data/index.db" LASERDOT_SELFTEST="$out" LASERDOT_SELFTEST_FOLDER="$fx" LASERDOT_SELFTEST_HOLD=$hold \

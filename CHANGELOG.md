@@ -3,6 +3,17 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.8.0
+
+- Undo: after Move to Trash, Rename, Move to… or Compress, a bar offers **Undo** (also ⌥⌘Z and Edit ▸ Undo).
+- Settings ▸ Privacy: what Laserdot keeps and how big it is, and **Erase All Laserdot Data**.
+- Not happy with an update? Settings ▸ General ▸ **Go Back** to the version you had before.
+- The welcome tour explains the macOS permission prompts before Laserdot starts reading your files.
+- Documents found by their words show the passage that matched in the preview.
+- ⌘K ▸ **Search in This Folder**, or drop a folder on the window.
+- Encrypted drives: tick **Remember in my Keychain** and the drive unlocks by itself next time.
+- Faster indexing (writes about twice as fast).
+
 ## 0.7.0
 
 - Sort results by name, size or date (the arrows next to the pin).

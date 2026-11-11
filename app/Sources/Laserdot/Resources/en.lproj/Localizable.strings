@@ -268,3 +268,36 @@
 "settings.skipCode" = "Skip source code (search only documents, text and PDFs)";
 "settings.contentSize" = "The content index uses %@ on this Mac.";
 "settings.pauseOnBattery" = "Pause background work on battery (also when hot or in Low Power Mode)";
+
+/* 0.8.0 */
+"action.close" = "Close";
+"action.searchIn" = "Search in This Folder";
+"drive.remember" = "Remember the passphrase in my Keychain";
+"menu.undoFile" = "Undo Last File Action (⌥⌘Z)";
+"preview.foundInside" = "Found inside:";
+"privacy.kept" = "What Laserdot keeps on this Mac";
+"privacy.index" = "File index (names, sizes, dates, media details)";
+"privacy.content" = "Words inside documents";
+"privacy.drives" = "Indexes of read-only drives";
+"privacy.other" = "History and other files";
+"privacy.passphrases" = "Drive passphrases in your Keychain";
+"privacy.keptHelp" = "All of it stays on this Mac. Indexes of writable drives are kept on the drives themselves.";
+"privacy.erase" = "Erase All Laserdot Data…";
+"privacy.eraseHelp" = "Deletes everything above and starts Laserdot fresh, with nothing indexed.";
+"privacy.erase.title" = "Erase all Laserdot data?";
+"privacy.erase.text" = "The file index, the words of your documents, your history, the remembered passphrases and the settings are deleted. Your files are not touched. Laserdot then starts again with nothing indexed; add folders in Settings ▸ Folders.";
+"privacy.erase.confirm" = "Erase";
+"tour.4.title" = "macOS will ask first";
+"tour.4.a" = "When Laserdot starts reading your files, macOS may ask to let it see Desktop, Documents, Downloads or other folders.";
+"tour.4.b" = "Click Allow so those folders can be searched. Laserdot cannot send anything anywhere.";
+"tour.4.c" = "Clicked Don't Allow? Settings ▸ Privacy shows how to change it.";
+"undo.button" = "Undo";
+"undo.renamed" = "Renamed to “%@”";
+"undo.compressed" = "Made %@";
+"undo.moved" = "Moved %ld item(s) to %@";
+"undo.trashed" = "Moved %ld item(s) to the Trash";
+"undo.failed" = "Some files could not be put back (one with the same name may be in the way).";
+"update.goBack" = "Go Back to %@";
+"update.goBack.help" = "Not happy with this version? The one before it was kept.";
+"update.goBack.title" = "Go back to Laserdot %@?";
+"update.goBack.text" = "Laserdot %@ is replaced by the version you had before, and restarts. It is not updated to this version again automatically.";

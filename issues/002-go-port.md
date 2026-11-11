@@ -74,6 +74,9 @@ Binding unless revisited deliberately; each is also in the spec.
   for good, history can be cleared, drives are listed with where their index is; Save Diagnostics writes a file the
   user chooses to share, with every path removed. Releases carry plain-language notes (`CHANGELOG.md` →
   `WhatsNew.txt`), shown in the update prompt and after an update.
+- **Mistakes can be undone (0.8.0):** file actions have Undo; an update can be undone (Go Back); all of Laserdot's
+  data can be erased from Settings ▸ Privacy, which also shows what is kept. Drive passphrases are remembered only
+  when the user ticks the box, and only in the login Keychain.
 - **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account).
 
 ## Progress
@@ -253,3 +256,11 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Off-drive indexes leave with the drive (0.5.2).** The owner asked that the index of a read-only drive, kept on this Mac, be deleted once the drive is gone, checked at start, on quit and periodically. `core.PurgeOffDriveIndexes` deletes `<data>/drives/<key>` folders whose volume is not mounted and not attached; laserdotd runs it at start, every minute, when a drive is detached and on exit; the CLI when it opens the index directly. Drives that hold their own index are unaffected.
 - **The owner's second critique, items 1–14 (0.6.0).** Settings ▸ Folders (indexed folders, "Never Index" exclusions — `core.Exclude/Include`, `exclude`/`include`/`exclusions` ops), Clear History (`clear_opens`), open at login by default, "What's new" from `CHANGELOG.md` (bundled as `WhatsNew.txt`; in the update prompt, Help ▸ What's New, and a button after updating), Space twice previews, results load as you scroll and a single-kind answer is not capped, swapped-letter typos for three-letter words with a "similar names" note, contents searched in the whole home folder by default, side-by-side duplicates with thumbnails, Settings ▸ Drives, a welcome tour, Help ▸ Save Diagnostics (paths scrubbed), an `hdiutil attach` retry (the flaky CI test), and an accessibility-client check in CI: while the self-test holds the overlay, `app/scripts/ax-dump.swift` reads the app through the AX API — on GitHub's runner it is allowed, and it reads the result rows. Fixed on the way: Quick Look did not always close (close() then orderOut) and kept a stale controller (updateController before showing).
 - **The third critique, items 1–12 (0.6.1, 0.7.0).** 0.6.1 fixed a crash: SwiftUI's `VideoPlayer` aborted (`getSuperclassMetadata` in `_AVKit_SwiftUI`) in the SwiftPM-built app; the pane uses AppKit's `AVPlayerView`, created only on Play — the self-test now previews a video and a song, which also exposed that the player took the keyboard from the query. 0.7.0: sort menu; Library ▸ Storage (`core.Storage`, `storage` op); bundled LGPL ffmpeg/ffprobe without network (`app/scripts/build-ffmpeg.sh`, cached in CI, protocols checked); resizable overlay; `PowerWatcher` → `background` op; content size and skip-code; `laserdot://` links; ⌘K Open in Terminal, Copy as Link, Compress, Move to…; ⌥1–⌥9 chips, ⌘→ show all (while browsing); a drawn menu-bar icon; `app/scripts/perf-mac.sh` (100,000 real files on GitHub's Mac: indexing ≥ 10,000 files/s (CI Macs vary: 20,000–28,000 measured), searches < 50 ms); the self-test covers sorting, multi-select, Move to Trash, links, Storage, Duplicates and the Settings tabs.
+
+- **0.8.0 (2026-11-11), the fourth critique:** Undo for file actions, Settings ▸ Privacy with Erase All Laserdot
+  Data, Go Back to the previous version, a tour page on macOS prompts (default indexing waits for it), content
+  passages in the preview (`snippet` op), Search in This Folder and folder drop, Keychain-remembered drive
+  passphrases. Indexing writes 64 rows per statement (100k files: write 751 → 405 ms). The big Swift files were
+  split (SearchView → ResultRows, PreviewPane, TextHelpers; SearchModel → +Actions, +Grouping). The self-test now
+  renames, moves, compresses and undoes each, checks the passage, Search in This Folder, battery pausing, the
+  remembered window size, the Privacy page and the launch time; `perf-mac.sh` reports the daemon's peak memory.

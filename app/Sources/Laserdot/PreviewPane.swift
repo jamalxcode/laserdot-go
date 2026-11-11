@@ -22,6 +22,19 @@ struct PreviewPane: View {
                     .font(.headline)
                     .lineLimit(3)
                     .textSelection(.enabled)
+                if let found = model.snippet {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(L("preview.foundInside")).font(.caption).foregroundStyle(.secondary)
+                        Text(highlighted(found, model.highlightWords))
+                            .font(.callout)
+                            .lineLimit(6)
+                            .textSelection(.enabled)
+                            .padding(8)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+                    }
+                    .accessibilityElement(children: .combine)
+                }
                 Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 8, verticalSpacing: 4) {
                     detail(L("preview.kind"), Self.kindText(hit))
                     if !hit.isDir {
@@ -48,6 +61,7 @@ struct PreviewPane: View {
             }
             .padding(14)
         }
+        .task(id: hit.path) { model.loadSnippet(for: hit) }
     }
 
     @ViewBuilder private var visual: some View {

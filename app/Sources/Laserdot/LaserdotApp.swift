@@ -125,7 +125,7 @@ struct MainWindow: View {
         // SwiftUI's way to open Settings, kept for the menu-bar menu, `>`
         // commands and the app menu.
         .onAppear { delegate.openSettingsAction = { openSettings() } }
-        .sheet(isPresented: $delegate.showTour) { WelcomeTour { delegate.showTour = false } }
+        .sheet(isPresented: $delegate.showTour) { WelcomeTour { delegate.tourClosed() } }
     }
 }
 
@@ -144,6 +144,10 @@ struct LaserdotCommands: Commands {
             if let r = updates.ready {
                 Button(String(format: L("update.button"), r.latest ?? "")) { updates.offerInstall() }
             }
+        }
+        CommandGroup(after: .undoRedo) {
+            // ⌥⌘Z works in the search window; this is the same from the menu bar.
+            Button(L("menu.undoFile")) { delegate.model?.undo() }
         }
         CommandGroup(after: .pasteboard) {
             Divider()
@@ -538,7 +542,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     /// later stay removed.
     private func indexDefaultsOnce(_ status: DaemonStatus) {
         let key = "laserdot.defaultsIndexed"
-        guard status.running, !UserDefaults.standard.bool(forKey: key), let model else { return }
+        // Not while the first-launch tour explains the macOS prompts that
+        // indexing brings up; closing it starts indexing (tourClosed).
+        guard !showTour, status.running, !UserDefaults.standard.bool(forKey: key), let model else { return }
         UserDefaults.standard.set(true, forKey: key)
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         // Apps first: they are quick and what people look for first.
@@ -548,6 +554,57 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
                   !status.folders.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) else { continue }
             model.index(folder: URL(fileURLWithPath: path))
         }
+    }
+
+    func tourClosed() {
+        showTour = false
+        guard !SelfTest.active, let engine else { return }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let status = engine.status()
+            DispatchQueue.main.async { self?.indexDefaultsOnce(status) }
+        }
+    }
+
+    // MARK: Erase All Laserdot Data
+
+    func confirmEraseAll() {
+        NSApp.activate(ignoringOtherApps: true)
+        let a = NSAlert()
+        a.alertStyle = .critical
+        a.messageText = L("privacy.erase.title")
+        a.informativeText = L("privacy.erase.text")
+        a.addButton(withTitle: L("privacy.erase.confirm")).hasDestructiveAction = true
+        a.addButton(withTitle: L("action.cancel")).keyEquivalent = "\u{1b}"
+        guard a.runFront() == .alertFirstButtonReturn else { return }
+        eraseAll(relaunch: true)
+    }
+
+    /// Stops the daemon, deletes the data folder (indexes, content words,
+    /// history, read-only drive indexes), the remembered passphrases and the
+    /// settings, then starts again — without indexing the home folder again
+    /// (Folders adds what you want back). Indexes on drives stay on them
+    /// (Settings ▸ Drives deletes those).
+    func eraseAll(relaunch: Bool) {
+        overlay?.hide()
+        engine?.retire()
+        let dir = (Paths.defaultDbPath as NSString).deletingLastPathComponent
+        try? FileManager.default.removeItem(atPath: dir)
+        Keychain.forgetAll()
+        if let domain = Bundle.main.bundleIdentifier {
+            UserDefaults.standard.removePersistentDomain(forName: domain)
+        }
+        // Erased, not new: no tour, no automatic indexing.
+        UserDefaults.standard.set(true, forKey: "laserdot.welcomed")
+        UserDefaults.standard.set(true, forKey: "laserdot.defaultsIndexed")
+        UserDefaults.standard.set(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String,
+                                  forKey: "laserdot.lastVersion")
+        UserDefaults.standard.synchronize()
+        guard relaunch else { return }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/bin/sh")
+        p.arguments = ["-c", "sleep 1; /usr/bin/open -n \"$0\"", Bundle.main.bundlePath]
+        try? p.run()
+        NSApp.terminate(nil)
     }
 
     func toggleOverlay() {

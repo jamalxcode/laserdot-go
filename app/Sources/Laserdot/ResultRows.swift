@@ -259,3 +259,29 @@ struct ChipKey: ViewModifier {
         }
     }
 }
+
+/// "Moved 2 items to the Trash — Undo" after a file operation.
+struct UndoBanner: View {
+    let step: UndoStep
+    @ObservedObject var model: SearchModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.uturn.backward.circle").foregroundStyle(.secondary).accessibilityHidden(true)
+            Text(step.title).lineLimit(1)
+            Spacer()
+            Button(L("undo.button")) { model.undo() }
+                .help(L("undo.button") + " (⌥⌘Z)")
+            Button { model.undoBannerVisible = false } label: { Image(systemName: "xmark") }
+                .buttonStyle(.borderless)
+                .accessibilityLabel(L("action.close"))
+        }
+        .font(.callout)
+        .controlSize(.small)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
+        .background(.bar)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(step.title)
+    }
+}

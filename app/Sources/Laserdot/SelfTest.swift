@@ -31,8 +31,12 @@ final class SelfTestRunner {
             finish(error: "no engine or LASERDOT_SELFTEST_FOLDER")
             return
         }
+        extra["launch_ms"] = Self.msSinceLaunch()
         DispatchQueue.global().async {
+            // The fixtures' words are searchable too (content search).
+            _ = try? engine.setContentFolder(folder: folder, add: true)
             let indexed = Result { try engine.index(path: folder) }
+            try? engine.updateContent()
             DispatchQueue.main.async {
                 if case let .failure(e) = indexed {
                     self.finish(error: "index failed: \(e)")
@@ -89,6 +93,34 @@ final class SelfTestRunner {
                 model.actions.first { $0.id == "trash" }?.run()
             }),
             Step(name: "trashed", typed: "trashme"),
+            // Undo (the banner's button, ⌥⌘Z) brings it back from the Trash.
+            Step(name: "untrashed", typed: "trashme", before: { model.undo() }),
+            // Rename, then Move to…, then Undo puts it back where it was.
+            Step(name: "rename", typed: "renameme", after: {
+                if let h = model.results.first(where: { $0.name == "renameme.txt" }) {
+                    model.renameFile(h, to: "renamed ok.txt")
+                }
+            }),
+            Step(name: "renamed", typed: "renamed ok"),
+            Step(name: "moveto", typed: "renamed ok", before: {
+                try? FileManager.default.createDirectory(atPath: folder + "/Moved Here", withIntermediateDirectories: true)
+            }, after: {
+                if let h = model.results.first(where: { $0.name == "renamed ok.txt" }) {
+                    model.moveFiles([h], to: URL(fileURLWithPath: folder + "/Moved Here"))
+                }
+            }),
+            Step(name: "movedto", typed: "renamed ok"),
+            Step(name: "moveundone", typed: "renamed ok", before: { model.undo() }),
+            // Compress makes beach.jpg.zip beside it; Undo moves the zip to the Trash.
+            Step(name: "compress", typed: "beach", after: {
+                if let h = model.results.first(where: { $0.name == "beach.jpg" }) { model.compressFiles([h]) { _ in } }
+            }),
+            Step(name: "compressed", typed: "zip"),
+            Step(name: "compressundone", typed: "zip", before: { model.undo() }),
+            // The words inside a document: the preview shows where.
+            Step(name: "snippet", typed: "zebra"),
+            // ⌘K ▸ Search in This Folder.
+            Step(name: "searchin", typed: "", before: { model.searchInFolder(folder + "/Projects") }),
             // A laserdot:// link opens the overlay with its search.
             Step(name: "url", typed: "", before: { self.app.handle(URL(string: "laserdot://search?q=beach")!) }),
             // A swapped-letter typo finds the file, and says so.
@@ -142,6 +174,20 @@ final class SelfTestRunner {
     }
 
     private func mainWindowAndSettings(model: SearchModel, overlay: OverlayController) {
+        // Battery: background work pauses and resumes.
+        if let engine = app.engineForTests {
+            extra["paused_on"] = engine.setBackground(paused: true) ?? false
+            extra["paused_off"] = engine.setBackground(paused: false) ?? true
+        }
+        // Resizing the overlay is remembered.
+        model.query = "jpg"
+        var f = overlay.panel.frame
+        f.size = NSSize(width: 1000, height: 600)
+        overlay.panel.setFrame(f, display: true)
+        overlay.windowDidEndLiveResize(Notification(name: NSWindow.didEndLiveResizeNotification, object: overlay.panel))
+        extra["saved_width"] = UserDefaults.standard.double(forKey: "laserdot.overlay.width")
+        extra["saved_height"] = UserDefaults.standard.double(forKey: "laserdot.overlay.height")
+        extra["privacy_items"] = PrivacySettings.storedItems().map { ["id": $0.id, "bytes": $0.bytes] as [String: Any] }
         overlay.hide()
         windowsTour(model: model) { self.mainWindowAndSettingsRest(model: model) }
     }
@@ -169,6 +215,10 @@ final class SelfTestRunner {
                     UserDefaults.standard.set("drives", forKey: "laserdot.settingsTab")
                     self.after(1) {
                         if let w = self.settingsWindow() { self.screenshot(w, name: "settings-drives") }
+                        UserDefaults.standard.set("privacy", forKey: "laserdot.settingsTab")
+                    }
+                    self.after(2.5) {
+                        if let w = self.settingsWindow() { self.screenshot(w, name: "settings-privacy") }
                         UserDefaults.standard.set("general", forKey: "laserdot.settingsTab")
                         self.settingsWindow()?.close()
                         for title in [L("menu.storageTitle"), L("dupes.title")] {
@@ -270,6 +320,19 @@ final class SelfTestRunner {
         next()
     }
 
+    private var folder: String { ProcessInfo.processInfo.environment["LASERDOT_SELFTEST_FOLDER"] ?? "" }
+
+    /// Milliseconds since this process started (cold launch time).
+    static func msSinceLaunch() -> Int {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
+        guard sysctl(&mib, 4, &info, &size, nil, 0) == 0 else { return -1 }
+        let t = info.kp_proc.p_un.__p_starttime
+        let started = Double(t.tv_sec) + Double(t.tv_usec) / 1e6
+        return Int((Date().timeIntervalSince1970 - started) * 1000)
+    }
+
     private func capture(_ name: String, model: SearchModel, window: NSWindow) {
         var labels: [String] = []
         if let v = window.contentView { collect(v, depth: 0, into: &labels) }
@@ -300,6 +363,11 @@ final class SelfTestRunner {
         r["sizes"] = model.results.map { Int($0.size) }
         r["selected_count"] = model.selectedHits.count
         r["section_ids"] = model.sections.map(\.id)
+        r["paths"] = model.results.map { $0.path.replacingOccurrences(of: folder, with: "") }
+        r["undo"] = model.undoStep?.title ?? ""
+        r["undo_banner"] = model.undoBannerVisible
+        r["snippet"] = model.snippet ?? ""
+        r["action_ids"] = model.selected == nil ? [String]() : model.actions.map(\.id)
         steps.append(r)
         writeReport(error: "unfinished: last step \(name)") // so a hang still shows where
         screenshot(window, name: name)

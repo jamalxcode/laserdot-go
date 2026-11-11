@@ -111,7 +111,7 @@ final class UpdaterTests: XCTestCase {
     func testInstallReplacesTheAppAndMoveToApplicationsCopies() throws {
         let apps = dir.appendingPathComponent("Applications")
         let installed = try fakeApp(apps, version: "0.1.0")
-        let up = Updater(current: installed)
+        let up = Updater(current: installed, previousDir: dir.appendingPathComponent("prev"))
         XCTAssertEqual(up.installTarget, installed.standardizedFileURL)
         let z = dir.appendingPathComponent("u.zip")
         try zip(try fakeApp(dir.appendingPathComponent("new"), version: "0.2.0"), to: z)
@@ -126,6 +126,29 @@ final class UpdaterTests: XCTestCase {
         let moved = try Updater(current: elsewhere).moveToApplications(fresh)
         XCTAssertEqual(AppVersion(bundle: moved)?.short, "0.4.0")
         XCTAssertTrue(Updater(current: elsewhere).isOutsideApplications)
+    }
+
+    /// An update keeps the version it replaces; "Go back" puts it back.
+    func testGoBackRestoresTheVersionBeforeTheUpdate() throws {
+        let apps = dir.appendingPathComponent("Applications")
+        let prev = dir.appendingPathComponent("prev")
+        let installed = try fakeApp(apps, version: "0.7.0")
+        let old = Updater(current: installed, previousDir: prev)
+        XCTAssertNil(old.previousVersion, "nothing kept before any update")
+        let z = dir.appendingPathComponent("u.zip")
+        try zip(try fakeApp(dir.appendingPathComponent("new"), version: "0.8.0"), to: z)
+        try old.install(try old.prepare(file: z))
+        XCTAssertEqual(AppVersion(bundle: installed)?.short, "0.8.0")
+
+        // The relaunched 0.8.0 offers 0.7.0.
+        let new = Updater(current: installed, previousDir: prev)
+        XCTAssertEqual(new.previousVersion?.short, "0.7.0")
+        let back = try new.goBack()
+        XCTAssertEqual(AppVersion(bundle: back)?.short, "0.7.0")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: apps.path), ["Laserdot.app"])
+        // 0.8.0 is now the kept one, newer than the running app: not offered.
+        XCTAssertNil(Updater(current: installed, previousDir: prev).previousVersion)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: prev.path), ["Laserdot.app"])
     }
 
     func testStatusRoundTrips() throws {

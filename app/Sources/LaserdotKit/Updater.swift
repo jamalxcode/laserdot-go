@@ -106,7 +106,16 @@ public final class Updater {
     public let bundleID: String
     public let currentVersion: AppVersion?
 
-    public init(current: URL = Bundle.main.bundleURL) {
+    /// Where the version before the last update is kept, for "Go back".
+    public let previousDir: URL
+
+    public static var defaultPreviousDir: URL {
+        FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/Laserdot Previous Version")
+    }
+
+    public init(current: URL = Bundle.main.bundleURL, previousDir: URL = Updater.defaultPreviousDir) {
+        self.previousDir = previousDir
         self.current = current.standardizedFileURL
         let info = NSDictionary(contentsOf: current.appendingPathComponent("Contents/Info.plist"))
         self.bundleID = (info?["CFBundleIdentifier"] as? String) ?? "app.laserdot.Laserdot"
@@ -298,7 +307,50 @@ public final class Updater {
     @discardableResult
     public func install(_ c: UpdateCandidate, to target: URL? = nil) throws -> URL {
         defer { try? FileManager.default.removeItem(at: c.workDir) }
-        return try Self.place(c.app, at: target ?? installTarget)
+        let dest = target ?? installTarget
+        keepPrevious(dest)
+        return try Self.place(c.app, at: dest)
+    }
+
+    // MARK: going back
+
+    private var previousApp: URL { previousDir.appendingPathComponent("Laserdot.app") }
+
+    /// Copy the app about to be replaced aside (best effort: an update never
+    /// fails because the copy could not be made).
+    func keepPrevious(_ app: URL) {
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: app.path), AppVersion(bundle: app) != nil else { return }
+        try? fm.createDirectory(at: previousDir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        let staged = previousDir.appendingPathComponent(".staged-\(UUID().uuidString).app")
+        guard (try? Self.run("/usr/bin/ditto", [app.path, staged.path])) != nil else {
+            try? fm.removeItem(at: staged)
+            return
+        }
+        try? fm.removeItem(at: previousApp)
+        if (try? fm.moveItem(at: staged, to: previousApp)) == nil { try? fm.removeItem(at: staged) }
+    }
+
+    /// The kept version, when it is older than the running one.
+    public var previousVersion: AppVersion? {
+        guard let v = AppVersion(bundle: previousApp) else { return nil }
+        if let cur = currentVersion, !(v < cur) { return nil }
+        return v
+    }
+
+    /// Put the kept version back where the app is, and return it. The
+    /// version being left becomes the kept one (so going back can be undone
+    /// by updating again).
+    @discardableResult
+    public func goBack(to target: URL? = nil) throws -> URL {
+        guard previousVersion != nil else { throw UpdateError.notAnApp }
+        let fm = FileManager.default
+        let dest = target ?? installTarget
+        let old = previousDir.appendingPathComponent(".going-back-\(UUID().uuidString).app")
+        try fm.moveItem(at: previousApp, to: old)
+        defer { try? fm.removeItem(at: old) }
+        keepPrevious(dest)
+        return try Self.place(old, at: dest)
     }
 
     /// Copy the running app into /Applications (first launch from a disk

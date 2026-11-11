@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Three pages on first launch (and Help ▸ Welcome Tour): how to search,
-/// the keys, and what stays private.
+/// Four pages on first launch (and Help ▸ Welcome Tour): how to search,
+/// the keys, what stays private, and the macOS prompts indexing brings up.
 struct WelcomeTour: View {
     var done: () -> Void
     @State private var page = 0
@@ -22,6 +22,10 @@ struct WelcomeTour: View {
             ]),
             Page(symbol: "lock.shield", title: L("tour.3.title"), lines: [
                 L("tour.3.a"), L("tour.3.b"), L("tour.3.c"),
+            ]),
+            // What macOS will ask once indexing starts (when the tour closes).
+            Page(symbol: "hand.raised", title: L("tour.4.title"), lines: [
+                L("tour.4.a"), L("tour.4.b"), L("tour.4.c"),
             ]),
         ]
     }

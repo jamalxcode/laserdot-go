@@ -43,6 +43,9 @@ struct SettingsView: View {
             }
             .tabItem { Label(L("menu.drives"), systemImage: "externaldrive") }
                 .tag("drives")
+            PrivacySettings(delegate: delegate)
+                .tabItem { Label(L("settings.privacy"), systemImage: "hand.raised") }
+                .tag("privacy")
         }
         .frame(width: 560, height: 460)
     }
@@ -53,8 +56,6 @@ struct GeneralSettings: View {
     @ObservedObject var updates: UpdateController
     @State private var openAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginNote: String?
-    @State private var fullDiskAccess = DiskAccess.granted
-    @State private var historyCleared = false
     @AppStorage(PowerWatcher.batteryKey) private var pauseOnBattery = true
 
     var body: some View {
@@ -83,6 +84,13 @@ struct GeneralSettings: View {
                     Button(L("settings.checkNow")) { updates.check(interactive: true) }
                         .disabled(updates.checking)
                 }
+                if let v = updates.previousVersion {
+                    HStack {
+                        Text(L("update.goBack.help")).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button(String(format: L("update.goBack"), v) + "…") { updates.offerGoBack() }
+                    }
+                }
             }
             Section(L("settings.index")) {
                 LabeledContent(L("settings.indexFile")) {
@@ -97,35 +105,11 @@ struct GeneralSettings: View {
                     }
                 }
                 Text(L("settings.indexHelp")).font(.caption).foregroundStyle(.secondary)
-            }
-            Section(L("settings.history")) {
-                HStack {
-                    Text(L("settings.historyHelp")).font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                    Button(L("settings.clearHistory")) {
-                        delegate.model?.clearHistory()
-                        historyCleared = true
-                    }
-                    .disabled(historyCleared)
-                }
                 Button(L("menu.tour")) { delegate.showTour = true }
-            }
-            Section(L("settings.privacy")) {
-                LabeledContent(L("settings.network"), value: delegate.networkLine)
-                LabeledContent(L("settings.fullDiskAccess")) {
-                    HStack {
-                        Text(L(fullDiskAccess ? "settings.on" : "settings.off")).foregroundStyle(.secondary)
-                        if !fullDiskAccess {
-                            Button(L("fda.openSettings")) { DiskAccessPrompt.shared.askFromMenu() }
-                        }
-                    }
-                }
-                Text(L("settings.fullDiskAccessHelp")).font(.caption).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            fullDiskAccess = DiskAccess.granted
             openAtLogin = SMAppService.mainApp.status == .enabled
         }
     }

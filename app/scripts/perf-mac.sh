@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # Speed on a real Mac with real files (spec §12, §15.3): creates 100,000
 # files in nested folders, indexes them with the CLI, and times searches.
+# Then indexes them again through the daemon and samples its memory.
 # Fails only far below the targets (CI disks vary): indexing under 10,000
-# files a second, or a search over 50 ms.
+# files a second, a search over 50 ms, or the daemon above 400 MB (the
+# target is 150 MB; the number is printed).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 d=$(mktemp -d)
@@ -36,6 +38,26 @@ for q in "invoice pdf" "beach jpg" "kind:video" "report*" "notes 12"; do
   worst=$(python3 -c "print(max($worst, float('${ms:-0}')))")
 done
 echo "slowest search: $worst ms"
+# Memory: the daemon indexing the same files, sampled every 0.2 s.
+go build -o "$d/laserdotd" ./cmd/laserdotd
+"$d/laserdotd" --db "$d/mem/index.db" > "$d/daemon.log" 2>&1 &
+dpid=$!
+for i in $(seq 1 50); do "$d/laserdot" --db "$d/mem/index.db" status > /dev/null 2>&1 && break; sleep 0.2; done
+"$d/laserdot" --db "$d/mem/index.db" index "$d/files" > /dev/null &
+ipid=$!
+peak=0
+while kill -0 "$ipid" 2>/dev/null; do
+  rss=$(ps -o rss= -p "$dpid" | tr -d ' ' || echo 0)
+  [ "${rss:-0}" -gt "$peak" ] && peak=$rss
+  sleep 0.2
+done
+wait "$ipid" || true
+for q in "invoice pdf" "beach jpg" "kind:video"; do "$d/laserdot" --db "$d/mem/index.db" search "$q" > /dev/null 2>&1 || true; done
+idle=$(ps -o rss= -p "$dpid" | tr -d ' ' || echo 0)
+kill "$dpid" 2>/dev/null || true
+peak_mb=$((peak / 1024)); idle_mb=$((${idle:-0} / 1024))
+echo "daemon memory: peak $peak_mb MB while indexing 100000 files, $idle_mb MB after (target 150 MB)"
 python3 -c "import sys; sys.exit(0 if $rate >= 10000 else 1)" || { echo "::error::indexing too slow: $rate files/s"; exit 1; }
 python3 -c "import sys; sys.exit(0 if $worst < 50 else 1)" || { echo "::error::a search took $worst ms"; exit 1; }
+[ "$peak_mb" -lt 400 ] || { echo "::error::the daemon used $peak_mb MB"; exit 1; }
 rm -rf "$d"

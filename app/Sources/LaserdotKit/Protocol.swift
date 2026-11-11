@@ -60,6 +60,8 @@ public enum DaemonRequest: Encodable, Sendable {
     case storage(path: String, limit: Int)
     /// Pause or resume background work (battery, heat, Low Power Mode).
     case background(paused: Bool)
+    /// The passage of a document where the query's words were found.
+    case snippet(path: String, query: String)
     /// Folders never indexed: list, add, remove.
     case exclusions
     case exclude(path: String)
@@ -78,6 +80,7 @@ public enum DaemonRequest: Encodable, Sendable {
         case .clearOpens: return "clear_opens"
         case .storage: return "storage"
         case .background: return "background"
+        case .snippet: return "snippet"
         case .exclusions: return "exclusions"
         case .exclude: return "exclude"
         case .include: return "include"
@@ -155,6 +158,9 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(limit, forKey: .limit)
         case let .background(paused):
             try c.encode(paused, forKey: .paused)
+        case let .snippet(path, query):
+            try c.encode(path, forKey: .path)
+            try c.encode(query, forKey: .query)
         case .ping, .status, .refresh, .roots, .stats, .shutdown, .drives, .contentStatus, .updateContent, .valueCounts,
              .clearOpens, .exclusions:
             break

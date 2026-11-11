@@ -4,7 +4,8 @@
 Usage: check-selftest.py report.json en|ar
 The fixtures (made by the CI step): beach.jpg, holiday photo.jpeg, photo.png,
 "jpg notes.txt", project.pdf, "project plan.txt", Projects/readme.md,
-Tool.app/Contents/Info.plist.
+Tool.app/Contents/Info.plist, trashme.txt, renameme.txt, memo.txt ("zebra" inside),
+clip.mp4, "clip copy.mp4", song.mp3.
 """
 import json
 import os
@@ -24,7 +25,8 @@ def check(ok, what):
 
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
-for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "multi", "trash", "trashed", "url", "similar", "home"):
+for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+             "compress", "compressed", "compressundone", "snippet", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -120,6 +122,42 @@ check(steps["multi"]["selected_count"] == 2, f"two results selected (got {steps[
 check("trashme.txt" in steps["trash"]["results"], f"the file to trash was found (got {steps['trash']['results']})")
 check(steps["trashed"]["results"] == [], f"after Move to Trash it is gone (got {steps['trashed']['results']})")
 
+check(steps["trashed"]["undo_banner"], "the Undo banner is offered after Move to Trash")
+check(steps["untrashed"]["results"] == ["trashme.txt"], f"Undo brings it back (got {steps['untrashed']['results']})")
+
+# ⌘K lists every action for one file.
+ids = steps["actions"]["action_ids"]
+for a in ("open", "reveal", "copyPath", "terminal", "searchIn", "compress", "moveTo", "rename", "trash"):
+    check(a in ids, f"⌘K offers {a} (got {ids})")
+
+# Rename, Move to…, Undo.
+check(steps["renamed"]["results"] == ["renamed ok.txt"], f"Rename worked (got {steps['renamed']['results']})")
+check(steps["movedto"]["paths"] == ["/Moved Here/renamed ok.txt"], f"Move to… worked (got {steps['movedto']['paths']})")
+check(steps["moveundone"]["paths"] == ["/renamed ok.txt"], f"Undo moved it back (got {steps['moveundone']['paths']})")
+
+# Compress, Undo.
+check("beach.jpg.zip" in steps["compressed"]["results"], f"Compress made beach.jpg.zip (got {steps['compressed']['results']})")
+check("beach.jpg.zip" not in steps["compressundone"]["results"], f"Undo removed the zip (got {steps['compressundone']['results']})")
+
+# Words inside a document: found, and the preview shows the passage.
+snip = steps["snippet"]
+check("memo.txt" in snip["results"], f"zebra finds memo.txt by its words (got {snip['results']})")
+check("zebra" in snip["snippet"], f"the preview shows where (got {snip['snippet']!r})")
+
+# Search in This Folder.
+sin = steps["searchin"]
+check(sin["query"].startswith('in:"') and sin["query"].rstrip().endswith('/Projects"'), f"the query is in:\"…/Projects\" (got {sin['query']!r})")
+check("readme.md" in sin["results"] and "beach.jpg" not in sin["results"], f"only that folder's files (got {sin['results']})")
+
+# Battery pausing, resizing, privacy page, cold launch.
+check(report.get("paused_on") is True and report.get("paused_off") is False, f"background work pauses and resumes (got {report.get('paused_on')}, {report.get('paused_off')})")
+check(report.get("saved_width") == 1000 and report.get("saved_height") == 600, f"the overlay size is remembered (got {report.get('saved_width')}x{report.get('saved_height')})")
+items = {i["id"]: i["bytes"] for i in report.get("privacy_items", [])}
+check(items.get("index", 0) > 0, f"the Privacy page shows the index size (got {items})")
+launch = report.get("launch_ms", -1)
+print(f"info cold launch to ready: {launch} ms (target < 300 ms on a real Mac)")
+check(0 < launch < 5000, f"the app is ready in under 5 s on CI (got {launch} ms)")
+
 # A laserdot:// link opens the search.
 url = steps["url"]
 check(url["query"] == "beach" and "beach.jpg" in url["results"], f"laserdot://search?q=beach (got {url['query']!r}, {url['results']})")
@@ -127,7 +165,7 @@ check(url["query"] == "beach" and "beach.jpg" in url["results"], f"laserdot://se
 # Storage and Duplicates windows.
 check(report.get("storage_items", -1) >= 1, f"the Storage window lists folders (got {report.get('storage_items')})")
 check(report.get("duplicate_groups", -1) >= 1, f"the Duplicates window found the copied clip (got {report.get('duplicate_groups')})")
-for shot in ("storage.png", "duplicates.png", "settings-folders.png", "settings-drives.png"):
+for shot in ("storage.png", "duplicates.png", "settings-folders.png", "settings-drives.png", "settings-privacy.png"):
     check(shot in report["screenshots"], f"screenshot {shot}")
 
 # The empty box shows what was opened.
