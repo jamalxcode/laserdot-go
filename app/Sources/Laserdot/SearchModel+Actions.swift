@@ -253,10 +253,7 @@ extension SearchModel {
             }
         }
         for t in step.tags {
-            var url = URL(fileURLWithPath: t.path)
-            var values = URLResourceValues()
-            values.tagNames = t.old
-            do { try url.setResourceValues(values) } catch { ok = false }
+            do { try Self.setFinderTags(t.old, on: t.path) } catch { ok = false }
         }
         let created = step.created.map { URL(fileURLWithPath: $0) }.filter { fm.fileExists(atPath: $0.path) }
         if !created.isEmpty {

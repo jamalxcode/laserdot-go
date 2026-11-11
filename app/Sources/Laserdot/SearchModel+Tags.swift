@@ -13,6 +13,11 @@ extension SearchModel {
         (try? URL(fileURLWithPath: path).resourceValues(forKeys: [.tagNamesKey]).tagNames) ?? []
     }
 
+    /// Writes a file's Finder tags (NSURL's setter works before macOS 26).
+    static func setFinderTags(_ tags: [String], on path: String) throws {
+        try (URL(fileURLWithPath: path) as NSURL).setResourceValue(tags, forKey: .tagNamesKey)
+    }
+
     func editTags(_ hits: [Hit]) {
         guard !hits.isEmpty else { return }
         let current = hits.map { Set(Self.tags(of: $0.path)) }
@@ -59,11 +64,8 @@ extension SearchModel {
             var new = old.filter { !remove.contains($0) }
             for t in add.sorted() where !new.contains(t) { new.append(t) }
             guard new != old else { continue }
-            var url = URL(fileURLWithPath: h.path)
-            var values = URLResourceValues()
-            values.tagNames = new
             do {
-                try url.setResourceValues(values)
+                try Self.setFinderTags(new, on: h.path)
                 changes.append(UndoStep.TagChange(path: h.path, old: old))
             } catch {
                 failure = error
