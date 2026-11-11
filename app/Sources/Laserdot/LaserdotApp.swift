@@ -165,7 +165,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
 /// The app's language for guidance (hints, filter descriptions): the
 /// localization the app's own strings use.
-let appLang: String = Bundle.module.preferredLocalizations.first ?? "en"
+let appLang: String = appResources.preferredLocalizations.first ?? "en"
 
 /// Global shortcuts the overlay can use (spec §6.4).
 struct HotKeyChoice {
@@ -190,9 +190,22 @@ struct HotKeyChoice {
     }
 }
 
+/// The app's resources (strings in English and Arabic). In Laserdot.app they
+/// live in Contents/Resources, the only place code signing allows; SwiftPM's
+/// generated `Bundle.module` looks beside the .app instead and stops the app
+/// when it is not there, so it is only the fallback for `swift run`.
+let appResources: Bundle = {
+    let name = "Laserdot_Laserdot.bundle"
+    let places = [Bundle.main.resourceURL, Bundle.main.bundleURL, Bundle.main.executableURL?.deletingLastPathComponent()]
+    for case let dir? in places {
+        if let b = Bundle(url: dir.appendingPathComponent(name)) { return b }
+    }
+    return Bundle.module
+}()
+
 /// Localized string from the app's resources (English + Arabic, spec §14.4).
 func L(_ key: String) -> String {
-    NSLocalizedString(key, bundle: .module, comment: "")
+    NSLocalizedString(key, bundle: appResources, comment: "")
 }
 
 /// Drives submenu (spec §9.6): one entry per mounted drive, with the

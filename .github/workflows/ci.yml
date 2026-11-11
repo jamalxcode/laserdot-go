@@ -45,6 +45,23 @@ jobs:
           test -x app/build/Laserdot.app/Contents/MacOS/laserdotd
           plutil -lint app/build/Laserdot.app/Contents/Info.plist
           ditto -c -k --keepParent app/build/Laserdot.app Laserdot-unsigned.zip
+      - name: Launch the bundled app, as a user would (smoke test)
+        run: |
+          d=$(mktemp -d)
+          ditto -x -k Laserdot-unsigned.zip "$d"
+          export LASERDOT_DB="$d/data/index.db"
+          "$d/Laserdot.app/Contents/MacOS/Laserdot" > "$d/app.log" 2>&1 &
+          pid=$!
+          sleep 8
+          if ! kill -0 "$pid" 2>/dev/null; then
+            cat "$d/app.log"
+            echo "::error::Laserdot.app exited at launch"
+            exit 1
+          fi
+          kill "$pid"
+          pkill -f "$d/Laserdot.app/Contents/MacOS/laserdotd" || true
+          cat "$d/app.log"
+          echo "Laserdot.app launched and kept running"
       - uses: actions/upload-artifact@v4
         with:
           name: Laserdot-unsigned
