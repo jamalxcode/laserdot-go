@@ -2,7 +2,7 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.15 (draft)
+**Version:** 1.16 (draft)
 **Date:** 2026-11-10
 **Target platform:** macOS 14+, Apple Silicon
 **Distribution:** Direct download, signed + notarized, non-sandboxed
@@ -306,7 +306,7 @@ white       = " " | "\t" | "\n" ;
 
 ## 7. Privacy Architecture (non-negotiable)
 
-- **7.1** Zero network connections, enforced by the OS:
+- **7.1** (exception: the update helper, 7.4) Zero network connections, enforced by the OS:
   - Omitting `com.apple.security.network.client` alone does **not** block anything: that entitlement only takes effect inside the App Sandbox, and this app is non-sandboxed (13.8)
   - Instead, every app process — the indexer daemon (13.2a) and the SwiftUI shell — applies a macOS sandbox profile to itself at startup (`sandbox_init` with an SBPL profile equivalent to `(allow default) (deny network*)`). File access stays unrestricted; all network access is denied by the kernel
   - The profile is inherited by child processes, so bundled ffmpeg/ffprobe are confined too
@@ -316,6 +316,7 @@ white       = " " | "\t" | "\n" ;
 - **7.2** No AI, no embeddings, no model downloads, no inference
 - **7.3** No telemetry, analytics, crash reporters, or third-party SDKs that call home
 - **7.4** Updates via signed, notarized builds, downloaded manually. Sparkle (or any in-app updater) is incompatible with 7.1 because it needs the network; a separate, user-launched updater is an open question
+  - *Decided (v1.16, the owner's exception to 7.1):* a bundled helper, `Laserdot.app/Contents/Helpers/Laserdot Updater.app`, is the **only** part of Laserdot allowed on the network, and only to GitHub: `api.github.com` (the release API) and the storage host GitHub redirects release downloads to (the token is stripped on that redirect). It runs only when Laserdot asks — **Check for Updates…**, or once a day while Laserdot runs — sends nothing but its requests, and exits. Releases are private, so it uses a GitHub token (read access to the repository), asked for once and kept in the Keychain. It downloads the newest release's `Laserdot-<version>.dmg` to `~/Library/Caches/app.laserdot.Laserdot/Updates` and writes `update.json`; Laserdot, still network-blocked, checks the download (bundle id, newer version, `laserdotd` present; with a Developer ID build also the same team's signature and Gatekeeper) and on the user's go stops `laserdotd`, swaps the app atomically (into /Applications when the running copy is on a disk image or translocated) and relaunches. The helper is a separate app launched by macOS, not a child of Laserdot, so the app's and the daemon's OS network block are unchanged and the privacy gate (15.5) still holds for them; CI fails if network code appears anywhere in the app but the helper. Releases are published by the `Release` workflow for `v*` tags
 - **7.5** Full Disk Access requested only if indexing outside home folder; scopes stated explicitly in-app
 - **7.6** Published audit page: every path written, every process spawned
 - **7.7** Thumbnails come from embedded images first (EXIF thumbnail, HEIC thumbnail item, MP4 `covr`, MKV attachments), falling back to a VideoToolbox-decoded frame; cached as small HEIC files in a size-capped LRU cache. The cache is stored in `~/Library/Caches/<bundle-id>`, excluded from Time Machine and from the app's own index (no recursive indexing of own artifacts)

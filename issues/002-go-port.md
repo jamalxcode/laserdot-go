@@ -195,3 +195,12 @@ Choices made by the owner (2026-11-10):
   once (a `tier2` table in this Mac's index; drives are not deep-probed). Results replace the entry's media record in
   SQLite and in memory; `hdr:hdr10+` now matches. Loudness is on request only (`laserdot loudness FILE`, op
   `loudness`). Without ffprobe, Tier 2 reports itself unavailable and nothing runs.
+- **Dock app, menu bar and updates (2026-11-11):** the app is now a Dock app (main window, app menus) and keeps
+  the menu-bar icon and the ⌥Space overlay; it starts `laserdotd` and stops it on quit, offers to move itself to
+  Applications, and offers a first index. **Behavior change (spec §7.4, v1.16):** the owner granted an exception
+  to "no network" for updates only — the bundled `Laserdot Updater` helper checks GitHub on request and once a day
+  (private releases, token in the Keychain), downloads the newest `Laserdot-<version>.dmg`, and the network-blocked
+  app checks and installs it. `bundle.sh` adds the icon, the helper, the version and an ad-hoc signature;
+  `make-dmg.sh` and the `Release` workflow publish a disk image for every `v*` tag. Not yet: Developer ID signing
+  and notarization (needs the owner's certificates), so the first launch needs right-click → Open.
+

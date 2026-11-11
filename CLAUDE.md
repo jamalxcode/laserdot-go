@@ -29,7 +29,11 @@ When the spec and an issue disagree, flag it to the user rather than silently pi
    else (seccomp on Linux, the macOS sandbox profile on macOS). Our code opens Unix sockets only (the daemon's
    socket); `internal/netcheck` fails the build if a package that speaks a network protocol (`net/http`,
    `crypto/tls`, `net/rpc`, `net/smtp`, third-party HTTP clients) enters the dependency graph, or if our code
-   calls `net.Dial`/`net.Listen` with anything but `"unix"`. No telemetry, analytics, crash reporters, updaters.
+   calls `net.Dial`/`net.Listen` with anything but `"unix"`. No telemetry, analytics, crash reporters.
+   **The one exception** (granted by the owner, spec §7.4): the bundled `Laserdot Updater` helper
+   (`app/Sources/LaserdotUpdater`) may reach GitHub only — on request or once a day — to find and download a
+   release. Laserdot itself and `laserdotd` stay network-blocked; CI fails if network code (URLSession,
+   Network.framework…) appears anywhere else in the app. Do not widen the exception without the owner.
 2. **No AI.** No embeddings, semantic search, model downloads, or inference. Perceptual hashes (DCT) are fine.
 3. **Regex-only matching.** Name/path queries run as regex (Go `regexp`, RE2: linear time) over an in-memory name
    table with a trigram prefilter — never SQLite. One regex per word, ANDed. Build regexes as `regexp/syntax`
@@ -56,7 +60,9 @@ internal/netcheck the network-dependency check (pillar 1)
 cmd/laserdotd     the daemon: single writer of the index
 cmd/laserdot      the CLI (routes through the daemon when it runs)
 app/              SwiftUI menu-bar app (SwiftPM): LaserdotKit = pure-Swift daemon client + registry-driven guidance
-app/scripts/      build-go.sh (laserdotd, CLI, Registry.generated.swift), bundle.sh, registry/ (the generator)
+app/Sources/LaserdotUpdater  the update helper — the only networked code (spec §7.4)
+app/scripts/      build-go.sh (laserdotd, CLI, Registry.generated.swift), bundle.sh (icon, helper, version,
+                  ad-hoc signature), make-dmg.sh, registry/ (the generator)
 ```
 
 - **Pure Go, no cgo.** SQLite is `modernc.org/sqlite`. Dependencies must not speak a network protocol.
@@ -94,7 +100,9 @@ LASERDOT_STRESS_SEEDS=200 go test ./internal/core -run TestRandom   # longer lif
 # macOS only — the app:
 app/scripts/build-go.sh            # app/build/go/{laserdotd,laserdot} + the registry (`universal` for arm64+amd64)
 (cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
-app/scripts/bundle.sh              # → app/build/Laserdot.app (laserdotd in Contents/MacOS)
+VERSION=0.2.0 app/scripts/bundle.sh   # → app/build/Laserdot.app (laserdotd, Helpers/Laserdot Updater.app)
+app/scripts/make-dmg.sh out/Laserdot-0.2.0.dmg
+git tag v0.2.0 && git push origin v0.2.0   # the Release workflow builds and publishes the .dmg
 ```
 
 Run gofmt, vet and the full test suite before committing.
