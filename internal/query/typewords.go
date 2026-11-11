@@ -28,7 +28,7 @@ func init() {
 		// audio
 		{"mp3"}, {"flac"}, {"wav"}, {"aac"}, {"m4a"}, {"ogg", "oga"}, {"opus"}, {"aiff", "aif"}, {"wma"},
 		// documents
-		{"pdf"}, {"doc"}, {"docx"}, {"xls"}, {"xlsx"}, {"ppt"}, {"pptx"}, {"epub"}, {"rtf"}, {"txt"},
+		{"pdf"}, {"doc", "docx"}, {"xls", "xlsx"}, {"ppt", "pptx", "pps", "ppsx"}, {"epub"}, {"rtf"}, {"txt"},
 		{"csv"}, {"odt"},
 		// archives and disk images
 		{"zip"}, {"rar"}, {"7z"}, {"dmg"}, {"iso"}, {"tgz"},
@@ -37,6 +37,16 @@ func init() {
 		for _, e := range g {
 			extWords[e] = g
 		}
+	}
+	// Words for a family of formats.
+	for w, g := range map[string][]string{
+		"powerpoint": {"ppt", "pptx", "pps", "ppsx", "key"}, "presentation": {"ppt", "pptx", "pps", "ppsx", "key"},
+		"presentations": {"ppt", "pptx", "pps", "ppsx", "key"}, "keynote": {"key"},
+		"excel": {"xls", "xlsx", "csv", "numbers"}, "spreadsheet": {"xls", "xlsx", "csv", "numbers"},
+		"spreadsheets": {"xls", "xlsx", "csv", "numbers"},
+		"اكسل": {"xls", "xlsx", "csv", "numbers"},
+	} {
+		extWords[fold.Fold(w)] = g
 	}
 }
 

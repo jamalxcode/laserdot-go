@@ -138,7 +138,6 @@ struct SearchView: View {
                     LazyVStack(spacing: 2) {
                         ForEach(Array(model.results.enumerated()), id: \.element.path) { i, hit in
                             ResultRow(hit: hit, selected: i == model.selection)
-                                .id(i)
                                 .contentShape(Rectangle())
                                 .onTapGesture(count: 2) { model.open(hit) }
                                 .onTapGesture { model.selection = i }
@@ -152,7 +151,12 @@ struct SearchView: View {
                     }
                     .padding(6)
                 }
-                .onChange(of: model.selection) { _, i in proxy.scrollTo(i) }
+                // One identity per row (its path): a second one (the index)
+                // let the lazy stack reuse rows of the previous answer.
+                .id(model.resultsID)
+                .onChange(of: model.selection) { _, i in
+                    if model.results.indices.contains(i) { proxy.scrollTo(model.results[i].path) }
+                }
             }
             // Results of an earlier keystroke fade while the current query
             // is answered (only if that takes a moment, so typing never flickers).

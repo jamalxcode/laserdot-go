@@ -21,6 +21,9 @@ final class SearchModel: ObservableObject {
     /// The results on screen are for an earlier query; the current one is
     /// still being answered.
     @Published private(set) var searching = false
+    /// Changes with every answer, so the result list is rebuilt rather than
+    /// patched (a patched lazy list could keep rows of the previous query).
+    @Published private(set) var resultsID = 0
     @Published private(set) var hint: String?
     @Published private(set) var problem: Problem?
     @Published private(set) var notes: [String] = []
@@ -172,6 +175,7 @@ final class SearchModel: ObservableObject {
 
     private func apply(_ outcome: Result<Results, Error>) {
         searching = false
+        resultsID &+= 1
         coaching = []
         switch outcome {
         case .success(let r):

@@ -12,7 +12,8 @@ func TestTypeWords(t *testing.T) {
 	root := filepath.Join(dir, "home")
 	for _, rel := range []string{
 		"beach.jpg", "Beach Party.JPEG", "jpg-notes.txt", "clip.avi", "david.txt", "avi plans.txt",
-		"song.mp3", "holiday.mp4", "report.pdf", "pdf tips.txt",
+		"song.mp3", "holiday.mp4", "report.pdf", "pdf tips.txt", "deck.ppt", "Pitch.pptx", "ppt notes.txt",
+		"budget.xlsx",
 	} {
 		write(t, root, rel, "x")
 	}
@@ -46,6 +47,9 @@ func TestTypeWords(t *testing.T) {
 	eq(t, "music", names("music"), "song.mp3")
 	eq(t, "photos", names("photos"), "Beach Party.JPEG", "beach.jpg")
 	eq(t, "صور", names("صور"), "Beach Party.JPEG", "beach.jpg")
+	eq(t, "ppt", names("ppt"), "Pitch.pptx", "deck.ppt")
+	eq(t, "powerpoint", names("powerpoint"), "Pitch.pptx", "deck.ppt")
+	eq(t, "excel", names("excel"), "budget.xlsx")
 	// Quotes or wildcards search the name instead.
 	eq(t, `"avi"`, names(`"avi"`), "avi plans.txt", "clip.avi", "david.txt")
 	eq(t, "pdf*", names("pdf*"), "pdf tips.txt")
