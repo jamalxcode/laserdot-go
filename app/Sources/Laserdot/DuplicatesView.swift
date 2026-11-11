@@ -117,7 +117,7 @@ final class DuplicatesModel: ObservableObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.canCreateDirectories = true
-        if panel.runModal() == .OK { folder = panel.url }
+        if panel.runFront() == .OK { folder = panel.url }
     }
 
     private static func describe(_ e: Error) -> String {

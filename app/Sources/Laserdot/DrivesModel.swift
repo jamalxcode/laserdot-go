@@ -70,7 +70,7 @@ final class DrivesModel: ObservableObject {
                     let alert = NSAlert()
                     alert.messageText = title
                     alert.informativeText = Self.message(e)
-                    alert.runModal()
+                    alert.runFront()
                 }
                 self?.refresh()
             }
@@ -113,7 +113,7 @@ final class DrivesModel: ObservableObject {
         alert.addButton(withTitle: L(rebuild ? "drive.rebuild" : "drive.index"))
         alert.addButton(withTitle: L("drive.notNow"))
         if !rebuild { alert.addButton(withTitle: L("drive.never")) }
-        switch alert.runModal() {
+        switch alert.runFront() {
         case .alertFirstButtonReturn:
             let secret = encrypt.state == .on && !pass.stringValue.isEmpty ? pass.stringValue : nil
             let mount = d.mount
@@ -142,7 +142,7 @@ final class DrivesModel: ObservableObject {
         alert.accessoryView = pass
         alert.addButton(withTitle: L("drive.unlock"))
         alert.addButton(withTitle: L("drive.notNow"))
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard alert.runFront() == .alertFirstButtonReturn else { return }
         let secret = pass.stringValue
         let mount = d.mount
         run(String(format: L("drive.unlock.title"), d.name)) { engine in
@@ -166,7 +166,7 @@ final class DrivesModel: ObservableObject {
         alert.alertStyle = .warning
         alert.addButton(withTitle: L("drive.delete"))
         alert.addButton(withTitle: L("drive.notNow"))
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        guard alert.runFront() == .alertFirstButtonReturn else { return }
         let mount = d.mount
         run(d.name) { engine in _ = try engine.driveDelete(mount: mount) }
     }

@@ -44,7 +44,7 @@ final class DiskAccessPrompt {
             a.showsSuppressionButton = true
             a.suppressionButton?.title = L("fda.dontAsk")
         }
-        let r = a.runModal()
+        let r = a.runFront()
         if a.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: Self.quietKey) }
         switch r {
         case .alertFirstButtonReturn:
@@ -69,7 +69,7 @@ final class DiskAccessPrompt {
             a.informativeText = L("fda.grantedText")
             a.addButton(withTitle: L("fda.restart"))
             a.addButton(withTitle: L("drive.notNow"))
-            if a.runModal() == .alertFirstButtonReturn {
+            if a.runFront() == .alertFirstButtonReturn {
                 Updater.relaunch(Bundle.main.bundleURL)
                 NSApp.terminate(nil)
             }
@@ -88,6 +88,6 @@ final class DiskAccessPrompt {
         NSApp.activate(ignoringOtherApps: true)
         let a = NSAlert()
         a.messageText = text
-        a.runModal()
+        a.runFront()
     }
 }

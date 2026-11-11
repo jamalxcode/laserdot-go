@@ -178,7 +178,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             alert.alertStyle = .warning
             alert.messageText = String(format: L("index.failed"), name)
             alert.informativeText = reason + "\n\n" + L("index.failedHelp")
-            alert.runModal()
+            alert.runFront()
         }
         model.onNothingIndexed = { [weak self] in self?.offerFirstIndex() }
         model.connect()
@@ -252,7 +252,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         let others = HotKeyChoice.all.filter { $0.label != c.label }
         for o in others { alert.addButton(withTitle: o.label) }
         alert.addButton(withTitle: L("drive.notNow"))
-        let i = alert.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        let i = alert.runFront().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
         if others.indices.contains(i) { useHotKey(others[i]) }
     }
 
@@ -274,7 +274,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         alert.addButton(withTitle: L("firstrun.home"))
         alert.addButton(withTitle: L("firstrun.choose"))
         alert.addButton(withTitle: L("drive.notNow"))
-        switch alert.runModal() {
+        switch alert.runFront() {
         case .alertFirstButtonReturn:
             model?.index(folder: FileManager.default.homeDirectoryForCurrentUser)
         case .alertSecondButtonReturn:
@@ -294,7 +294,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard panel.runFront() == .OK, let url = panel.url else { return }
         model?.index(folder: url)
     }
 
@@ -439,7 +439,7 @@ final class ContentModel: ObservableObject {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard panel.runFront() == .OK, let url = panel.url else { return }
         set(url.path, add: true)
     }
 }

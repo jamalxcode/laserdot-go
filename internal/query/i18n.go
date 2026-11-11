@@ -116,6 +116,7 @@ const (
 	phTrueFalse
 	phNumber
 	phExample
+	phTypeWord
 )
 
 var phrases = [2][]string{
@@ -132,6 +133,7 @@ var phrases = [2][]string{
 		"true or false",
 		"a number, >=, <, or a range a..b — e.g.",
 		"e.g.",
+		"%s means %s — put it in quotes to search names for the word",
 	},
 	{
 		"اكتب كلمات، أو فلاتر مثل res:4k kind:audio — اضغط ⌘/ لعرض كل الفلاتر",
@@ -146,6 +148,7 @@ var phrases = [2][]string{
 		"true أو false",
 		"رقم، أو \u200e>=\u200e أو \u200e<\u200e، أو مدى a..b — مثال:",
 		"مثال:",
+		"%s تعني %s — ضعها بين علامتي تنصيص للبحث عن الكلمة في الأسماء",
 	},
 }
 

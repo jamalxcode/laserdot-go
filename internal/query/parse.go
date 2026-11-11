@@ -278,7 +278,13 @@ func (p *parser) term(tok token) (Term, error) {
 	if f != nil {
 		return Term{Negated: negated, Span: span, Kind: TermFilter, Filter: *f}, nil
 	}
-	return Term{Negated: negated, Span: span, Kind: TermText, Text: TextValue{Pattern: pattern(string(body))}}, nil
+	pat := pattern(string(body))
+	if !pat.Wildcards {
+		if tf, ok := p.typeFilter(pat.Text, span); ok {
+			return Term{Negated: negated, Span: span, Kind: TermFilter, Filter: *tf}, nil
+		}
+	}
+	return Term{Negated: negated, Span: span, Kind: TermText, Text: TextValue{Pattern: pat}}, nil
 }
 
 func (p *parser) group(scope Scope, body []rune, offset int) ([]Filter, error) {

@@ -120,6 +120,12 @@ func Hint(q string, cursor int, lang Lang) string {
 	if _, err := Parse(q); err != nil {
 		return errText(err)
 	}
+	if !hasValue {
+		w := strings.TrimPrefix(tok, "-")
+		if m := TypeWordMeaning(w); m != "" {
+			return fmt.Sprintf(phrase(phTypeWord, lang), w, m)
+		}
+	}
 	if key != "" && !hasValue {
 		prefix := strings.ToLower(key)
 		var keys []string

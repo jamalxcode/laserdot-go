@@ -19,7 +19,8 @@ func CheatSheetIn(lang Lang) string {
 			"  invoice march        كلمات بأي ترتيب (كل كلمة يجب أن تظهر في الاسم أو المحتوى)\n" +
 			"  \"tax return\"         عبارة مطابقة تمامًا\n" +
 			"  -draft               استبعاد\n" +
-			"  mkv OR mp4           أحدهما (OR أقوى ارتباطًا من المسافة)\n\n" +
+			"  mkv OR mp4           أحدهما (OR أقوى ارتباطًا من المسافة)\n" +
+			"  jpg  videos  صور     كلمة نوع ملف = ext:/kind: (\"jpg\" بين علامتين = في الاسم)\n\n" +
 			"محارف البدل\n" +
 			"  report*              الاسم يبدأ بـ report (مطابقة الاسم كاملًا)\n" +
 			"  file?.txt            ? = حرف واحد بالضبط\n" +
@@ -29,7 +30,8 @@ func CheatSheetIn(lang Lang) string {
 			"  invoice march        words, any order (each must appear in the name or contents)\n" +
 			"  \"tax return\"         exact phrase\n" +
 			"  -draft               exclude\n" +
-			"  mkv OR mp4           either (OR binds tighter than the space)\n\n" +
+			"  mkv OR mp4           either (OR binds tighter than the space)\n" +
+			"  jpg  videos  photos  a file-type word = ext:/kind: (\"jpg\" in quotes = the name)\n\n" +
 			"WILDCARDS\n" +
 			"  report*              name starts with report (whole-name match)\n" +
 			"  file?.txt            ? = exactly one character\n" +

@@ -238,3 +238,26 @@ func FuzzParse(f *testing.F) {
 		}
 	})
 }
+
+func TestTypeWordsParse(t *testing.T) {
+	for in, want := range map[string]string{
+		"jpg": "ext", "AVI": "ext", "videos": "kind", "-mp3": "ext", "فيديو": "kind",
+		`"jpg"`: "text", "jp*": "text", "invoice": "text", "go": "text",
+	} {
+		q, err := Parse(in)
+		if err != nil {
+			t.Fatalf("%s: %v", in, err)
+		}
+		term := q.Clauses[0].Terms[0]
+		got := "text"
+		if term.Kind == TermFilter {
+			got = term.Filter.Def.Key
+		}
+		if got != want {
+			t.Errorf("%s: got %s, want %s", in, got, want)
+		}
+	}
+	if h := Hint("beach jpg", 9, En); h != "jpg means ext:jpg,jpeg,jpe — put it in quotes to search names for the word" {
+		t.Errorf("hint: %q", h)
+	}
+}

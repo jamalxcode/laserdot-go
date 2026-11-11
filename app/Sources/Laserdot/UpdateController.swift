@@ -113,7 +113,7 @@ final class UpdateController: ObservableObject {
         a.informativeText = String(format: L("update.installText"), currentVersion)
         a.addButton(withTitle: L("update.install"))
         a.addButton(withTitle: L("drive.notNow"))
-        guard a.runModal() == .alertFirstButtonReturn else { return }
+        guard a.runFront() == .alertFirstButtonReturn else { return }
         install(URL(fileURLWithPath: file))
     }
 
@@ -143,7 +143,7 @@ final class UpdateController: ObservableObject {
         a.informativeText = L("move.text")
         a.addButton(withTitle: L("move.move"))
         a.addButton(withTitle: L("drive.notNow"))
-        guard a.runModal() == .alertFirstButtonReturn else { return }
+        guard a.runFront() == .alertFirstButtonReturn else { return }
         do {
             let target = try updater.moveToApplications()
             stopDaemon()
@@ -159,6 +159,6 @@ final class UpdateController: ObservableObject {
         let a = NSAlert()
         a.messageText = title
         a.informativeText = info
-        a.runModal()
+        a.runFront()
     }
 }

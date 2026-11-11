@@ -130,7 +130,8 @@ query       = ws , [ clause , { ws1 , clause } ] , [ ws1 , raw ] , ws
             | ws , raw , ws ;
 raw         = "re:" , regex_text ;          (* rest of input, unparsed; Rust regex syntax *)
 clause      = term , { ws1 , "OR" , ws1 , term } ;
-term        = [ "-" ] , ( filter | phrase | pattern ) ;
+term        = [ "-" ] , ( filter | phrase | type_word | pattern ) ;
+type_word   = known_type_word ;             (* a whole unquoted word without wildcards; see Semantics *)
 
 filter      = [ scope , "." ] , key , ":" , value
             | scope , "(" , ws , filter , { ws1 , filter } , ws , ")" ;   (* track group *)
@@ -160,6 +161,7 @@ white       = " " | "\t" | "\n" ;
 **Semantics**
 
 - **AND / OR / NOT:** clauses separated by whitespace are ANDed. `OR` (uppercase, standalone) binds tighter than AND: `mkv OR mp4 res:4k` = (`mkv` OR `mp4`) AND `res:4k`. A leading `-` negates a term: `-sample`. No grouping parentheses in v1 (track groups below are the only parentheses).
+- **Type words (v1.18, the owner's request; like Spotlight):** a plain word that names a file type means that type, not text in the name. A known extension becomes `ext:` with the type's other spellings (`jpg` = `ext:jpg,jpeg,jpe`, `tif` = `tif,tiff`, `mpg` = `mpg,mpeg`); `video(s)`, `movie(s)`, `photo(s)`, `picture(s)`, `image(s)`, `graphics`, `music`, `song(s)`, `audio`, `document(s)`, `archive(s)` and their Arabic forms (`فيديو`, `صور`, `موسيقى`, `مستندات`…) become `kind:`. `-jpg` excludes the type and `jpg OR avi` works as expected. To search names for the word, quote it (`"avi"`) or use a wildcard (`avi*`). Extensions that are also common words (`go`, `key`, `pages`, `raw`, `app`, `ts`) are not type words. The hint line says what a type word stands for. The list lives in `internal/query/typewords.go`.
 - **Track scope:** `a.lang:ar` = the file has *any* audio track in Arabic. Unscoped media keys apply to their natural track type (`lang:` = audio, `channels:` = audio, `codec:` = video). `a(lang:ar channels:5.1)` = **one and the same** audio track matches every filter inside the group. Without the group, `a.lang:ar a.channels:5.1` may be satisfied by two different tracks.
 - **Track groups** accept track-level filters only: `lang` `channels` `codec` `acodec` `profile` `pix_fmt` `bit_depth` `hdr` `fps` `atmos` `lossless` `sample_rate` `forced` `format`. Whole-file filters (`fsize`, `duration`, `count`…) inside a group are a positioned error
 - **`false` means "has the thing, without the property":** `atmos:false` = files with audio but no Atmos track; `hdr:false` = videos without HDR; `gps:false` = images without a location; `raw:false` = non-RAW images — never documents or folders
