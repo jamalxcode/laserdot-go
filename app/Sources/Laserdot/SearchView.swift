@@ -735,7 +735,10 @@ func shortPath(_ path: String) -> String {
     }
     parts += dir.split(separator: "/").map(String.init)
     if parts.count > 4 { parts = [parts[0], "…"] + parts.suffix(3) }
-    let text = parts.isEmpty ? "/" : parts.joined(separator: " › ")
+    // › is a mirrored character: right to left it turns into ‹, so Arabic
+    // uses a plain slash.
+    let separator = appLayoutDirection == .rightToLeft ? " / " : " › "
+    let text = parts.isEmpty ? "/" : parts.joined(separator: separator)
     // Paths read left to right in every language: isolate them, or the
     // Arabic layout mirrors › into ‹.
     return "\u{2066}" + text + "\u{2069}"
