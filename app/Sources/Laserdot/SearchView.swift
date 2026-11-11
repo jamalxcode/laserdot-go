@@ -529,7 +529,11 @@ struct ActionRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: item.symbol).frame(width: 20)
+            if let image = item.image {
+                Image(nsImage: image).resizable().frame(width: 18, height: 18).frame(width: 20)
+            } else {
+                Image(systemName: item.symbol).frame(width: 20)
+            }
             Text(item.title).lineLimit(1)
             Spacer(minLength: 8)
             if let k = item.shortcut {
@@ -622,9 +626,7 @@ struct PreviewPane: View {
             MediaPreview(path: hit.path, video: hit.kind == "video")
                 .clipShape(RoundedRectangle(cornerRadius: 6))
         } else if hit.volume == nil && ext == "pdf" {
-            PDFPreview(path: hit.path)
-                .frame(height: 280)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+            PDFOrIcon(path: hit.path)
         } else {
             FileIcon(path: hit.path, size: 220, thumbnail: true, large: true)
                 .frame(maxWidth: .infinity)
@@ -675,9 +677,34 @@ struct MediaPreview: View {
     }
 }
 
+/// The PDF's pages, or its icon when the file cannot be read as a PDF.
+struct PDFOrIcon: View {
+    let path: String
+    @State private var document: PDFDocument?
+    @State private var loadedFor: String?
+
+    var body: some View {
+        Group {
+            if loadedFor == path, let document {
+                PDFPreview(document: document)
+                    .frame(height: 280)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else {
+                FileIcon(path: path, size: 220, thumbnail: true, large: true).frame(maxWidth: .infinity)
+            }
+        }
+        .task(id: path) {
+            let p = path
+            let doc = PDFDocument(url: URL(fileURLWithPath: p))
+            document = (doc?.pageCount ?? 0) > 0 ? doc : nil
+            loadedFor = p
+        }
+    }
+}
+
 /// A PDF's pages, scrollable in the pane (PDFKit).
 struct PDFPreview: NSViewRepresentable {
-    let path: String
+    let document: PDFDocument
 
     func makeNSView(context: Context) -> PDFView {
         let v = PDFView()
@@ -688,9 +715,7 @@ struct PDFPreview: NSViewRepresentable {
     }
 
     func updateNSView(_ v: PDFView, context: Context) {
-        if v.document?.documentURL?.path != path {
-            v.document = PDFDocument(url: URL(fileURLWithPath: path))
-        }
+        if v.document !== document { v.document = document }
     }
 }
 
@@ -710,7 +735,10 @@ func shortPath(_ path: String) -> String {
     }
     parts += dir.split(separator: "/").map(String.init)
     if parts.count > 4 { parts = [parts[0], "…"] + parts.suffix(3) }
-    return parts.isEmpty ? "/" : parts.joined(separator: " › ")
+    let text = parts.isEmpty ? "/" : parts.joined(separator: " › ")
+    // Paths read left to right in every language: isolate them, or the
+    // Arabic layout mirrors › into ‹.
+    return "\u{2066}" + text + "\u{2069}
 }
 
 private let relativeFormatter: RelativeDateTimeFormatter = {

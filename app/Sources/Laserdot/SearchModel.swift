@@ -564,7 +564,9 @@ final class SearchModel: ObservableObject {
             let apps = NSWorkspace.shared.urlsForApplications(toOpen: urls[0]).prefix(4)
             for app in apps {
                 let name = FileManager.default.displayName(atPath: app.path).replacingOccurrences(of: ".app", with: "")
-                list.append(ActionItem(id: "with:" + app.path, title: String(format: L("action.openWith"), name), symbol: "app") { [weak self] in
+                list.append(ActionItem(
+                    id: "with:" + app.path, title: String(format: L("action.openWith"), name), symbol: "app",
+                    image: NSWorkspace.shared.icon(forFile: app.path)) { [weak self] in
                     self?.noteOpened(first)
                     NSWorkspace.shared.open(urls, withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
                 })
@@ -756,6 +758,8 @@ struct ActionItem: Identifiable {
     let title: String
     let symbol: String
     var shortcut: String? = nil
+    /// An app's own icon (Open with…), shown instead of the symbol.
+    var image: NSImage? = nil
     let run: () -> Void
 }
 
