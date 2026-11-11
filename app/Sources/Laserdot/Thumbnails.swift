@@ -71,9 +71,13 @@ final class QuickLook: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegat
     /// Called when the panel closes (the overlay takes the keyboard back).
     var onClose: (() -> Void)?
 
+    /// Times show() was asked (for the self-test's report).
+    private(set) var shows = 0
+
     var isVisible: Bool { QLPreviewPanel.sharedPreviewPanelExists() && QLPreviewPanel.shared().isVisible }
 
     func show(_ urls: [URL], at index: Int) {
+        shows += 1
         guard !urls.isEmpty, let panel = QLPreviewPanel.shared() else { return }
         items = urls
         NSApp.activate(ignoringOtherApps: true)

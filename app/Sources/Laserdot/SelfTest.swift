@@ -221,6 +221,8 @@ final class SelfTestRunner {
             "browsing": model.browsing,
             "similar": model.similarOnly,
             "quicklook": QuickLook.shared.isVisible,
+            "space_presses": model.spacePresses,
+            "quicklook_shows": QuickLook.shared.shows,
             "key_window_is_overlay": NSApp.keyWindow === window,
             "accessibility": labels,
         ])

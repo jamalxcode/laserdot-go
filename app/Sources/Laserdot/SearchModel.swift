@@ -702,7 +702,11 @@ final class SearchModel: ObservableObject {
 
     /// Space: Quick Look for the selected result while browsing the results
     /// (true: handled); otherwise the field types a space.
+    /// Space presses that reached the model (for the self-test's report).
+    private(set) var spacePresses = 0
+
     func spaceKey() -> Bool {
+        spacePresses += 1
         // A second space in a row (the query already ends in one) also
         // previews: no need to press ↓ for the highlighted result.
         guard browsing || query.hasSuffix(" "), !results.isEmpty, selected != nil,
