@@ -154,6 +154,10 @@ struct SearchView: View {
                 }
                 .onChange(of: model.selection) { _, i in proxy.scrollTo(i) }
             }
+            // Results of an earlier keystroke fade while the current query
+            // is answered (only if that takes a moment, so typing never flickers).
+            .opacity(model.searching ? 0.35 : 1)
+            .animation(model.searching ? .easeIn(duration: 0.15).delay(0.15) : .none, value: model.searching)
         }
     }
 
@@ -191,7 +195,9 @@ struct SearchView: View {
 
     private var footer: some View {
         HStack {
-            if model.total > 0 {
+            if model.searching {
+                Text(L("results.searching"))
+            } else if model.total > 0 {
                 Text(String(format: L("results.count"), Int64(model.total), model.elapsedMs))
             }
             Spacer()

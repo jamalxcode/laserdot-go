@@ -22,7 +22,9 @@ import (
 )
 
 // Version of laserdot.
-const Version = "0.1.0-go"
+// Version is stamped at build time (app/scripts/build-go.sh, -X) with the
+// app's version; the app replaces a running daemon that reports another.
+var Version = "dev"
 
 // maxLine bounds one request (a query is short; this stops a runaway
 // client from growing memory without bound).

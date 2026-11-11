@@ -255,13 +255,42 @@ public final class Engine: @unchecked Sendable {
     private var guideClient: DaemonClient?
     private var guideUnsupported = Set<String>()
 
+    /// The version the bundled daemon reports; a running daemon of another
+    /// version (left over from before an update, or after a force quit) is
+    /// stopped and the bundled one started instead.
+    private let expectedVersion: String?
+    private let versionLock = NSLock()
+    private var versionChecked = false
+
     /// `dbPath`: index location (default: the per-user one).
     /// `daemonPath`: the bundled `laserdotd`, started if none is running.
-    public init(dbPath: String? = nil, daemonPath: String? = nil) {
+    /// `expectedVersion`: the bundled daemon's version (the app's version).
+    public init(dbPath: String? = nil, daemonPath: String? = nil, expectedVersion: String? = nil) {
         let db = dbPath ?? Paths.defaultDbPath
         self.dbPath = db
         socketPath = Paths.socket(forDb: db)
         self.daemonPath = daemonPath
+        self.expectedVersion = expectedVersion
+    }
+
+    /// Once per engine, before the first connection: replace a running
+    /// daemon whose version is not the bundled one's.
+    private func replaceStaleDaemon() {
+        versionLock.lock()
+        defer { versionLock.unlock() }
+        guard !versionChecked else { return }
+        versionChecked = true
+        guard let want = expectedVersion, daemonPath != nil,
+              let c = DaemonClient.connectLive(socketPath: socketPath),
+              let s = try? c.call(.status, as: Wire.Status.self), s.version != want else { return }
+        _ = try? c.call(.shutdown, as: String.self)
+        // Wait until it has really exited (closed the index), not just
+        // closed its socket.
+        let pid = pid_t(s.pid)
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline, DaemonClient.connectLive(socketPath: socketPath) != nil || (pid > 0 && kill(pid, 0) == 0) {
+            usleep(100_000)
+        }
     }
 
     /// Whether the daemon has not (yet) refused `op` as unsupported.
@@ -441,6 +470,7 @@ public final class Engine: @unchecked Sendable {
         guidanceFromDaemon = false
         if guideUnsupported.contains(request.op) { return nil }
         if guideClient == nil {
+            replaceStaleDaemon()
             guard let c = DaemonClient.connectLive(socketPath: socketPath) else { return nil }
             c.setTimeout(5)
             guideClient = c
@@ -570,6 +600,7 @@ public final class Engine: @unchecked Sendable {
                 client = nil // broken: reconnect below
             }
         }
+        replaceStaleDaemon()
         let c: DaemonClient
         if let live = DaemonClient.connectLive(socketPath: socketPath) {
             c = live

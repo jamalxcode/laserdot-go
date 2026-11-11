@@ -77,6 +77,8 @@ struct Registry: Decodable {
     var sections: [String]
     var filters: [Filter]
     var cheat_sheet: String
+    /// File-type words (spec §2.7): word → what it stands for (ext:jpg,jpeg).
+    var type_words: [String: String]
 
     static let shared: Registry = {
         do {
@@ -166,7 +168,7 @@ func sectionTitle(_ id: String, _ lang: String) -> String {
 
 /// Fixed hint sentences (spec §8.1).
 enum Phrase {
-    case empty, rawOk, filters, wildcards, addFilters, sizes, dates, durations, bitrates, trueFalse, number, example
+    case empty, rawOk, filters, wildcards, addFilters, sizes, dates, durations, bitrates, trueFalse, number, example, typeWord
 
     func text(_ lang: String) -> String {
         let ar = isArabic(lang)
@@ -183,6 +185,7 @@ enum Phrase {
         case .trueFalse: return ar ? "true أو false" : "true or false"
         case .number: return ar ? "رقم، أو \u{200E}>=\u{200E} أو \u{200E}<\u{200E}، أو مدى a..b — مثال:" : "a number, >=, <, or a range a..b — e.g."
         case .example: return ar ? "مثال:" : "e.g."
+        case .typeWord: return ar ? "%@ تعني %@ — ضعها بين علامتي تنصيص للبحث عن الكلمة في الأسماء" : "%@ means %@ — put it in quotes to search names for the word"
         }
     }
 }
@@ -268,6 +271,12 @@ public func hint(query: String, cursor: Int, lang: String) -> String? {
     let (_, tok) = token(query, cursor)
     let (_, key, value) = splitFilter(tok)
     if value != nil, let h = valuesHint(asciiLower(key), lang) { return h }
+    if value == nil {
+        let word = tok.hasPrefix("-") ? String(tok.dropFirst()) : tok
+        if let meaning = Registry.shared.type_words[word.lowercased()] {
+            return String(format: Phrase.typeWord.text(lang), word, meaning)
+        }
+    }
     if !key.isEmpty && value == nil {
         let prefix = asciiLower(key)
         let keys = Registry.shared.filters.map(\.key).filter { $0.hasPrefix(prefix) && $0 != prefix }.prefix(5)

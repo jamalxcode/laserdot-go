@@ -39,6 +39,8 @@ final class EngineTests: XCTestCase {
         XCTAssertTrue(hint(query: "invoice", cursor: 7, lang: "en")?.contains("add filters") ?? false)
         XCTAssertTrue(hint(query: "chan", cursor: 4, lang: "en")?.contains("channels:") ?? false)
         XCTAssertTrue(hint(query: "report*", cursor: 7, lang: "en")?.contains("whole name") ?? false)
+        XCTAssertTrue(hint(query: "beach jpg", cursor: 9, lang: "en")?.contains("ext:jpg,jpeg") ?? false)
+        XCTAssertTrue(hint(query: "videos", cursor: 6, lang: "en")?.contains("kind:video") ?? false)
         XCTAssertEqual(completions(query: "res:4", cursor: 5, lang: "en").first?.insert, "res:4k")
         XCTAssertEqual(completions(query: "res:1", cursor: 5, lang: "en").map(\.insert), ["res:1080p", "res:1440p"])
         XCTAssertEqual(completions(query: "kind:video,au", cursor: 13, lang: "en").first?.insert, "kind:video,audio")
@@ -171,6 +173,32 @@ final class EngineTests: XCTestCase {
         XCTAssertThrowsError(try engine.search(query: "x")) { error in
             guard case .unavailable? = error as? LaserdotError else { return XCTFail("got \(error)") }
         }
+    }
+
+    /// A daemon left running by an older Laserdot (after an update or a
+    /// force quit) is replaced by the bundled one; a current one is kept.
+    func testStaleDaemonIsReplaced() throws {
+        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: daemonPath), "no laserdotd at \(daemonPath)")
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent("laserdot-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        let db = tmp.appendingPathComponent("data/index.db").path
+        func daemon(_ e: Engine) throws -> Wire.Status {
+            let c = try XCTUnwrap(DaemonClient.connectLive(socketPath: e.socketPath))
+            return try c.call(.status, as: Wire.Status.self)
+        }
+        let first = Engine(dbPath: db, daemonPath: daemonPath)
+        try first.connect()
+        defer { first.shutdown() }
+        let old = try daemon(first)
+
+        let same = Engine(dbPath: db, daemonPath: daemonPath, expectedVersion: old.version)
+        try same.connect()
+        XCTAssertEqual(try daemon(same).pid, old.pid, "a daemon of the same version is kept")
+
+        let newer = Engine(dbPath: db, daemonPath: daemonPath, expectedVersion: old.version + "-newer")
+        try newer.connect()
+        defer { newer.shutdown() }
+        XCTAssertNotEqual(try daemon(newer).pid, old.pid, "a daemon of another version is replaced")
     }
 
     func testSearchThroughTheDaemon() throws {

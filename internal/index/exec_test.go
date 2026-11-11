@@ -78,9 +78,25 @@ func fixture(t *testing.T) *Store {
 
 func TestRelevanceOrder(t *testing.T) {
 	got := search(t, fixture(t), "invoice", DefaultPage)
-	want := []string{"invoice", ".cache/invoice.tmp", "docs/invoice-march.pdf", "docs/march invoice.pdf", "docs/reinvoiced.pdf"}
+	// Equally good matches: visible files before hidden ones (.cache).
+	want := []string{"invoice", "docs/invoice-march.pdf", ".cache/invoice.tmp", "docs/march invoice.pdf", "docs/reinvoiced.pdf"}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q\nwant %q", got, want)
+	}
+}
+
+// Like Spotlight: for equally good matches, files come before folders and
+// hidden items last; without name words, the same holds within newest-first.
+func TestFilesBeforeFoldersAndHidden(t *testing.T) {
+	s := tree(t,
+		"Projects/", "plugins/", ".obsidian/", ".obsidian/plan.md|1|900",
+		"plan.md|1|10", "photo.png|1|20", ".obsidian/p.png|1|999", "pics/", "pics/old.png|1|5",
+	)
+	if got, want := search(t, s, "p", DefaultPage), []string{"plan.md", "photo.png", "pics", "plugins", "Projects", ".obsidian/p.png", ".obsidian/plan.md", "pics/old.png"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("p: got %q\nwant %q", got, want)
+	}
+	if got, want := search(t, s, "ext:png", DefaultPage), []string{"photo.png", "pics/old.png", ".obsidian/p.png"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("ext:png: got %q\nwant %q", got, want)
 	}
 }
 

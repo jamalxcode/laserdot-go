@@ -18,6 +18,9 @@ final class SearchModel: ObservableObject {
     @Published private(set) var results: [Hit] = []
     @Published private(set) var total: UInt64 = 0
     @Published private(set) var elapsedMs: Double = 0
+    /// The results on screen are for an earlier query; the current one is
+    /// still being answered.
+    @Published private(set) var searching = false
     @Published private(set) var hint: String?
     @Published private(set) var problem: Problem?
     @Published private(set) var notes: [String] = []
@@ -149,6 +152,7 @@ final class SearchModel: ObservableObject {
         }
         selection = 0
         if q.trimmingCharacters(in: .whitespaces).isEmpty {
+            searching = false
             results = []
             total = 0
             problem = nil
@@ -156,6 +160,7 @@ final class SearchModel: ObservableObject {
             coaching = []
             return
         }
+        searching = true
         queue.async { [weak self] in
             let outcome = Result { try engine.search(query: q, limit: 100) }
             DispatchQueue.main.async {
@@ -166,6 +171,7 @@ final class SearchModel: ObservableObject {
     }
 
     private func apply(_ outcome: Result<Results, Error>) {
+        searching = false
         coaching = []
         switch outcome {
         case .success(let r):
@@ -309,7 +315,9 @@ final class SearchModel: ObservableObject {
     var selected: Hit? { results.indices.contains(selection) ? results[selection] : nil }
 
     func open(_ hit: Hit? = nil) {
-        guard let h = hit ?? selected else { return }
+        // Return while a search is pending would open a result of the
+        // previous query.
+        guard hit != nil || !searching, let h = hit ?? selected else { return }
         remember()
         DiskAccessPrompt.shared.open(URL(fileURLWithPath: h.path))
     }

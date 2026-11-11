@@ -3,6 +3,7 @@
 "cheatsheet.title" = "الفلاتر";
 "cheatsheet.filter" = "تصفية القائمة";
 "results.count" = "%lld نتيجة · %.1f مللي ثانية";
+"results.searching" = "جارٍ البحث…";
 "results.none" = "لا توجد نتائج";
 "results.examples" = "جرّب:";
 "network.blocked" = "محرك البحث: الشبكة محظورة بواسطة macOS";

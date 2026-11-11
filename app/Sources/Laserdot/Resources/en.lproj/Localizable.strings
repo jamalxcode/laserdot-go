@@ -3,6 +3,7 @@
 "cheatsheet.title" = "Filters";
 "cheatsheet.filter" = "Filter the list";
 "results.count" = "%lld results · %.1f ms";
+"results.searching" = "Searching…";
 "results.none" = "No results";
 "results.examples" = "Try:";
 "network.blocked" = "Search engine: network blocked by macOS";

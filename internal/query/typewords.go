@@ -94,3 +94,16 @@ func TypeWordMeaning(word string) string {
 	}
 	return ""
 }
+
+// TypeWords maps every type word (folded) to what it stands for, for the
+// app's offline guidance (app/scripts/registry).
+func TypeWords() map[string]string {
+	out := map[string]string{}
+	for w, exts := range extWords {
+		out[w] = "ext:" + strings.Join(exts, ",")
+	}
+	for w, k := range kindWords {
+		out[w] = "kind:" + k
+	}
+	return out
+}

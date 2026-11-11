@@ -2,7 +2,9 @@
 # Builds the Go side for the Swift app: laserdotd (bundled beside the app),
 # the laserdot CLI, and Sources/LaserdotKit/Registry.generated.swift (the
 # filter registry the app's guidance derives from).
-# Usage: app/scripts/build-go.sh [host|universal]   (default: host)
+# Usage: [VERSION=0.2.5] app/scripts/build-go.sh [host|universal]   (default: host)
+# VERSION must match the one given to bundle.sh: the app replaces a running
+# laserdotd that reports another version.
 # Output: app/build/go/laserdotd and app/build/go/laserdot.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
@@ -11,7 +13,7 @@ OUT=app/build/go
 mkdir -p "$OUT"
 build() { # build <goarch> <suffix>
   for cmd in laserdotd laserdot; do
-    CGO_ENABLED=0 GOOS="$(go env GOOS)" GOARCH="$1" go build -trimpath -o "$OUT/$cmd$2" "./cmd/$cmd"
+    CGO_ENABLED=0 GOOS="$(go env GOOS)" GOARCH="$1" go build -trimpath -ldflags "-X github.com/jamalxcode/laserdot-go/internal/daemon.Version=${VERSION:-0.1.0}" -o "$OUT/$cmd$2" "./cmd/$cmd"
   done
 }
 case "$MODE" in

@@ -29,9 +29,10 @@ type filter struct {
 }
 
 type registry struct {
-	Sections   []string `json:"sections"`
-	Filters    []filter `json:"filters"`
-	CheatSheet string   `json:"cheat_sheet"`
+	Sections   []string          `json:"sections"`
+	Filters    []filter          `json:"filters"`
+	CheatSheet string            `json:"cheat_sheet"`
+	TypeWords  map[string]string `json:"type_words"`
 }
 
 func valueKind(k query.ValueKind) string {
@@ -79,6 +80,7 @@ func main() {
 		})
 	}
 	r.CheatSheet = query.CheatSheet()
+	r.TypeWords = query.TypeWords()
 
 	var js bytes.Buffer
 	enc := json.NewEncoder(&js)

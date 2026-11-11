@@ -406,7 +406,21 @@ func (s *Store) relevanceKey(clauses [][]*query.NameMatcher, penalty uint32, id 
 		}
 		q += uint64(best)
 	}
-	return q<<40 | uint64(min(len(name), 0xFFFF))<<20 | uint64(s.depth[id])
+	return q<<42 | s.demotion(id)<<40 | uint64(min(len(name), 0xFFFF))<<20 | uint64(s.depth[id])
+}
+
+// demotion orders equally good matches the way Spotlight does: files first,
+// then folders, then anything hidden (inside a dot folder such as .obsidian
+// or .git, or a dot file). 0–3.
+func (s *Store) demotion(id uint32) uint64 {
+	var d uint64
+	if s.flags[id]&FlagHidden != 0 {
+		d |= 2
+	}
+	if s.IsDir(id) {
+		d |= 1
+	}
+	return d
 }
 
 // RankKey is a comparable sort key, so results from several indexes (this
@@ -467,6 +481,9 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 	}
 	clauses := nameClauses(q)
 	srt, desc := effectiveSort(page, clauses)
+	// Relevance without name words (kind:video, jpg): newest first, but
+	// files before folders before hidden items, as with name words.
+	filterOnly := page.Sort == Relevance && len(clauses) == 0
 	key := func(id uint32) RankKey {
 		switch srt {
 		case Relevance:
@@ -477,6 +494,9 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 		v := s.colKey(srt, id)
 		if desc {
 			v = ^v
+		}
+		if filterOnly {
+			v = v>>2 | s.demotion(id)<<62
 		}
 		return RankKey{Num: v}
 	}
@@ -493,7 +513,7 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 	}
 
 	// Large result sets in a column order: walk the pre-sorted order.
-	if srt != Relevance && srt != ByName && hits.GetCardinality() > 20_000 {
+	if srt != Relevance && srt != ByName && !filterOnly && hits.GetCardinality() > 20_000 {
 		order := s.bySize
 		switch srt {
 		case ByModified:

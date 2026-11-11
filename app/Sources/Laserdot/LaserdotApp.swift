@@ -162,7 +162,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         // the update helper). laserdotd, which reads every file, still asks
         // macOS to deny it the network before anything else.
         let daemon = Bundle.main.url(forAuxiliaryExecutable: "laserdotd")?.path
-        let engine = Engine(dbPath: db, daemonPath: daemon)
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let engine = Engine(dbPath: db, daemonPath: daemon, expectedVersion: version)
         self.engine = engine
         let model = SearchModel(engine: engine)
         self.model = model

@@ -28,7 +28,7 @@ jobs:
           echo "version=$v" >> "$GITHUB_OUTPUT"
       - name: Build
         run: |
-          app/scripts/build-go.sh
+          VERSION=${{ steps.v.outputs.version }} app/scripts/build-go.sh
           VERSION=${{ steps.v.outputs.version }} BUILD=${{ github.run_number }} app/scripts/bundle.sh
           app/scripts/make-dmg.sh "$PWD/Laserdot-${{ steps.v.outputs.version }}.dmg"
       - name: The packaged app launches (from the disk image, as a user would)
