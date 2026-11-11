@@ -96,3 +96,10 @@
 "cheatsheet.content" = "words inside the file";
 "cheatsheet.insertHint" = "Inserts this filter into the query";
 "feature.unsupported" = "Not available with this version of laserdotd yet.";
+"index.running" = "Indexing %@…";
+"index.failed" = "Could not index “%@”";
+"index.failedHelp" = "If the folder is in Documents, Desktop or Downloads, allow Laserdot in System Settings → Privacy & Security → Full Disk Access, then try again.";
+"firstrun.title" = "Nothing is indexed yet";
+"firstrun.body" = "Laserdot only searches folders you index. Index your home folder now (it takes a minute or two), or choose a folder.";
+"firstrun.home" = "Index Home Folder";
+"firstrun.choose" = "Choose a Folder…";

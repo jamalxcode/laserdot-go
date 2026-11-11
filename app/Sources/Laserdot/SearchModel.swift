@@ -80,6 +80,12 @@ final class SearchModel: ObservableObject {
     private var historyIndex = -1
 
     var onStatus: ((DaemonStatus) -> Void)?
+    /// Indexing started (the folder's name), for the menu's status line.
+    var onIndexing: ((String) -> Void)?
+    /// Indexing failed: the reason, for an alert.
+    var onIndexFailed: ((String, String) -> Void)?
+    /// Connected, and nothing is indexed yet (first launch).
+    var onNothingIndexed: (() -> Void)?
     let engine: Engine
     private var generation = 0
     private let queue = DispatchQueue(label: "laserdot.search", qos: .userInitiated)
@@ -117,6 +123,9 @@ final class SearchModel: ObservableObject {
                 self?.networkBlocked = Sandbox.isEnforced && status.networkDenied
                 self?.unavailable = status.running ? nil : L("daemon.starting")
                 self?.onStatus?(status)
+                if status.running && status.folders.isEmpty && status.entries == 0 {
+                    self?.onNothingIndexed?()
+                }
             }
         }
     }
@@ -320,13 +329,30 @@ final class SearchModel: ObservableObject {
     func index(folder: URL) {
         let engine = self.engine
         let path = folder.path
+        let name = folder.lastPathComponent
+        onIndexing?(name)
         queue.async { [weak self] in
-            _ = try? engine.index(path: path)
+            var failure: String?
+            do {
+                try engine.index(path: path)
+            } catch {
+                failure = Self.describe(error)
+            }
             let status = engine.status()
             DispatchQueue.main.async {
                 self?.onStatus?(status)
+                if let failure { self?.onIndexFailed?(name, failure) }
                 self?.queryChanged() // run the query again: the folder is in now
             }
+        }
+    }
+
+    /// A readable reason for a failed request.
+    static func describe(_ error: Error) -> String {
+        switch error {
+        case LaserdotError.query(let message, _, _, _): return message
+        case LaserdotError.unavailable(let message): return message
+        default: return (error as? LocalizedError)?.errorDescription ?? String(describing: error)
         }
     }
 }

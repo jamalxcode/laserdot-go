@@ -71,6 +71,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         overlay = OverlayController(model: model)
         registerHotKey(prompt: true)
         model.onStatus = { [weak self] status in self?.show(status) }
+        model.onIndexing = { [weak self] name in
+            self?.statusLine = String(format: L("index.running"), name)
+        }
+        model.onIndexFailed = { name, reason in
+            NSApp.activate(ignoringOtherApps: true)
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = String(format: L("index.failed"), name)
+            alert.informativeText = reason + "\n\n" + L("index.failedHelp")
+            alert.runModal()
+        }
+        model.onNothingIndexed = { [weak self] in self?.offerFirstIndex() }
         model.connect()
         let content = ContentModel(engine: engine)
         self.content = content
@@ -136,6 +148,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         hotKeyChoice = c
         c.save()
         registerHotKey(prompt: true)
+    }
+
+    /// First launch: nothing is indexed, so searches would find nothing.
+    /// Offer the home folder, or a folder of the user's choice.
+    private func offerFirstIndex() {
+        guard !UserDefaults.standard.bool(forKey: "laserdot.firstIndexOffered") else { return }
+        UserDefaults.standard.set(true, forKey: "laserdot.firstIndexOffered")
+        NSApp.activate(ignoringOtherApps: true)
+        let alert = NSAlert()
+        alert.messageText = L("firstrun.title")
+        alert.informativeText = L("firstrun.body")
+        alert.addButton(withTitle: L("firstrun.home"))
+        alert.addButton(withTitle: L("firstrun.choose"))
+        alert.addButton(withTitle: L("drive.notNow"))
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            model?.index(folder: FileManager.default.homeDirectoryForCurrentUser)
+        case .alertSecondButtonReturn:
+            chooseFolder()
+        default:
+            break
+        }
     }
 
     func toggleOverlay() {
