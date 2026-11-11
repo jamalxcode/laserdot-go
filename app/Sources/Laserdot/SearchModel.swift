@@ -120,7 +120,7 @@ final class SearchModel: ObservableObject {
             let list = engine.filters(lang: appLang)
             DispatchQueue.main.async {
                 if !list.isEmpty { self?.allFilters = list }
-                self?.networkBlocked = Sandbox.isEnforced && status.networkDenied
+                self?.networkBlocked = status.networkDenied
                 self?.unavailable = status.running ? nil : L("daemon.starting")
                 self?.onStatus?(status)
                 if status.running && status.folders.isEmpty && status.entries == 0 {

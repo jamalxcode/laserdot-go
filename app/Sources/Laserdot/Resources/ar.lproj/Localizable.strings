@@ -5,8 +5,8 @@
 "results.count" = "%lld نتيجة · %.1f مللي ثانية";
 "results.none" = "لا توجد نتائج";
 "results.examples" = "جرّب:";
-"network.blocked" = "الشبكة محظورة بواسطة macOS";
-"network.open" = "الشبكة غير محظورة";
+"network.blocked" = "محرك البحث: الشبكة محظورة بواسطة macOS";
+"network.open" = "محرك البحث: الشبكة غير محظورة";
 "daemon.starting" = "جارٍ تشغيل الفهرس…";
 "daemon.unavailable" = "الفهرس غير متاح: %@";
 "menu.search" = "بحث…";

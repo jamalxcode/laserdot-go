@@ -1,9 +1,9 @@
 import AppKit
 import LaserdotKit
 
-/// Asks for Full Disk Access when Laserdot lacks it: at launch (until the
-/// user says not to ask again), from the menu, and when a file in a
-/// protected folder is opened. After opening System Settings it watches for
+/// Asks for Full Disk Access (from the menu, and when indexing a protected
+/// folder fails): it lets laserdotd index Documents, Desktop, Pictures and
+/// drives without per-folder prompts. Opening files does not need it. After opening System Settings it watches for
 /// the switch and offers to restart Laserdot, which macOS requires.
 final class DiskAccessPrompt {
     static let shared = DiskAccessPrompt()
@@ -25,14 +25,10 @@ final class DiskAccessPrompt {
         }
     }
 
-    /// Open a file in its default app (Preview, the assigned player…). In a
-    /// protected folder without Full Disk Access macOS would refuse; ask
-    /// first.
+    /// Open a file in its default app (Preview, the assigned player…). The
+    /// app is not sandboxed, so this needs no Full Disk Access: the other app
+    /// opens the file with its own permissions.
     func open(_ url: URL) {
-        if DiskAccess.isProtected(url.path) && !DiskAccess.granted {
-            ask(reason: String(format: L("fda.open"), url.lastPathComponent), allowDontAsk: false, tryAnyway: url)
-            return
-        }
         NSWorkspace.shared.open(url)
     }
 

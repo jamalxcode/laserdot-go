@@ -34,6 +34,9 @@ When the spec and an issue disagree, flag it to the user rather than silently pi
    (`app/Sources/LaserdotUpdater`) may reach GitHub only — on request or once a day — to find and download a
    release. Laserdot itself and `laserdotd` stay network-blocked; CI fails if network code (URLSession,
    Network.framework…) appears anywhere else in the app. Do not widen the exception without the owner.
+   **The app shell is not OS-sandboxed** (owner's decision, spec §7.1): a sandboxed app cannot hand protected
+   files to Preview or a player. It keeps the rule by having no network code (CI-enforced); `laserdotd` keeps its
+   OS network block.
 2. **No AI.** No embeddings, semantic search, model downloads, or inference. Perceptual hashes (DCT) are fine.
 3. **Regex-only matching.** Name/path queries run as regex (Go `regexp`, RE2: linear time) over an in-memory name
    table with a trigram prefilter — never SQLite. One regex per word, ANDed. Build regexes as `regexp/syntax`
@@ -116,7 +119,8 @@ Run gofmt, vet and the full test suite before committing.
   allowed, inherited by children), the daemon binary's `status.network_denied` (`internal/daemon`), and
   `internal/netcheck`. Every process calls `sandbox.DenyNetwork` first (on macOS it re-executes the process).
 - **App:** the app reaches the daemon only through `app/Sources/LaserdotKit/DaemonClient.swift` (a Unix socket,
-  JSON lines; no TCP, no URLSession) and applies the same Seatbelt profile to itself at launch. Its Codable types
+  JSON lines; no TCP, no URLSession). It does not sandbox itself (spec §7.1): opening a result hands the file to
+  its default app, which uses its own permissions; the daemon it starts denies itself the network. Its Codable types
   mirror the protocol-5 wire shapes; a feature whose op answers `unsupported` is hidden or disabled. Guidance
   (hints, completions, sections, filter list, cheat sheet) comes from the daemon's `hint`, `section_at`,
   `completions`, `filters` and `cheat_sheet` ops on a connection of its own; when the daemon is not running or lacks

@@ -203,4 +203,10 @@ Choices made by the owner (2026-11-10):
   app checks and installs it. `bundle.sh` adds the icon, the helper, the version and an ad-hoc signature;
   `make-dmg.sh` and the `Release` workflow publish a disk image for every `v*` tag. Not yet: Developer ID signing
   and notarization (needs the owner's certificates), so the first launch needs right-click → Open.
+- **App shell unsandboxed (2026-11-11, owner's decision, spec v1.17):** opening a result failed with "Laserdot does
+  not have permission to open …" for files in protected folders, because macOS checks a sandboxed app before handing
+  a file to Preview or VLC. The app no longer applies the Seatbelt profile to itself; it keeps the no-network rule
+  by its code (CI rejects network APIs outside the update helper). `laserdotd` still denies itself the network
+  (on macOS it now re-executes under the profile itself, the path the daemon tests cover). Full Disk Access is
+  optional (menu item; offered when indexing a protected folder fails).
 

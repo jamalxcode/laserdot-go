@@ -155,13 +155,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         let db = Paths.defaultDbPath
         let sockets = Paths.socketDir(forDb: db)
         try? FileManager.default.createDirectory(atPath: sockets, withIntermediateDirectories: true)
-        // Privacy pillar (spec §7.1): before anything else, ask macOS to
-        // refuse this process — and the daemon it starts — any network access.
-        do {
-            try Sandbox.denyNetwork(socketDir: sockets)
-        } catch {
-            NSLog("laserdot: could not deny network access: \(error)")
-        }
+        // The app itself is not OS-sandboxed (owner's decision, spec §7.1):
+        // a sandboxed app may only hand files it can read itself to Preview or
+        // a player, so opening results needed Full Disk Access. It keeps the
+        // no-network rule by its code alone (CI rejects network code outside
+        // the update helper). laserdotd, which reads every file, still asks
+        // macOS to deny it the network before anything else.
         let daemon = Bundle.main.url(forAuxiliaryExecutable: "laserdotd")?.path
         let engine = Engine(dbPath: db, daemonPath: daemon)
         self.engine = engine
@@ -192,7 +191,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         probeDuplicates()
         updates.stopDaemon = { [weak engine] in engine?.shutdown() }
         updates.offerMoveToApplications()
-        DiskAccessPrompt.shared.checkAtLaunch()
         updates.startDailyChecks()
     }
 
@@ -306,8 +304,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         } else {
             statusLine = L("daemon.starting")
         }
-        let appDenied = Sandbox.isEnforced
-        networkLine = (appDenied && status.networkDenied) ? L("network.blocked") : L("network.open")
+        networkLine = status.networkDenied ? L("network.blocked") : L("network.open")
     }
 }
 

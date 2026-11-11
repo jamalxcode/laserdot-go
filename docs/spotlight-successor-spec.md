@@ -2,7 +2,7 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.16 (draft)
+**Version:** 1.17 (draft)
 **Date:** 2026-11-10
 **Target platform:** macOS 14+, Apple Silicon
 **Distribution:** Direct download, signed + notarized, non-sandboxed
@@ -306,7 +306,7 @@ white       = " " | "\t" | "\n" ;
 
 ## 7. Privacy Architecture (non-negotiable)
 
-- **7.1** (exception: the update helper, 7.4) Zero network connections, enforced by the OS:
+- **7.1** (exceptions: the update helper, 7.4; the app shell is not OS-sandboxed, below) Zero network connections, enforced by the OS:
   - Omitting `com.apple.security.network.client` alone does **not** block anything: that entitlement only takes effect inside the App Sandbox, and this app is non-sandboxed (13.8)
   - Instead, every app process — the indexer daemon (13.2a) and the SwiftUI shell — applies a macOS sandbox profile to itself at startup (`sandbox_init` with an SBPL profile equivalent to `(allow default) (deny network*)`). File access stays unrestricted; all network access is denied by the kernel
   - The profile is inherited by child processes, so bundled ffmpeg/ffprobe are confined too
@@ -315,6 +315,7 @@ white       = " " | "\t" | "\n" ;
   - *As built (M4):* crate `laserdot-sandbox`. The macOS profile is `(version 1) (allow default) (deny network*)` plus `(allow network* (local unix-socket (subpath "<socket folder>")))` and the same for `remote` — so DNS (mDNSResponder's socket) is denied too. The app applies it first thing at launch; `laserdotd` applies it before opening anything (when started by the already-sandboxed app it inherits the profile instead). On Linux (development and CI) a seccomp filter makes `AF_INET`/`AF_INET6`/`AF_PACKET` socket creation fail and refuses `io_uring` and the x32 ABI, on every thread. A test re-runs itself as a child process and proves TCP and UDP are blocked, the IPC socket still works, other Unix sockets are blocked (macOS), and processes started afterwards inherit the restriction; it runs on both CI platforms, and the daemon reports `network_denied` in its status
 - **7.2** No AI, no embeddings, no model downloads, no inference
 - **7.3** No telemetry, analytics, crash reporters, or third-party SDKs that call home
+  - *Decided (v1.17, the owner's decision):* the Laserdot app shell (the window, overlay and menus) no longer applies the macOS sandbox profile to itself. macOS only lets a sandboxed app hand a file it can read itself to Preview or a player, so opening results in Documents, Pictures and the like required Full Disk Access. The shell keeps the no-network rule by construction: it has no network code, CI fails if network APIs appear anywhere in the app outside the update helper, and it talks to `laserdotd` over the Unix socket only. `laserdotd` — the process that reads every file — still denies itself the network through the OS before anything else, reports it (`network_denied`), and the privacy gate (15.5) still covers it. Full Disk Access is now optional: it spares per-folder prompts when indexing protected folders and is offered from the menu
 - **7.4** Updates via signed, notarized builds, downloaded manually. Sparkle (or any in-app updater) is incompatible with 7.1 because it needs the network; a separate, user-launched updater is an open question
   - *Decided (v1.16, the owner's exception to 7.1):* a bundled helper, `Laserdot.app/Contents/Helpers/Laserdot Updater.app`, is the **only** part of Laserdot allowed on the network, and only to GitHub: `api.github.com` (the release API) and the storage host GitHub redirects release downloads to (the token is stripped on that redirect). It runs only when Laserdot asks — **Check for Updates…**, or once a day while Laserdot runs — sends nothing but its requests, and exits. Releases are private, so it uses a GitHub token (read access to the repository), asked for once and kept in the Keychain. It downloads the newest release's `Laserdot-<version>.dmg` to `~/Library/Caches/app.laserdot.Laserdot/Updates` and writes `update.json`; Laserdot, still network-blocked, checks the download (bundle id, newer version, `laserdotd` present; with a Developer ID build also the same team's signature and Gatekeeper) and on the user's go stops `laserdotd`, swaps the app atomically (into /Applications when the running copy is on a disk image or translocated) and relaunches. The helper is a separate app launched by macOS, not a child of Laserdot, so the app's and the daemon's OS network block are unchanged and the privacy gate (15.5) still holds for them; CI fails if network code appears anywhere in the app but the helper. Releases are published by the `Release` workflow for `v*` tags
 - **7.5** Full Disk Access requested only if indexing outside home folder; scopes stated explicitly in-app

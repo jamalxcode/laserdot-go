@@ -5,8 +5,8 @@
 "results.count" = "%lld results · %.1f ms";
 "results.none" = "No results";
 "results.examples" = "Try:";
-"network.blocked" = "Network blocked by macOS";
-"network.open" = "Network not blocked";
+"network.blocked" = "Search engine: network blocked by macOS";
+"network.open" = "Search engine: network not blocked";
 "daemon.starting" = "Starting the index…";
 "daemon.unavailable" = "Index unavailable: %@";
 "menu.search" = "Search…";
