@@ -108,7 +108,7 @@ func TestTypoVariants(t *testing.T) {
 	if !found {
 		t.Error("prefilter piece")
 	}
-	for _, s := range []string{"tax", "2024", "report(2).pdf", strings.Repeat("abcdefghij", 5)} {
+	for _, s := range []string{"ta", "2024", "report(2).pdf", strings.Repeat("abcdefghij", 5)} {
 		q, _ := ParseAt(s, 0)
 		if HasTypoCandidates(q) {
 			t.Errorf("%s should not get typo variants", s)
@@ -171,4 +171,23 @@ func FuzzCompile(f *testing.F) {
 			}
 		}
 	})
+}
+
+// Three-letter words forgive swapped neighbours only (pfd → pdf), not any
+// edit (tax must not find fax).
+func TestShortWordsForgiveSwapsOnly(t *testing.T) {
+	q, _ := ParseAt("pfd", 0)
+	c, err := Compile(q, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := c.Clauses[0].Terms[0].Name
+	if !m.Match("report.pdf") || m.Match("pad.txt") {
+		t.Error("pfd should find pdf only by a swap")
+	}
+	q, _ = ParseAt("tax", 0)
+	c, _ = Compile(q, true)
+	if n := c.Clauses[0].Terms[0].Name; n.Match("fax.txt") || !n.Match("atx.txt") {
+		t.Error("tax: swaps only")
+	}
 }

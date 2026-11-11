@@ -57,6 +57,12 @@ const (
 	OpOpened = "opened"
 	// OpRecentOpens lists the results opened most recently (Limit).
 	OpRecentOpens = "recent_opens"
+	// OpClearOpens forgets the open history.
+	OpClearOpens = "clear_opens"
+	// OpExclusions lists excluded folders; OpExclude / OpInclude (Path) change them.
+	OpExclusions  = "exclusions"
+	OpExclude     = "exclude"
+	OpInclude     = "include"
 	OpValueCounts = "value_counts"
 	// Typing assistance, served by the daemon because the app has no
 	// in-process core (Go port; the Rust app called these through FFI).

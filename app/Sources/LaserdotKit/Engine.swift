@@ -320,12 +320,39 @@ public final class Engine: @unchecked Sendable {
             watcher: s.watcher, entries: s.entries, folders: roots.map(\.path), indexing: s.indexing)
     }
 
-    public func search(query: String, limit: Int = 100, sort: SortKey = .relevance, reverse: Bool = false) throws -> Results {
-        let r = try call(.search(query: query, sort: sort, reverse: reverse, offset: 0, limit: limit, typo: true),
+    public func search(query: String, limit: Int = 100, offset: Int = 0, sort: SortKey = .relevance, reverse: Bool = false) throws -> Results {
+        let r = try call(.search(query: query, sort: sort, reverse: reverse, offset: offset, limit: limit, typo: true),
                          as: Wire.SearchResults.self)
         return Results(
             total: r.total, hits: r.hits.map(Hit.init), elapsedMs: Double(r.elapsedUs) / 1000,
             typoFallback: r.typoFallback, notes: r.warnings.map(\.message))
+    }
+
+    /// Forget which results were opened (Settings ▸ Clear History).
+    public func clearOpens() throws {
+        _ = try call(.clearOpens, as: String.self)
+    }
+
+    /// Folders never indexed.
+    public func exclusions() -> [String] {
+        (try? call(.exclusions, as: [String].self)) ?? []
+    }
+
+    @discardableResult
+    public func exclude(path: String) throws -> [String] {
+        try call(.exclude(path: path), as: [String].self)
+    }
+
+    @discardableResult
+    public func include(path: String) throws -> [String] {
+        try call(.include(path: path), as: [String].self)
+    }
+
+    /// The last lines laserdotd wrote (for Save Diagnostics).
+    public func logTail() -> [String] {
+        logLock.lock()
+        defer { logLock.unlock() }
+        return log
     }
 
     /// The results opened most recently (empty with older daemons).

@@ -26,14 +26,14 @@ type ContentSettings struct {
 	MaxBytes uint64   `json:"max_bytes"`
 }
 
-// DefaultContentSettings: Documents, Desktop and Downloads.
+// DefaultContentSettings: the whole home folder (v1.23; Documents, Desktop
+// and Downloads before). Only indexed files are read, so ~/Library stays
+// out except iCloud Drive, and the size limit applies.
 func DefaultContentSettings() ContentSettings {
 	home, _ := os.UserHomeDir()
 	var roots []string
 	if home != "" {
-		for _, d := range []string{"Documents", "Desktop", "Downloads"} {
-			roots = append(roots, filepath.Join(home, d))
-		}
+		roots = append(roots, home)
 	}
 	return ContentSettings{Roots: roots, MaxBytes: index.DefaultContentMaxBytes}
 }

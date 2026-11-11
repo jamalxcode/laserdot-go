@@ -160,14 +160,29 @@ struct DuplicatesView: View {
                 if r.groups.isEmpty {
                     Text(L("dupes.none")).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
-                    List {
-                        ForEach(Array(r.groups.enumerated()), id: \.offset) { _, g in
-                            Section(header: Text("\(kindTitle(g.kind)) — \(bytes(g.reclaimable))")) {
-                                ForEach(g.files, id: \.path) { f in
-                                    row(f, group: g)
+                    // One card per group: the copies side by side, to compare
+                    // at a glance; the recommended one is marked Keep.
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 14) {
+                            ForEach(Array(r.groups.enumerated()), id: \.offset) { _, g in
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(spacing: 6) {
+                                        Text(kindTitle(g.kind)).font(.headline)
+                                        Text(String(format: L("dupes.reclaim"), bytes(g.reclaimable))).foregroundStyle(.secondary)
+                                        Spacer()
+                                    }
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(alignment: .top, spacing: 12) {
+                                            ForEach(g.files, id: \.path) { f in tile(f, group: g) }
+                                        }
+                                        .padding(.bottom, 2)
+                                    }
                                 }
+                                .padding(12)
+                                .background(RoundedRectangle(cornerRadius: 10).fill(Color.secondary.opacity(0.08)))
                             }
                         }
+                        .padding(12)
                     }
                 }
             } else {
@@ -218,6 +233,52 @@ struct DuplicatesView: View {
         var text = String(format: L("dupes.confirm.text"), Int64(p.files), bytes(p.bytes), place)
         if !p.skipped.isEmpty { text += "\n\n" + p.skipped.joined(separator: "\n") }
         return text
+    }
+
+    /// A copy: its thumbnail, name, details, and whether it will be moved.
+    private func tile(_ f: DuplicateFile, group: DuplicateGroup) -> some View {
+        let moving = model.remove.contains(f.path)
+        return VStack(alignment: .leading, spacing: 4) {
+            ZStack(alignment: .topLeading) {
+                FileIcon(path: f.path, size: 150, thumbnail: true, large: true)
+                    .frame(width: 170, height: 150)
+                    .opacity(moving ? 0.55 : 1)
+                if f.keep {
+                    Text(L("dupes.recommended"))
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(Capsule().fill(Color.accentColor))
+                        .foregroundStyle(.white)
+                        .padding(4)
+                }
+            }
+            Text(URL(fileURLWithPath: f.path).lastPathComponent)
+                .font(.callout.weight(f.keep ? .semibold : .regular)).lineLimit(2)
+            Text(f.summary).font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
+            Text(bytes(f.size) + " · " + friendlyDate(f.modified)).font(.caption).foregroundStyle(.secondary)
+            Text(shortPath(f.path)).font(.caption2).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
+                .help(f.path)
+            if let v = f.volume {
+                Label(v, systemImage: "externaldrive").font(.caption2).foregroundStyle(.secondary)
+            }
+            Toggle(L("dupes.markRemove"), isOn: Binding(
+                get: { model.remove.contains(f.path) },
+                set: { _ in model.toggle(f, in: group) }
+            ))
+            .toggleStyle(.checkbox)
+            .font(.caption)
+        }
+        .frame(width: 170, alignment: .leading)
+        .padding(8)
+        .background(RoundedRectangle(cornerRadius: 8).strokeBorder(moving ? Color.orange.opacity(0.7) : (f.keep ? Color.accentColor : Color.clear), lineWidth: 2))
+        .contentShape(Rectangle())
+        .onTapGesture(count: 2) { DiskAccessPrompt.shared.open(URL(fileURLWithPath: f.path)) }
+        .contextMenu {
+            Button(L("action.open")) { DiskAccessPrompt.shared.open(URL(fileURLWithPath: f.path)) }
+            Button(L("action.quickLook")) { QuickLook.shared.show(group.files.map { URL(fileURLWithPath: $0.path) }, at: group.files.firstIndex { $0.path == f.path } ?? 0) }
+            Button(L("action.reveal")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: f.path)]) }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private func row(_ f: DuplicateFile, group: DuplicateGroup) -> some View {

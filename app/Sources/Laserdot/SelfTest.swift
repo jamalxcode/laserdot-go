@@ -71,6 +71,10 @@ final class SelfTestRunner {
                 self.key(String(UnicodeScalar(UInt16(NSDownArrowFunctionKey))!), code: 125, into: overlay.panel)
                 self.post(" ", code: 49, to: overlay.panel)
             }),
+            // A second space in a row previews without ↓.
+            Step(name: "spacespace", typed: "jpg ", after: { self.post(" ", code: 49, to: overlay.panel) }),
+            // A swapped-letter typo finds the file, and says so.
+            Step(name: "similar", typed: "pfd"),
             Step(name: "home", typed: "", before: {
                 engine.recordOpen(path: folder + "/beach.jpg")
                 model.loadHome()
@@ -98,7 +102,14 @@ final class SelfTestRunner {
                     step.after?()
                     self.after(0.6) {
                         self.capture(step.name, model: model, window: overlay.panel)
-                        self.runSteps(steps.dropFirst(), model: model, overlay: overlay)
+                        let next = { self.runSteps(steps.dropFirst(), model: model, overlay: overlay) }
+                        // CI reads the screen with an accessibility client
+                        // (app/scripts/ax-dump.swift) while this is shown.
+                        if step.name == "jpg", ProcessInfo.processInfo.environment["LASERDOT_SELFTEST_HOLD"] != nil {
+                            self.hold(then: next)
+                        } else {
+                            next()
+                        }
                     }
                 }
             }
@@ -128,6 +139,20 @@ final class SelfTestRunner {
     }
 
     // MARK: helpers
+
+    /// Write `hold`, then wait (at most two minutes) for CI to write `release`.
+    private func hold(then next: @escaping () -> Void) {
+        try? Data().write(to: out.appendingPathComponent("hold"))
+        let release = out.appendingPathComponent("release")
+        func poll(_ waited: Double) {
+            if FileManager.default.fileExists(atPath: release.path) || waited > 120 {
+                next()
+            } else {
+                after(0.5) { poll(waited + 0.5) }
+            }
+        }
+        poll(0)
+    }
 
     private func after(_ seconds: Double, _ f: @escaping () -> Void) {
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: f)
@@ -194,6 +219,7 @@ final class SelfTestRunner {
             "highlight": model.highlightWords,
             "visible_hint": model.visibleHint ?? "",
             "browsing": model.browsing,
+            "similar": model.similarOnly,
             "quicklook": QuickLook.shared.isVisible,
             "key_window_is_overlay": NSApp.keyWindow === window,
             "accessibility": labels,

@@ -54,6 +54,12 @@ public enum DaemonRequest: Encodable, Sendable {
     case opened(path: String)
     /// The results opened most recently, newest first.
     case recentOpens(limit: Int)
+    /// Forget the open history.
+    case clearOpens
+    /// Folders never indexed: list, add, remove.
+    case exclusions
+    case exclude(path: String)
+    case include(path: String)
 
     /// The `op` tag.
     public var op: String {
@@ -65,6 +71,10 @@ public enum DaemonRequest: Encodable, Sendable {
         case .forget: return "forget"
         case .opened: return "opened"
         case .recentOpens: return "recent_opens"
+        case .clearOpens: return "clear_opens"
+        case .exclusions: return "exclusions"
+        case .exclude: return "exclude"
+        case .include: return "include"
         case .refresh: return "refresh"
         case .roots: return "roots"
         case .stats: return "stats"
@@ -108,7 +118,7 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(offset, forKey: .offset)
             try c.encode(limit, forKey: .limit)
             try c.encode(typo, forKey: .typo)
-        case let .index(path), let .forget(path), let .opened(path):
+        case let .index(path), let .forget(path), let .opened(path), let .exclude(path), let .include(path):
             try c.encode(path, forKey: .path)
         case let .drivePlan(mount), let .driveDetach(mount), let .driveDelete(mount), let .driveEject(mount):
             try c.encode(mount, forKey: .mount)
@@ -134,7 +144,8 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(lang, forKey: .lang)
         case let .recentOpens(limit):
             try c.encode(limit, forKey: .limit)
-        case .ping, .status, .refresh, .roots, .stats, .shutdown, .drives, .contentStatus, .updateContent, .valueCounts:
+        case .ping, .status, .refresh, .roots, .stats, .shutdown, .drives, .contentStatus, .updateContent, .valueCounts,
+             .clearOpens, .exclusions:
             break
         }
     }

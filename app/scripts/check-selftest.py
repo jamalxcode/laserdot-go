@@ -7,6 +7,7 @@ The fixtures (made by the CI step): beach.jpg, holiday photo.jpeg, photo.png,
 Tool.app/Contents/Info.plist.
 """
 import json
+import os
 import re
 import sys
 
@@ -23,7 +24,7 @@ def check(ok, what):
 
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
-for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "home"):
+for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -82,6 +83,26 @@ space = steps["space"]
 check(space["query"] == "jpg", f"Space was not typed into the query (got {space['query']!r})")
 check(space["browsing"], "↓ moved into the results")
 check(space["quicklook"], "Space opened Quick Look")
+
+# Space twice (no ↓) previews; only the first space is typed.
+ss = steps["spacespace"]
+check(ss["query"] == "jpg ", f"one space typed, the second previewed (got {ss['query']!r})")
+check(ss["quicklook"], "a second Space opened Quick Look")
+
+# A swapped-letter typo finds the file and says so.
+sim = steps["similar"]
+check("project.pdf" in sim["results"], f"pfd finds project.pdf (got {sim['results']})")
+check(sim["similar"], "the hint says only similar names were found")
+
+# What an accessibility client (VoiceOver) reads, when CI could run one.
+ax_file = os.path.join(os.path.dirname(sys.argv[1]), "ax.txt")
+if os.path.exists(ax_file):
+    ax = open(ax_file, encoding="utf-8", errors="replace").read()
+    if "untrusted" in ax or not ax.strip():
+        print("skip accessibility tree: this CI machine does not allow an accessibility client")
+    else:
+        check("beach.jpg" in ax, "VoiceOver can read the beach.jpg row")
+        check("jpg notes.txt" not in ax, "VoiceOver reads no stale rows")
 
 # The empty box shows what was opened.
 home = steps["home"]

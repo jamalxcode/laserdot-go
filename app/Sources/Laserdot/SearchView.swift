@@ -127,6 +127,13 @@ struct SearchView: View {
             .font(.callout)
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
+        } else if model.similarOnly {
+            Label(L("results.similar"), systemImage: "wand.and.stars")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
         } else if let h = model.visibleHint {
             Text(h)
                 .font(.callout)
@@ -220,6 +227,11 @@ struct SearchView: View {
                                     .padding(.leading, 48)
                                     .padding(.vertical, 2)
                             }
+                        }
+                        // The end of the list: fetch the next page.
+                        if model.canLoadMore {
+                            ProgressView().controlSize(.small).frame(maxWidth: .infinity).padding(8)
+                                .onAppear { model.loadMore() }
                         }
                     }
                     .padding(6)

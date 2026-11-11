@@ -357,6 +357,25 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		return result(s.UpdateContent())
 	case ipc.OpCoach:
 		return ok(s.ld.Coach(req.Query))
+	case ipc.OpClearOpens:
+		if err := s.ld.ClearOpens(); err != nil {
+			return fail(ipc.ErrorOf(err))
+		}
+		return ok("ok")
+	case ipc.OpExclusions:
+		return ok(s.ld.Exclusions())
+	case ipc.OpExclude, ipc.OpInclude:
+		f := s.ld.Exclude
+		if req.Op == ipc.OpInclude {
+			f = s.ld.Include
+		}
+		list, err := f(req.Path)
+		if err != nil {
+			return fail(ipc.ErrorOf(err))
+		}
+		s.rootsChanged()
+		s.MarkContentDirty()
+		return ok(list)
 	case ipc.OpRecentOpens:
 		limit := 10
 		if req.Limit != nil && *req.Limit > 0 {

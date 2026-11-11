@@ -331,6 +331,45 @@ final class SearchModel: ObservableObject {
         return kinds.count >= 2 ? kinds : []
     }
 
+    /// Every result is only similar to what was typed (no exact match).
+    var similarOnly: Bool { !isHome && !results.isEmpty && results.allSatisfy(\.typo) }
+
+    /// More results than were fetched: scrolling to the end loads them.
+    var canLoadMore: Bool { !isHome && !isCommandMode && !allHits.isEmpty && UInt64(allHits.count) < total }
+    private var loadingMore = false
+
+    func loadMore() {
+        guard canLoadMore, !loadingMore else { return }
+        loadingMore = true
+        let (engine, q, gen, offset) = (self.engine, self.query, self.generation, allHits.count)
+        queue.async { [weak self] in
+            let more = (try? engine.search(query: q, limit: 100, offset: offset).hits) ?? []
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.loadingMore = false
+                guard gen == self.generation, !more.isEmpty else { return }
+                let current = self.selected?.path
+                let seen = Set(self.allHits.map(\.path))
+                self.allHits += more.filter { !seen.contains($0.path) }
+                (self.results, self.sections) = Self.grouped(self.allHits, expanded: self.expanded)
+                self.selection = self.results.firstIndex { $0.path == current } ?? self.selection
+            }
+        }
+    }
+
+    /// Settings ▸ Clear History: recent searches and the opened-results
+    /// history (pins stay).
+    func clearHistory() {
+        history = []
+        historyIndex = -1
+        UserDefaults.standard.removeObject(forKey: "laserdot.history")
+        let engine = self.engine
+        queue.async { [weak self] in
+            try? engine.clearOpens()
+            DispatchQueue.main.async { if self?.isHome == true { self?.loadHome() } }
+        }
+    }
+
     /// "Show all 37": the section's other results join the list.
     func expand(_ id: String) {
         expanded.insert(id)
@@ -664,7 +703,10 @@ final class SearchModel: ObservableObject {
     /// Space: Quick Look for the selected result while browsing the results
     /// (true: handled); otherwise the field types a space.
     func spaceKey() -> Bool {
-        guard browsing, !results.isEmpty, selected != nil, !showActions, !isCommandMode, !showCheatSheet else { return false }
+        // A second space in a row (the query already ends in one) also
+        // previews: no need to press ↓ for the highlighted result.
+        guard browsing || query.hasSuffix(" "), !results.isEmpty, selected != nil,
+              !showActions, !isCommandMode, !showCheatSheet else { return false }
         if QuickLook.shared.isVisible {
             QuickLook.shared.close()
         } else {
@@ -814,9 +856,11 @@ extension SearchModel {
         }
         var out = [top]
         var sections = [topSection]
+        // One kind only (all pictures for `jpg`): nothing to group, no cap.
+        let single = order.count == 1
         for c in order {
             let all = byCategory[c] ?? []
-            let shown = expanded.contains(c) ? all : Array(all.prefix(sectionCap))
+            let shown = single || expanded.contains(c) ? all : Array(all.prefix(sectionCap))
             sections.append(ResultSection(
                 id: c, title: L("section.\(c)"), range: out.count..<(out.count + shown.count), filter: "kind:\(c)",
                 total: all.count + (category(top) == c ? 1 : 0), hidden: all.count - shown.count))

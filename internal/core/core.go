@@ -115,15 +115,16 @@ type OpenReport struct {
 // exclusively while they change it. wmu serializes writers (the database
 // and the store change together).
 type Laserdot struct {
-	opens    openHistory
-	progress atomic.Pointer[IndexProgress]
-	dbPath   string
-	wmu      sync.Mutex
-	db       *index.Db
-	mu       sync.RWMutex
-	store    *index.Store
-	loadMS   uint64
-	report   OpenReport
+	opens      openHistory
+	exclusions exclusionList
+	progress   atomic.Pointer[IndexProgress]
+	dbPath     string
+	wmu        sync.Mutex
+	db         *index.Db
+	mu         sync.RWMutex
+	store      *index.Store
+	loadMS     uint64
+	report     OpenReport
 	// content: file contents (§2.4), in its own file next to the index.
 	content         *index.ContentIndex
 	contentSettings ContentSettings
@@ -322,6 +323,7 @@ func (ld *Laserdot) ScanOptions() scan.Options {
 		}
 		opts.OnlyChildren = map[string][]string{lib: {"Mobile Documents"}}
 	}
+	opts.ExcludedPaths = append(opts.ExcludedPaths, ld.loadExclusions()...)
 	return opts
 }
 

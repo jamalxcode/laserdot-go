@@ -31,6 +31,9 @@ for lang in en ar; do
 done
 /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $VERSION" -c "Set :CFBundleVersion $BUILD" "$APP/Contents/Info.plist"
 
+# What's new in this version, from CHANGELOG.md (shown when Laserdot updates).
+awk -v v="## $VERSION" '$0 == v {on=1; next} /^## / {on=0} on' ../CHANGELOG.md | sed '/^$/d' > "$APP/Contents/Resources/WhatsNew.txt" || true
+
 # The icon, from the 1024-px PNG.
 ICONSET=build/AppIcon.iconset
 rm -rf "$ICONSET" && mkdir -p "$ICONSET"

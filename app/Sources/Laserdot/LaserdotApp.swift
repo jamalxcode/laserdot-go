@@ -2,6 +2,7 @@ import AppKit
 import Carbon.HIToolbox
 import LaserdotKit
 import Quartz
+import ServiceManagement
 import SwiftUI
 
 /// Laserdot is both a Dock app and a menu-bar app (spec §6.4, §13.1): a main
@@ -101,6 +102,10 @@ struct MainWindow: View {
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                 }
+                if delegate.whatsNewPending {
+                    Button(L("menu.whatsNew")) { delegate.showWhatsNew() }
+                        .controlSize(.small)
+                }
                 Text(delegate.statusLine)
                 if let model = delegate.model, !delegate.networkLine.isEmpty {
                     NetworkLock(blocked: model.networkBlocked)
@@ -115,6 +120,7 @@ struct MainWindow: View {
         // SwiftUI's way to open Settings, kept for the menu-bar menu, `>`
         // commands and the app menu.
         .onAppear { delegate.openSettingsAction = { openSettings() } }
+        .sheet(isPresented: $delegate.showTour) { WelcomeTour { delegate.showTour = false } }
     }
 }
 
@@ -147,6 +153,13 @@ struct LaserdotCommands: Commands {
                 openWindow(id: "main")
                 delegate.model?.showCheatSheet = true
             }
+            Button(L("menu.tour")) {
+                openWindow(id: "main")
+                delegate.showTour = true
+            }
+            Button(L("menu.whatsNew")) { delegate.showWhatsNew() }
+            Divider()
+            Button(L("menu.diagnostics")) { delegate.saveDiagnostics() }
         }
         CommandGroup(replacing: .newItem) {
             Button(L("menu.search")) { delegate.toggleOverlay() }
@@ -175,6 +188,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     /// The daemon implements the duplicate finder (older ones answer
     /// `unsupported`; the menu item is disabled then).
     @Published var dupesAvailable = true
+    @Published var folders: FoldersModel?
+    /// The welcome tour (first launch, or Help ▸ Welcome Tour).
+    @Published var showTour = false
+    /// This version's notes, until seen (Help ▸ What's New).
+    @Published var whatsNewPending = false
+    var sharedEngine: Engine? { engine }
     private var engine: Engine?
     private var duplicates: NSWindow?
     @Published private(set) var model: SearchModel?
@@ -220,6 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         // Nothing to ask on first launch: the default folders are indexed
         // automatically (indexDefaultsOnce).
         model.connect()
+        folders = FoldersModel(engine: engine)
         let content = ContentModel(engine: engine)
         self.content = content
         content.refresh()
@@ -236,6 +256,76 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }
         updates.offerMoveToApplications()
         updates.startDailyChecks()
+        openAtLoginByDefault()
+        noteVersion()
+    }
+
+    /// Laserdot opens at login unless the user turns it off: an index that
+    /// is only updated while the app runs would go stale after a restart.
+    /// Asked once, and only for the copy in Applications.
+    private func openAtLoginByDefault() {
+        let key = "laserdot.loginItemDefaulted"
+        guard !UserDefaults.standard.bool(forKey: key), Bundle.main.bundlePath.hasPrefix("/Applications/") else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        if SMAppService.mainApp.status != .enabled { try? SMAppService.mainApp.register() }
+    }
+
+    /// First launch: the welcome tour. A launch after an update: "What's new".
+    private func noteVersion() {
+        let current = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let last = UserDefaults.standard.string(forKey: "laserdot.lastVersion")
+        if !UserDefaults.standard.bool(forKey: "laserdot.welcomed") {
+            UserDefaults.standard.set(true, forKey: "laserdot.welcomed")
+            showTour = true
+        } else if let last, last != current, Updater.whatsNew(in: Bundle.main.bundleURL) != nil {
+            whatsNewPending = true
+        }
+        UserDefaults.standard.set(current, forKey: "laserdot.lastVersion")
+    }
+
+    /// Help ▸ What's New: this version's notes.
+    func showWhatsNew() {
+        whatsNewPending = false
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let a = NSAlert()
+        a.messageText = String(format: L("whatsnew.title"), version)
+        a.informativeText = Updater.whatsNew(in: Bundle.main.bundleURL) ?? L("whatsnew.none")
+        a.runFront()
+    }
+
+    /// Help ▸ Save Diagnostics: a text file to attach to a bug report —
+    /// versions, index counts and the search engine's recent log, with every
+    /// path replaced by <path> (no file or folder names). Nothing is sent.
+    func saveDiagnostics() {
+        guard let engine else { return }
+        NSApp.activate(ignoringOtherApps: true)
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "Laserdot diagnostics.txt"
+        panel.message = L("diagnostics.message")
+        guard panel.runFront() == .OK, let url = panel.url else { return }
+        DispatchQueue.global().async {
+            let s = engine.status()
+            let info = ProcessInfo.processInfo
+            let app = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+            let scrub: (String) -> String = { line in
+                line.replacingOccurrences(of: #"/[^\s"',)]+"#, with: "<path>", options: .regularExpression)
+            }
+            var lines = [
+                "Laserdot \(app)",
+                "macOS \(info.operatingSystemVersionString)",
+                "laserdotd \(s.version) (protocol \(s.protocolVersion)), running: \(s.running)",
+                "network denied by macOS: \(s.networkDenied)",
+                "watcher: \(s.watcher)",
+                "entries: \(s.entries), indexed folders: \(s.folders.count), excluded: \(engine.exclusions().count)",
+                "indexing now: \(s.indexing.map { "\($0.phase) \($0.done)/\($0.total)" } ?? "no")",
+                "drives: \(((try? engine.drives()) ?? []).map(\.state).joined(separator: ", "))",
+                "",
+                "Recent laserdotd log (paths removed):",
+            ]
+            lines += engine.logTail().map(scrub)
+            try? lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+            DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+        }
     }
 
     private var selfTest: SelfTestRunner?

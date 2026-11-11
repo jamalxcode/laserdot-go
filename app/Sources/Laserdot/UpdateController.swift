@@ -124,13 +124,30 @@ final class UpdateController: ObservableObject {
     func offerInstall() {
         guard let s = ready, let file = s.file else { return }
         NSApp.activate(ignoringOtherApps: true)
+        // Unpack and check it first, so the prompt can say what is new.
+        let candidate: UpdateCandidate
+        do {
+            candidate = try updater.prepare(file: URL(fileURLWithPath: file))
+        } catch {
+            alert(L("update.failed"), info: (error as? LocalizedError)?.errorDescription ?? "\(error)")
+            return
+        }
         let a = NSAlert()
         a.messageText = String(format: L("update.available"), s.latest ?? "")
-        a.informativeText = String(format: L("update.installText"), currentVersion)
+        var info = String(format: L("update.installText"), currentVersion)
+        if let notes = candidate.whatsNew { info = notes + "\n\n" + info }
+        a.informativeText = info
         a.addButton(withTitle: L("update.install"))
         a.addButton(withTitle: L("drive.notNow"))
         guard a.runFront() == .alertFirstButtonReturn else { return }
-        install(URL(fileURLWithPath: file))
+        do {
+            stopDaemon()
+            let target = try updater.install(candidate)
+            Updater.relaunch(target)
+            NSApp.terminate(nil)
+        } catch {
+            alert(L("update.failed"), info: (error as? LocalizedError)?.errorDescription ?? "\(error)")
+        }
     }
 
     /// Check and install an update file, then relaunch from where it went.

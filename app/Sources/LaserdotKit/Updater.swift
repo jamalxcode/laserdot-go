@@ -86,6 +86,8 @@ public struct AppVersion: Comparable, CustomStringConvertible, Sendable {
 public struct UpdateCandidate {
     public let app: URL
     public let version: AppVersion
+    /// What is new in this version (Contents/Resources/WhatsNew.txt), if any.
+    public var whatsNew: String? { Updater.whatsNew(in: app) }
     /// The file it came from.
     public let source: URL
     /// The running app is not signed with a Developer ID, so signatures were
@@ -173,7 +175,19 @@ public final class Updater {
         case "dmg":
             let mount = work.appendingPathComponent("mount")
             try FileManager.default.createDirectory(at: mount, withIntermediateDirectories: true)
-            try Self.run("/usr/bin/hdiutil", ["attach", "-nobrowse", "-readonly", "-noautoopen", "-mountpoint", mount.path, file.path])
+            // hdiutil sometimes answers "Resource temporarily unavailable":
+            // try again a few times before giving up.
+            var attempt = 0
+            while true {
+                do {
+                    try Self.run("/usr/bin/hdiutil", ["attach", "-nobrowse", "-readonly", "-noautoopen", "-mountpoint", mount.path, file.path])
+                    break
+                } catch {
+                    attempt += 1
+                    if attempt >= 5 { throw error }
+                    Thread.sleep(forTimeInterval: Double(attempt))
+                }
+            }
             defer { _ = try? Self.run("/usr/bin/hdiutil", ["detach", "-force", mount.path]) }
             guard let app = Self.findApp(in: mount) else { throw UpdateError.notAnApp }
             try Self.run("/usr/bin/ditto", [app.path, out.appendingPathComponent(app.lastPathComponent).path])
@@ -336,6 +350,14 @@ public final class Updater {
     /// Run a local tool; a non-zero exit is `extractFailed` with its last
     /// output line.
     @discardableResult
+    /// An app's release notes, written by bundle.sh from CHANGELOG.md.
+    public static func whatsNew(in app: URL) -> String? {
+        let f = app.appendingPathComponent("Contents/Resources/WhatsNew.txt")
+        guard let s = try? String(contentsOf: f, encoding: .utf8) else { return nil }
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
+
     static func run(_ exe: String, _ args: [String]) throws -> String {
         let p = Process()
         p.executableURL = URL(fileURLWithPath: exe)

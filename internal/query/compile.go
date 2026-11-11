@@ -35,8 +35,12 @@ const (
 // (§2.2.3). Alternatives grow with the square of the length, so very long
 // "words" (pasted text) are matched exactly.
 const (
-	TypoMinChars = 4
-	TypoMaxChars = 40
+	// TypoMinChars: words this long get every single-edit alternative;
+	// three-letter words get only swapped neighbours (pfd → pdf), since any
+	// other edit of three letters matches almost everything (v1.23).
+	TypoMinChars      = 4
+	TypoSwapOnlyChars = 3
+	TypoMaxChars      = 40
 )
 
 // NameMatcher is a compiled regex over folded names (or folded paths).
@@ -205,7 +209,7 @@ func value(v FilterValue, ty ValueType, span Span) (CValue, error) {
 // typoEligible: long enough, not a path, no digits (2024 must not match
 // 2023).
 func typoEligible(text string) bool {
-	if n := utf8.RuneCountInString(text); n < TypoMinChars || n > TypoMaxChars || strings.Contains(text, "/") {
+	if n := utf8.RuneCountInString(text); n < TypoSwapOnlyChars || n > TypoMaxChars || strings.Contains(text, "/") {
 		return false
 	}
 	for _, c := range text {
@@ -286,6 +290,18 @@ func typoTree(word string) (*syntax.Regexp, []string) {
 	s := func(r []rune) string { return string(r) }
 	alts := []*syntax.Regexp{lit(word)}
 	pieces := []string{word}
+	if n < TypoMinChars { // three letters: swapped neighbours only
+		for i := 0; i+1 < n; i++ {
+			if c[i] != c[i+1] {
+				t := append([]rune(nil), c...)
+				t[i], t[i+1] = t[i+1], t[i]
+				pieces = append(pieces, s(t))
+				alts = append(alts, lit(s(t)))
+			}
+		}
+		sort.Strings(pieces)
+		return &syntax.Regexp{Op: syntax.OpAlternate, Sub: alts}, dedup(pieces)
+	}
 	gapped := func(before, after string) {
 		if len(before) >= len(after) {
 			pieces = append(pieces, before)
