@@ -738,7 +738,7 @@ func shortPath(_ path: String) -> String {
     let text = parts.isEmpty ? "/" : parts.joined(separator: " › ")
     // Paths read left to right in every language: isolate them, or the
     // Arabic layout mirrors › into ‹.
-    return "\u{2066}" + text + "\u{2069}
+    return "\u{2066}" + text + "\u{2069}"
 }
 
 private let relativeFormatter: RelativeDateTimeFormatter = {
