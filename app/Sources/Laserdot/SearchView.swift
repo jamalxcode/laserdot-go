@@ -9,7 +9,6 @@ struct SearchView: View {
     var close: () -> Void
     /// The hot-key overlay has a fixed size; the main window resizes.
     var fixedSize = true
-    @FocusState private var focused: Bool
     @Environment(\.controlActiveState) private var activeState
     /// The selected row uses the accent colour while this window has the
     /// keyboard (the overlay always does), and grey otherwise — as lists do.
@@ -19,28 +18,19 @@ struct SearchView: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Image(systemName: "magnifyingglass").font(.title2).foregroundStyle(.secondary)
-                TextField(L("search.placeholder"), text: $model.query)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 22))
-                    .focused($focused)
-                    .onSubmit { model.showCheatSheet ? model.insertSelectedCheat() : model.open() }
-                    .onKeyPress(.downArrow) {
-                        model.showCheatSheet ? model.moveCheat(1) : model.move(1)
-                        return .handled
-                    }
-                    .onKeyPress(.upArrow) {
-                        model.showCheatSheet ? model.moveCheat(-1) : model.move(-1)
-                        return .handled
-                    }
-                    .onKeyPress(.tab) {
-                        model.showCheatSheet ? model.nextCheatSection() : model.acceptCompletion()
-                        return .handled
-                    }
-                    .onExitCommand {
+                SearchField(
+                    text: $model.query,
+                    placeholder: L("search.placeholder"),
+                    focusToken: model.focusRequest,
+                    onMove: { d in model.showCheatSheet ? model.moveCheat(d) : model.move(d) },
+                    onTab: { model.showCheatSheet ? model.nextCheatSection() : model.acceptCompletion() },
+                    onSubmit: { model.showCheatSheet ? model.insertSelectedCheat() : model.open() },
+                    onEscape: {
                         // Esc closes the cheat sheet first, then the overlay (§8.9.2).
                         if model.showCheatSheet { model.showCheatSheet = false } else { close() }
                     }
-                    .accessibilityLabel(L("search.placeholder"))
+                )
+                .frame(height: 30)
                 // Pin the query (spec §8.6).
                 Button { model.togglePin() } label: {
                     Image(systemName: model.isPinned ? "pin.fill" : "pin").font(.title3)
@@ -88,8 +78,6 @@ struct SearchView: View {
             }
         }
         .overlay(hiddenShortcuts)
-        .onAppear { focused = true }
-        .onChange(of: model.focusRequest) { _, _ in focused = true }
     }
 
     @ViewBuilder private var hintLine: some View {

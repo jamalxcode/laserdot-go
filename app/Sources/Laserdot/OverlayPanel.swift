@@ -44,6 +44,7 @@ final class OverlayController: NSObject, NSWindowDelegate {
             panel.setFrameOrigin(NSPoint(x: f.midX - size.width / 2, y: f.minY + f.height * 0.62 - size.height / 2))
         }
         panel.makeKeyAndOrderFront(nil)
+        model.focusSearch() // the query field takes the keyboard each time
         model.connect()
     }
 
