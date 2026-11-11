@@ -46,14 +46,18 @@ for i in $(seq 1 50); do "$d/laserdot" --db "$d/mem/index.db" status > /dev/null
 "$d/laserdot" --db "$d/mem/index.db" index "$d/files" > /dev/null &
 ipid=$!
 peak=0
+# On macOS laserdotd re-executes itself inside its sandbox, so the
+# process to measure is the largest one started with this --db.
+daemon_rss() { ps -axo rss=,command= | grep "laserdotd --db $d/mem/index.db" | grep -v grep | awk '{print $1}' | sort -n | tail -1; }
 while kill -0 "$ipid" 2>/dev/null; do
-  rss=$(ps -o rss= -p "$dpid" | tr -d ' ' || echo 0)
+  rss=$(daemon_rss || echo 0)
   [ "${rss:-0}" -gt "$peak" ] && peak=$rss
   sleep 0.2
 done
 wait "$ipid" || true
 for q in "invoice pdf" "beach jpg" "kind:video"; do "$d/laserdot" --db "$d/mem/index.db" search "$q" > /dev/null 2>&1 || true; done
-idle=$(ps -o rss= -p "$dpid" | tr -d ' ' || echo 0)
+idle=$(daemon_rss || echo 0)
+"$d/laserdot" --db "$d/mem/index.db" status | grep -E "laserdotd|index:" || true
 kill "$dpid" 2>/dev/null || true
 peak_mb=$((peak / 1024)); idle_mb=$((${idle:-0} / 1024))
 echo "daemon memory: peak $peak_mb MB while indexing 100000 files, $idle_mb MB after (target 150 MB)"
