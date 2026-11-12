@@ -165,3 +165,43 @@ func TestPruneLibraryRemovesCachesKeepsICloud(t *testing.T) {
 		t.Errorf("second prune removed %d", u.Removed)
 	}
 }
+
+// A file deleted while its change was missed (no watcher here) is left out
+// of the results at once, and the index forgets it.
+func TestDeletedFilesLeaveTheResults(t *testing.T) {
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(dir, "home")
+	write(t, root, "pics/beach.jpg", "x")
+	write(t, root, "pics/sunset.jpg", "y")
+	ld, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	ld.WaitBackground()
+	if err := os.Remove(filepath.Join(root, "pics/beach.jpg")); err != nil {
+		t.Fatal(err)
+	}
+	r, err := ld.Search("jpg", SearchOptions{Page: pageAll()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Hits) != 1 || r.Hits[0].Name != "sunset.jpg" || r.Total != 1 {
+		t.Fatalf("results: total %d %+v", r.Total, r.Hits)
+	}
+	ld.WaitBackground()
+	// Gone from the index itself: a reopened index does not have it.
+	ld.Close()
+	again, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer again.Close()
+	again.reload()
+	if r, _ := again.search("beach", SearchOptions{Page: pageAll()}); len(r.Hits) != 0 {
+		t.Fatalf("still indexed: %+v", r.Hits)
+	}
+}

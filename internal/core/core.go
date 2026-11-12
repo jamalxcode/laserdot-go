@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -118,6 +119,8 @@ type Laserdot struct {
 	// background: work a call starts and leaves running (the tag pass
 	// after a first index); WaitBackground waits for it.
 	background sync.WaitGroup
+	// fixing: folders being listed again because a result there was gone.
+	fixing     sync.Map
 	opens      openHistory
 	exclusions exclusionList
 	progress   atomic.Pointer[IndexProgress]
@@ -674,6 +677,56 @@ func (ld *Laserdot) Stats() Stats {
 
 // Search runs query against the index (names, then contents).
 func (ld *Laserdot) Search(q string, opts SearchOptions) (*SearchResults, error) {
+	r, err := ld.search(q, opts)
+	if err == nil && r != nil {
+		ld.dropMissing(r)
+	}
+	return r, err
+}
+
+// dropMissing leaves out results whose file is gone (deleted while the
+// change was missed, say) and has their folders listed again in the
+// background, so the index forgets them too. Only this Mac's results are
+// checked (a drive could be a slow network volume); a file macOS will not
+// let Laserdot see is kept.
+func (ld *Laserdot) dropMissing(r *SearchResults) {
+	kept := r.Hits[:0]
+	var gone []string
+	for _, h := range r.Hits {
+		if h.Volume == nil {
+			if _, err := os.Lstat(h.Path); errors.Is(err, fs.ErrNotExist) {
+				gone = append(gone, h.Path)
+				continue
+			}
+		}
+		kept = append(kept, h)
+	}
+	if len(gone) == 0 {
+		return
+	}
+	r.Hits = kept
+	r.Total -= min(r.Total, uint64(len(gone)))
+	var changes []Change
+	for _, p := range gone {
+		dir := filepath.Dir(p)
+		if _, busy := ld.fixing.LoadOrStore(dir, true); !busy {
+			changes = append(changes, Change{Path: dir})
+		}
+	}
+	if len(changes) == 0 {
+		return
+	}
+	ld.background.Add(1)
+	go func() {
+		defer ld.background.Done()
+		_, _ = ld.ApplyChanges(changes)
+		for _, c := range changes {
+			ld.fixing.Delete(c.Path)
+		}
+	}()
+}
+
+func (ld *Laserdot) search(q string, opts SearchOptions) (*SearchResults, error) {
 	ld.mu.RLock()
 	defer ld.mu.RUnlock()
 	if opts.Page.Sort == index.Relevance {

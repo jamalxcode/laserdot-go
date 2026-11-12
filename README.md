@@ -59,6 +59,7 @@ downloads.
 | ⌘↩ / ⌘⇧C | Show in Finder / copy the path |
 | ⌘D | pin the search (pins show on the empty box) |
 | ⌘J | results as thumbnails or as a list |
+| ⌘R | refresh: look at every indexed folder again (deleted files leave the index) |
 | Tab / ⌥1–⌥9 | complete a filter / press a suggestion chip |
 | Esc | close actions, the cheat sheet, then the window |
 

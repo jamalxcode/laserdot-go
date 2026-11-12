@@ -294,3 +294,7 @@ Binding unless revisited deliberately; each is also in the spec.
   (`TestTagsArriveAfterTheFirstIndex`), and macOS reads folders with getattrlistbulk (`internal/scan/bulk_darwin.go`;
   `TestBulkMatchesStat` compares every field with the lstat path on the macOS CI runner; `perf-mac.sh` prints the
   time without it).
+
+- **0.9.4 (2026-11-12):** the owner saw a picture deleted in Finder still listed. Results are now checked with
+  lstat before they are returned (missing ones dropped, their folders listed again in the background;
+  `TestDeletedFilesLeaveTheResults`), and ⌘R refreshes every indexed folder.

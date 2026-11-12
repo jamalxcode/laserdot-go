@@ -160,6 +160,12 @@ final class SelfTestRunner {
             }, until: { $0.query.hasPrefix("in:") && !$0.results.isEmpty }),
             // ⌘K ▸ Search in This Folder.
             Step(name: "searchin", typed: "", before: { model.searchInFolder(folder + "/Projects") }),
+            // Deleted behind Laserdot's back (as Finder would): gone from
+            // the results at once; Refresh (⌘R) looks at every folder again.
+            Step(name: "gone", typed: "gonefile", before: {
+                try? FileManager.default.removeItem(atPath: folder + "/gonefile.txt")
+            }, after: { model.refreshIndex() }, until: { $0.results.isEmpty }),
+            Step(name: "refreshed", typed: "gonefile", until: { !$0.refreshing }),
             // A laserdot:// link opens the overlay with its search.
             Step(name: "url", typed: "", before: { self.app.handle(URL(string: "laserdot://search?q=beach")!) }),
             // A swapped-letter typo finds the file, and says so.
@@ -472,6 +478,8 @@ final class SelfTestRunner {
         r["selected_count"] = model.selectedHits.count
         r["section_ids"] = model.sections.map(\.id)
         r["paths"] = model.results.map { relative($0.path) }
+        r["refreshing"] = model.refreshing
+        r["refresh_note"] = model.refreshNote ?? ""
         r["grid"] = model.gridView
         r["grid_columns"] = model.gridColumns
         r["undo"] = model.undoStep?.title ?? ""

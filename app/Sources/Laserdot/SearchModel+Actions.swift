@@ -270,6 +270,25 @@ extension SearchModel {
         return ok
     }
 
+    /// ⌘R: look at every indexed folder again (deleted files leave the
+    /// index), then search again.
+    func refreshIndex() {
+        guard !refreshing else { return }
+        refreshing = true
+        let engine = self.engine
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let outcome = try? engine.refresh()
+            DispatchQueue.main.async {
+                self?.refreshing = false
+                if let o = outcome {
+                    self?.refreshNote = String(format: L("refresh.done"), Int64(o.removed), Int64(o.added))
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 6) { self?.refreshNote = nil }
+                }
+                self?.queryChanged()
+            }
+        }
+    }
+
     /// The daemon's watcher picks the change up; search again a moment later.
     func refreshSoon() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.queryChanged() }

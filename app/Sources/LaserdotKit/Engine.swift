@@ -565,6 +565,14 @@ public final class Engine: @unchecked Sendable {
     }
 
     /// What fills a folder ("" = the indexed folders), largest first.
+    /// Look at every indexed folder again: deleted files leave the index,
+    /// new and changed ones come in. Returns (added, removed).
+    @discardableResult
+    public func refresh() throws -> (added: UInt64, removed: UInt64) {
+        let u = try call(.refresh, as: Wire.UpdateStats.self)
+        return (u.added, u.removed)
+    }
+
     /// What the indexed folders' last full index could not read.
     public func unreadable() throws -> Wire.Unreadable {
         try call(.unreadable, as: Wire.Unreadable.self)

@@ -26,7 +26,7 @@ def check(ok, what):
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
 for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
-             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "history", "drop", "searchin", "url", "similar", "home"):
+             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -203,6 +203,10 @@ print(f"info ready to search: {report.get('ready_ms')} ms after start")
 launch = report.get("launch_ms", -1)
 print(f"info cold launch to ready: {launch} ms (target < 300 ms on a real Mac)")
 check(0 < launch < 5000, f"the app is ready in under 5 s on CI (got {launch} ms)")
+
+# A file deleted behind Laserdot's back leaves the results; Refresh works.
+check(steps["gone"]["results"] == [], f"a deleted file is not shown (got {steps['gone']['results']})")
+check(steps["refreshed"]["refreshing"] is False and steps["refreshed"]["results"] == [], f"Refresh finished (got {steps['refreshed']})")
 
 # A laserdot:// link opens the search.
 url = steps["url"]

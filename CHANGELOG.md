@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.4
+
+- Files deleted in Finder no longer show up: every result is checked before it is shown, and anything gone is
+  removed from the index by itself.
+- ⌘R (the arrow next to the grid button, or `> refresh`) looks at every indexed folder again and removes whatever
+  was deleted.
+
 ## 0.9.3
 
 - Thumbnails: ⌘J (or the grid button next to the sort arrows) shows results as a grid of large previews; ↑↓ move by

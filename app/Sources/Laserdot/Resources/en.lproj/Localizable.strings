@@ -326,3 +326,5 @@
 "older.trash" = "Move to Trash";
 "view.asGrid" = "Show as Thumbnails";
 "view.asList" = "Show as List";
+"refresh.help" = "Refresh the Index (remove deleted files)";
+"refresh.done" = "Refreshed: %ld deleted removed, %ld new added";

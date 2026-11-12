@@ -143,6 +143,9 @@ extension AppDelegate {
         var list: [ActionItem] = [
             ActionItem(id: "dupes", title: L("menu.duplicates"), symbol: "square.on.square") { [weak self] in self?.showDuplicates() },
             ActionItem(id: "storage", title: L("menu.storage"), symbol: "chart.bar.xaxis", shortcut: "⇧⌘S") { [weak self] in self?.showStorage() },
+            ActionItem(id: "refresh", title: L("refresh.help"), symbol: "arrow.clockwise", shortcut: "⌘R") { [weak self] in
+                self?.model?.refreshIndex()
+            },
             ActionItem(id: "index", title: L("menu.index"), symbol: "folder.badge.plus", shortcut: "⌘O") { [weak self] in self?.chooseFolder() },
             ActionItem(id: "syntax", title: L("menu.syntax"), symbol: "questionmark.circle", shortcut: "⌘/") { [weak self] in
                 self?.model?.showCheatSheet = true

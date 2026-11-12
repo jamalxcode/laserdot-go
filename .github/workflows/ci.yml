@@ -113,6 +113,7 @@ jobs:
             echo trash me > "$fx/trashme.txt" # the run before moved it to the Trash
             rm -rf "$fx/Moved Here" "$fx/renamed ok.txt" "$fx"/beach.jpg*.zip
             echo rename me > "$fx/renameme.txt"
+            echo gone > "$fx/gonefile.txt"
             echo "Meeting notes: the zebra budget was approved on Monday." > "$fx/memo.txt"
             out="$(mktemp -d)"
             hold=""; [ "$lang" = en ] && hold=1

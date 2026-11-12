@@ -98,6 +98,19 @@ struct SearchView: View {
                 .help(L("search.clear"))
                 .accessibilityLabel(L("search.clear"))
             }
+            // Look at the folders again (deleted files leave the results).
+            Button { model.refreshIndex() } label: {
+                if model.refreshing {
+                    ProgressView().controlSize(.small).frame(width: 20, height: 20)
+                } else {
+                    Image(systemName: "arrow.clockwise").font(.title3)
+                }
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut("r", modifiers: .command)
+            .disabled(model.refreshing)
+            .help(L("refresh.help") + " (⌘R)")
+            .accessibilityLabel(L("refresh.help"))
             // List or thumbnails.
             Button { model.gridView.toggle() } label: {
                 Image(systemName: model.gridView ? "list.bullet" : "square.grid.2x2").font(.title3)

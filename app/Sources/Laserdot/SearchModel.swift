@@ -46,6 +46,7 @@ final class SearchModel: ObservableObject {
     @Published private(set) var hint: String?
     /// The hint, unless it says nothing about what was typed.
     var visibleHint: String? {
+        if let note = refreshNote { return note }
         guard let h = hint, !isGenericHint(h, lang: appLang) else { return nil }
         return h
     }
@@ -77,6 +78,9 @@ final class SearchModel: ObservableObject {
     @Published private(set) var notes: [String] = []
     @Published private(set) var unavailable: String?
     @Published var selection = 0
+    /// ⌘R is looking at the indexed folders again; then what it found.
+    @Published var refreshing = false
+    @Published var refreshNote: String?
     /// Results as thumbnails (⌘J), remembered.
     @Published var gridView = UserDefaults.standard.bool(forKey: "laserdot.grid") {
         didSet { UserDefaults.standard.set(gridView, forKey: "laserdot.grid") }
