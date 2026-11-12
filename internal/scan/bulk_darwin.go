@@ -40,10 +40,6 @@ const (
 	attrFileLinkCount  = 0x00000001
 	attrFileDataLength = 0x00000200
 
-	// Every requested attribute is packed (defaults where not valid), so
-	// each entry has the same layout.
-	fsoptPackInvalAttrs = 0x00000008
-
 	vDIR = 2
 	vLNK = 5
 
@@ -112,7 +108,7 @@ func readDirBulk(dir string, parent int, opts Options) ([]Entry, []Error, bool) 
 	var out []Entry
 	var errs []Error
 	for {
-		n := bulkCall(int32(fd), unsafe.Pointer(&req), unsafe.Pointer(&buf[0]), uintptr(len(buf)), fsoptPackInvalAttrs)
+		n := bulkCall(int32(fd), unsafe.Pointer(&req), unsafe.Pointer(&buf[0]), uintptr(len(buf)), 0)
 		if n < 0 {
 			return nil, nil, false
 		}
@@ -140,9 +136,10 @@ func readDirBulk(dir string, parent int, opts Options) ([]Entry, []Error, bool) 
 			if skip(dir, name, path, e.IsDir, opts) {
 				continue
 			}
-			if e.mountPoint {
-				// Another volume is mounted here: take what lstat says (its
-				// device differs, so the walk stops there).
+			if e.mountPoint || e.IsSymlink {
+				// Another volume is mounted here (lstat gives its device, so
+				// the walk stops there), or a symlink (rare; lstat gives the
+				// size the name-by-name way reports): ask lstat.
 				info, err := os.Lstat(path)
 				if err != nil {
 					errs = append(errs, Error{Path: path, Message: err.Error()})
@@ -172,62 +169,107 @@ type bulkEntry struct {
 }
 
 // parseBulkEntry reads one packed entry (its first 4 bytes are its length).
-// Layout, in the order the kernel packs it: length; returned attribute set
-// (5×u32); name (attrreference: i32 offset from itself, u32 length with the
-// NUL); device (i32); object type (u32); birth time and modification time
-// (timespec: i64 seconds, i64 nanoseconds); flags (u32); file id (u64);
-// mount status (u32, folders); link count (u32) and data length (i64, files).
+// After the length comes the set of attributes actually returned (5×u32:
+// common, volume, folder, file, fork); each requested attribute follows
+// only if its bit is set there, in bit order: name (attrreference: i32
+// offset from itself, u32 length with the NUL); device (i32); object type
+// (u32); birth and modification times (timespec: i64 s, i64 ns); flags
+// (u32); file id (u64); then mount status (u32, folders only); then link
+// count (u32) and data length (i64, files only).
 func parseBulkEntry(b []byte) (bulkEntry, string, bool) {
-	const fixed = 4 + 20 + 8 + 4 + 4 + 16 + 16 + 4 + 8 + 4 + 4 + 8
-	if len(b) < fixed {
+	le := binary.LittleEndian
+	p := 4
+	need := func(n int) bool { return p+n <= len(b) }
+	if !need(20) {
 		return bulkEntry{}, "", false
 	}
-	le := binary.LittleEndian
-	p := 4 + 20
+	common, dirSet, fileSet := le.Uint32(b[p:]), le.Uint32(b[p+8:]), le.Uint32(b[p+12:])
+	p += 20
+	// Name, type and file id are needed; without them, list this folder name by name.
+	if common&attrCmnName == 0 || common&attrCmnObjType == 0 || common&attrCmnModTime == 0 {
+		return bulkEntry{}, "", false
+	}
+	e := bulkEntry{}
+	var name string
+	if !need(8) {
+		return bulkEntry{}, "", false
+	}
 	nameRef := p
 	nameOff := int(int32(le.Uint32(b[p:])))
 	nameLen := int(le.Uint32(b[p+4:]))
 	p += 8
-	dev := int32(le.Uint32(b[p:]))
-	p += 4
-	objType := le.Uint32(b[p:])
-	p += 4
-	crSec := int64(le.Uint64(b[p:]))
-	p += 16
-	modSec := int64(le.Uint64(b[p:]))
-	p += 16
-	flags := le.Uint32(b[p:])
-	p += 4
-	fileID := le.Uint64(b[p:])
-	p += 8
-	mountStatus := le.Uint32(b[p:])
-	p += 4
-	links := le.Uint32(b[p:])
-	p += 4
-	dataLen := int64(le.Uint64(b[p:]))
-
 	start := nameRef + nameOff
 	if nameLen < 1 || start < 0 || start+nameLen > len(b) {
 		return bulkEntry{}, "", false
 	}
-	name := string(b[start : start+nameLen-1]) // without the NUL
-
-	e := bulkEntry{}
+	name = string(b[start : start+nameLen-1]) // without the NUL
+	if common&attrCmnDevID != 0 {
+		if !need(4) {
+			return bulkEntry{}, "", false
+		}
+		e.Dev = uint64(int32(le.Uint32(b[p:]))) // as statOf converts st_dev (sign-extended)
+		p += 4
+	}
+	if !need(4) {
+		return bulkEntry{}, "", false
+	}
+	objType := le.Uint32(b[p:])
+	p += 4
 	e.IsDir = objType == vDIR
 	e.IsSymlink = objType == vLNK
-	e.Modified = modSec
-	e.Created = crSec
+	if common&attrCmnCrTime != 0 {
+		if !need(16) {
+			return bulkEntry{}, "", false
+		}
+		e.Created = int64(le.Uint64(b[p:]))
+		p += 16
+	}
+	if !need(16) {
+		return bulkEntry{}, "", false
+	}
+	e.Modified = int64(le.Uint64(b[p:]))
+	p += 16
 	if e.Created == 0 {
 		e.Created = e.Modified
 	}
-	e.Inode = fileID
-	e.Dev = uint64(dev) // as statOf converts st_dev (sign-extended)
-	e.Dataless = flags&sfDataless != 0
-	if e.IsDir {
-		e.mountPoint = mountStatus&dirMntStatusMntPnt != 0
-	} else {
-		e.Nlink = uint64(links)
-		e.Size = uint64(dataLen)
+	if common&attrCmnFlags != 0 {
+		if !need(4) {
+			return bulkEntry{}, "", false
+		}
+		e.Dataless = le.Uint32(b[p:])&sfDataless != 0
+		p += 4
+	}
+	if common&attrCmnFileID != 0 {
+		if !need(8) {
+			return bulkEntry{}, "", false
+		}
+		e.Inode = le.Uint64(b[p:])
+		p += 8
+	}
+	if dirSet&attrDirMountStatus != 0 {
+		if !need(4) {
+			return bulkEntry{}, "", false
+		}
+		e.mountPoint = le.Uint32(b[p:])&dirMntStatusMntPnt != 0
+		p += 4
+	}
+	if !e.IsDir {
+		if fileSet&attrFileLinkCount != 0 {
+			if !need(4) {
+				return bulkEntry{}, "", false
+			}
+			e.Nlink = uint64(le.Uint32(b[p:]))
+			p += 4
+		}
+		if fileSet&attrFileDataLength != 0 {
+			if !need(8) {
+				return bulkEntry{}, "", false
+			}
+			e.Size = uint64(le.Uint64(b[p:]))
+			p += 8
+		} else if !e.IsSymlink {
+			return bulkEntry{}, "", false // a file without its size: ask lstat
+		}
 	}
 	return e, name, true
 }
