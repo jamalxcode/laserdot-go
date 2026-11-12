@@ -53,6 +53,8 @@ public struct Hit: Hashable, Sendable {
     public var size: UInt64
     /// Unix seconds.
     public var modified: Int64
+    /// Birth time (Unix seconds; the modification time where unknown).
+    public var created: Int64
     /// Ready-to-show badges (spec §10.3): dimensions, video codec + HDR,
     /// first audio track, duration.
     public var badges: [String]
@@ -82,6 +84,7 @@ public struct Hit: Hashable, Sendable {
         isDir = h.isDir
         size = h.size
         modified = h.modified
+        created = h.created
         self.badges = badges
         typo = h.typo
         volume = h.volume
