@@ -77,6 +77,12 @@ final class SearchModel: ObservableObject {
     @Published private(set) var notes: [String] = []
     @Published private(set) var unavailable: String?
     @Published var selection = 0
+    /// Results as thumbnails (⌘J), remembered.
+    @Published var gridView = UserDefaults.standard.bool(forKey: "laserdot.grid") {
+        didSet { UserDefaults.standard.set(gridView, forKey: "laserdot.grid") }
+    }
+    /// Tiles per row in the grid (set by the view).
+    var gridColumns = 1
     /// Space presses that reached the model (for the self-test's report).
     var spacePresses = 0
     /// The last file operation, for Undo (⌥⌘Z) and the banner.

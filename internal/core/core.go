@@ -468,6 +468,37 @@ func (ld *Laserdot) applyLocal(changes []Change) (UpdateStats, error) {
 	return u, err
 }
 
+// PruneLibrary removes from the index what ~/Library holds besides iCloud
+// Drive (caches, app data), when ~/Library is inside an indexed folder. Such
+// entries come from versions that indexed all of it; listing ~/Library
+// again with today's rules leaves them out. A no-op when nothing is there.
+func (ld *Laserdot) PruneLibrary() (UpdateStats, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return UpdateStats{OfflineRoots: []string{}}, nil
+	}
+	lib := filepath.Join(home, "Library")
+	if c, err := canonical(lib); err == nil {
+		lib = c
+	}
+	ld.mu.RLock()
+	id, ok := ld.store.Resolve(lib)
+	extra := false
+	if ok && !ld.store.IsRoot(id) {
+		for _, c := range ld.store.Children(id) {
+			if filepath.Base(ld.store.Path(c)) != "Mobile Documents" {
+				extra = true
+				break
+			}
+		}
+	}
+	ld.mu.RUnlock()
+	if !extra {
+		return UpdateStats{OfflineRoots: []string{}}, nil
+	}
+	return ld.applyLocal([]Change{{Path: lib, Recursive: false}})
+}
+
 // Refresh catches up on changes made while not watching: every indexed
 // folder and every attached drive is rescanned and diffed in place.
 func (ld *Laserdot) Refresh() (UpdateStats, error) {

@@ -104,7 +104,9 @@ final class SelfTestRunner {
             // Sorted by size: one list, largest first.
             Step(name: "sorted", typed: "kind:image", before: { model.sort = .size }),
             // ⇧↓ selects a second result.
-            Step(name: "multi", typed: "jpg", before: { model.sort = .relevance }, after: { model.extend(1) }),
+            // Thumbnails (⌘J): the same results as a grid.
+            Step(name: "grid", typed: "kind:image", before: { model.sort = .relevance; model.gridView = true }),
+            Step(name: "multi", typed: "jpg", before: { model.gridView = false }, after: { model.extend(1) }),
             // ⌘K ▸ Move to Trash removes a file; a new search no longer finds it.
             Step(name: "trash", typed: "trashme", after: {
                 model.actions.first { $0.id == "trash" }?.run()
@@ -470,6 +472,8 @@ final class SelfTestRunner {
         r["selected_count"] = model.selectedHits.count
         r["section_ids"] = model.sections.map(\.id)
         r["paths"] = model.results.map { relative($0.path) }
+        r["grid"] = model.gridView
+        r["grid_columns"] = model.gridColumns
         r["undo"] = model.undoStep?.title ?? ""
         r["undo_banner"] = model.undoBannerVisible
         r["snippet"] = model.snippet ?? ""

@@ -67,6 +67,11 @@ func (w *Watcher) stopped() bool {
 
 func (w *Watcher) run(ev WatchEvents) {
 	defer close(w.done)
+	// Older versions indexed all of ~/Library; take out what the current
+	// rules leave out (caches, app data) before following changes.
+	if _, err := w.ld.PruneLibrary(); err != nil && ev.Error != nil {
+		ev.Error(err)
+	}
 	report := func(u UpdateStats, err error) {
 		if err != nil {
 			if ev.Error != nil {

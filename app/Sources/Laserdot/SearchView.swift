@@ -98,6 +98,14 @@ struct SearchView: View {
                 .help(L("search.clear"))
                 .accessibilityLabel(L("search.clear"))
             }
+            // List or thumbnails.
+            Button { model.gridView.toggle() } label: {
+                Image(systemName: model.gridView ? "list.bullet" : "square.grid.2x2").font(.title3)
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut("j", modifiers: .command)
+            .help(L(model.gridView ? "view.asList" : "view.asGrid") + " (⌘J)")
+            .accessibilityLabel(L(model.gridView ? "view.asList" : "view.asGrid"))
             // Result order.
             Menu {
                 Picker(L("sort.title"), selection: $model.sort) {
@@ -250,8 +258,17 @@ struct SearchView: View {
                                     .padding(.top, section.range.lowerBound == 0 ? 2 : 10)
                                     .accessibilityAddTraits(.isHeader)
                             }
-                            ForEach(section.range.map { IndexedHit(index: $0, hit: model.results[$0]) }) { item in
-                                row(item.index, item.hit)
+                            if model.gridView {
+                                LazyVGrid(columns: [GridItem(.adaptive(minimum: Self.tileWidth), spacing: Self.tileSpacing)],
+                                          alignment: .leading, spacing: Self.tileSpacing) {
+                                    ForEach(section.range.map { IndexedHit(index: $0, hit: model.results[$0]) }) { item in
+                                        tile(item.index, item.hit)
+                                    }
+                                }
+                            } else {
+                                ForEach(section.range.map { IndexedHit(index: $0, hit: model.results[$0]) }) { item in
+                                    row(item.index, item.hit)
+                                }
                             }
                             if section.hidden > 0 {
                                 Button(String(format: L("results.showAll"), Int64(section.total))) { model.expand(section.id) }
@@ -271,6 +288,12 @@ struct SearchView: View {
                 }
                 // One identity per row (its path); rebuilt on every answer.
                 .id(model.resultsID)
+                // How many tiles fit in a row (↑↓ move by a row in the grid).
+                .background(GeometryReader { g in
+                    Color.clear
+                        .onAppear { model.gridColumns = Self.columns(for: g.size.width) }
+                        .onChange(of: g.size.width) { _, w in model.gridColumns = Self.columns(for: w) }
+                })
                 .onChange(of: model.selection) { _, i in
                     if model.results.indices.contains(i) { proxy.scrollTo(model.results[i].path) }
                 }
@@ -280,6 +303,54 @@ struct SearchView: View {
             .opacity(model.searching ? 0.35 : 1)
             .animation(model.searching ? .easeIn(duration: 0.15).delay(0.15) : .none, value: model.searching)
         }
+    }
+
+    static let tileWidth: CGFloat = 132
+    static let tileSpacing: CGFloat = 8
+
+    static func columns(for width: CGFloat) -> Int {
+        max(1, Int((width - 12 + tileSpacing) / (tileWidth + tileSpacing)))
+    }
+
+    /// The grid: a large thumbnail and the name, as Finder's icon view.
+    private func tile(_ i: Int, _ hit: Hit) -> some View {
+        let selected = model.isSelected(i)
+        return VStack(spacing: 4) {
+            FileIcon(path: hit.path, size: 104, thumbnail: true)
+                .frame(width: 112, height: 96)
+                .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
+            Text(highlighted(hit.name, model.highlightWords))
+                .font(.caption)
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(selected && emphasized ? Color.white : Color.primary)
+            if let badge = hit.badges.first {
+                Text(badge).font(.caption2).foregroundStyle(selected && emphasized ? Color.white.opacity(0.85) : Color.secondary)
+            }
+        }
+        .padding(6)
+        .frame(width: Self.tileWidth, height: 160, alignment: .top)
+        .background(RoundedRectangle(cornerRadius: 8)
+            .fill(selected ? (emphasized ? Color.accentColor : Color.secondary.opacity(0.2)) : Color.clear))
+        .contentShape(Rectangle())
+        .id(hit.path)
+        .onTapGesture(count: 2) { model.open(hit) }
+        .onTapGesture { model.click(i) }
+        .contextMenu {
+            Button(L("action.open")) { model.open(hit) }
+            Button(L("action.quickLook")) { model.quickLook(hit) }
+            Button(L("action.reveal")) { model.reveal(hit) }
+            Button(L("action.copy")) { model.copyPath(hit) }
+            Divider()
+            Button(L("action.more")) {
+                if !model.isSelected(i) { model.click(i) }
+                model.toggleActions()
+            }
+        }
+        .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
 
     private func row(_ i: Int, _ hit: Hit) -> some View {

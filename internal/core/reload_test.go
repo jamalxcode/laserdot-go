@@ -108,3 +108,60 @@ func TestUnreadableFoldersAreListed(t *testing.T) {
 		t.Fatalf("after fixing: %+v", r)
 	}
 }
+
+// Entries an older version indexed under ~/Library (caches, app data) are
+// taken out; iCloud Drive stays.
+func TestPruneLibraryRemovesCachesKeepsICloud(t *testing.T) {
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	home := filepath.Join(dir, "home")
+	write(t, home, "Documents/report.pdf", "x")
+	write(t, home, "Library/Caches/com.apple.wallpaper.caches/abc.png", "y")
+	write(t, home, "Library/Containers/app/Data/thing.jpg", "z")
+	write(t, home, "Library/Mobile Documents/com~apple~CloudDocs/notes.txt", "n")
+	// Indexed as an old version did: ~/Library not restricted (HOME elsewhere).
+	t.Setenv("HOME", filepath.Join(dir, "elsewhere"))
+	ld, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	if _, err := ld.Index(home); err != nil {
+		t.Fatal(err)
+	}
+	names := func(q string) []string {
+		r, err := ld.Search(q, SearchOptions{Page: pageAll()})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, h := range r.Hits {
+			out = append(out, h.Name)
+		}
+		return out
+	}
+	if got := names("abc"); len(got) != 1 {
+		t.Fatalf("the cache file should be indexed by the old rules: %v", got)
+	}
+	t.Setenv("HOME", home)
+	u, err := ld.PruneLibrary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Removed == 0 {
+		t.Fatalf("nothing pruned: %+v", u)
+	}
+	for _, q := range []string{"abc", "thing", "Caches"} {
+		if got := names(q); len(got) != 0 {
+			t.Errorf("%s still found: %v", q, got)
+		}
+	}
+	for _, q := range []string{"notes", "report"} {
+		if got := names(q); len(got) != 1 {
+			t.Errorf("%s should stay: %v", q, got)
+		}
+	}
+	// Nothing left to prune: a no-op.
+	if u, _ := ld.PruneLibrary(); u.Removed != 0 {
+		t.Errorf("second prune removed %d", u.Removed)
+	}
+}

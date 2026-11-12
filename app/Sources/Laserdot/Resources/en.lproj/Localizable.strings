@@ -324,3 +324,5 @@
 "older.title" = "Older copies of Laserdot found";
 "older.text" = "macOS may start an old copy instead of this one (an old copy cannot update itself). Move them to the Trash?";
 "older.trash" = "Move to Trash";
+"view.asGrid" = "Show as Thumbnails";
+"view.asList" = "Show as List";

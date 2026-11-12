@@ -25,7 +25,7 @@ def check(ok, what):
 
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
-for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "history", "drop", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -114,6 +114,12 @@ check(steps["song"]["selected"] == "song.mp3", f"the song is selected and previe
 srt = steps["sorted"]
 check(srt["section_ids"] == ["sorted"], f"sorted results are one list (got {srt['section_ids']})")
 check(srt["sizes"] == sorted(srt["sizes"], reverse=True) and len(srt["sizes"]) >= 2, f"largest first (got {srt['sizes']})")
+
+# Thumbnails: the grid shows the same results, several to a row.
+g = steps["grid"]
+check(g["grid"] is True and len(g["results"]) >= 3, f"the grid shows the images (got {g['results']})")
+check(g["grid_columns"] >= 2, f"several thumbnails to a row (got {g['grid_columns']})")
+check(steps["multi"]["grid"] is False, "back to the list")
 
 # ⇧↓ selects a second result.
 check(steps["multi"]["selected_count"] == 2, f"two results selected (got {steps['multi']['selected_count']})")

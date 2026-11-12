@@ -5,6 +5,10 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
 ## 0.9.3
 
+- Thumbnails: ⌘J (or the grid button next to the sort arrows) shows results as a grid of large previews; ↑↓ move by
+  a row. Laserdot remembers your choice.
+- Cache files from `~/Library` that an older version indexed (wallpaper caches and the like) are removed by
+  themselves.
 - Fixed: Laserdot could stay on "Starting the index…" for good, waiting on a drive that didn't answer or on the
   welcome tour. Now it never waits more than a minute for macOS's questions, and the menu says what it is waiting for.
 - Older copies of Laserdot left on your Mac (which macOS may start instead, and which cannot update) are found at

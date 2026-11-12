@@ -58,6 +58,7 @@ downloads.
 | ↑ in the empty box | your earlier searches |
 | ⌘↩ / ⌘⇧C | Show in Finder / copy the path |
 | ⌘D | pin the search (pins show on the empty box) |
+| ⌘J | results as thumbnails or as a list |
 | Tab / ⌥1–⌥9 | complete a filter / press a suggestion chip |
 | Esc | close actions, the cheat sheet, then the window |
 

@@ -23,7 +23,9 @@ extension SearchModel {
             return
         }
         extraSelection = []
-        selection = max(0, min(results.count - 1, selection + delta))
+        // In the grid ↑↓ go a row up or down.
+        let step = gridView ? delta * max(1, gridColumns) : delta
+        selection = max(0, min(results.count - 1, selection + step))
         anchor = selection
         browsing = true
     }
