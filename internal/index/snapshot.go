@@ -80,8 +80,11 @@ func asBytes[T any](s []T) []byte {
 func putCol[T any](w *snapWriter, s []T) { w.section(asBytes(s)) }
 
 func (w *snapWriter) bitmap(bm *roaring.Bitmap) {
-	bm.RunOptimize()
-	b, err := bm.ToBytes()
+	// The store is being searched while it is written (under a read lock):
+	// compact a copy, never the live bitmap.
+	c := bm.Clone()
+	c.RunOptimize()
+	b, err := c.ToBytes()
 	if err != nil && w.err == nil {
 		w.err = err
 	}
