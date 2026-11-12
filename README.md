@@ -6,7 +6,8 @@ Private, media-aware search for your Mac — a Spotlight successor that cannot p
   `4k hdr`. Arabic too: `صور الاسبوع الماضي`, `فاتورة ٢٠٢٤`.
 - **Knows your media:** resolution, codecs, HDR, frame rate, audio channels, track languages, subtitles, camera
   EXIF, music tags — searchable without opening a file (`res:4k codec:hevc`, `lang:ar channels:5.1`).
-- **Fast and live:** its own in-memory index; results appear as you type and stay current as files change.
+- **Fast and live:** its own index; results appear as you type (a few milliseconds even over a million files) and
+  stay current as files change — a deleted file never shows.
 - **Drives that remember:** an external drive keeps its own index, so it is searchable on any Mac with Laserdot.
 - **Duplicates by quality:** finds identical files, similar pictures and re-encoded videos and keeps the best copy.
   It never deletes: files are moved to the Trash or a folder you choose, after a preview.
@@ -17,12 +18,14 @@ Private, media-aware search for your Mac — a Spotlight successor that cannot p
 
 1. Download the latest **Laserdot-x.y.z.dmg** from [Releases](https://github.com/jamalxcode/laserdot-go/releases/latest).
 2. Open it and drag **Laserdot** to **Applications**.
-3. Open Laserdot. A short tour ends with **Start**: macOS then asks about Desktop, Documents, Downloads, iCloud
-   Drive and any connected drive, one right after another — click **Allow** on each. Laserdot then indexes your apps
-   and your home folder by itself (skipping `~/Library`, except iCloud Drive).
+3. Open Laserdot. macOS asks about Desktop, Documents, Downloads, iCloud Drive and any connected drive, all at once
+   — click **Allow** on each. Laserdot then indexes your apps and your home folder by itself (skipping `~/Library`,
+   except iCloud Drive). If it finds an older copy of Laserdot on your Mac, it offers to move it to the Trash.
 
 Updates install themselves: Laserdot checks once a day, downloads a new version in the background and installs it
-when you quit (or now, from **Check for Updates…**). No account or token is needed.
+when you quit (or now, from **Check for Updates…** in the menu-bar icon's menu). No account or token is needed. Each
+update is signed on your Mac with a key Laserdot makes there, so macOS keeps your "Allow" answers. Not happy with
+an update? **Settings ▸ General ▸ Go Back**.
 
 The app is signed ad hoc, not with an Apple Developer ID, so the first launch may need **right-click → Open**.
 
@@ -62,6 +65,9 @@ downloads.
 | ⌘R | refresh: look at every indexed folder again (deleted files leave the index) |
 | Tab / ⌥1–⌥9 | complete a filter / press a suggestion chip |
 | Esc | close actions, the cheat sheet, then the window |
+
+Results can also be shown as **thumbnails** (⌘J). A file deleted in Finder disappears from the results right away;
+**⌘R** (the circular arrow) looks at every indexed folder again.
 
 The preview pane on the right shows a large thumbnail, plays videos and songs, pages through PDFs, and for a
 document found by its words, the passage where they are. Drop a folder on the window to search inside it.
@@ -129,7 +135,7 @@ The app (macOS):
 ```bash
 app/scripts/build-go.sh                  # laserdotd + CLI, and the app's registry (rerun after registry changes)
 (cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
-VERSION=0.8.0 app/scripts/bundle.sh      # → app/build/Laserdot.app
+VERSION=0.9.4 app/scripts/bundle.sh      # → app/build/Laserdot.app
 ```
 
 CI builds and tests on Linux and macOS, bundles the app, launches it, runs the updater against GitHub, and runs
@@ -139,8 +145,9 @@ passages, the unreadable list, the Keychain, Settings and, last, Erase All Data)
 launch time, and saves screenshots
 (`app/Sources/Laserdot/SelfTest.swift`, judged by `app/scripts/check-selftest.py`).
 
-A speed test on a Mac (`app/scripts/perf-mac.sh`) indexes 100,000 files, times searches and measures the
-daemon's memory.
+A speed test on a Mac (`app/scripts/perf-mac.sh`) indexes 100,000 files (and again without bulk folder reading, to
+compare), times searches and measures the daemon's memory. On CI's Mac, 100,000 files are searchable after about
+1.7 s; searches take 2–4 ms.
 
 Releases: run the **Release** workflow with a version (or push a `v*` tag); it builds, launch-tests and publishes
 `Laserdot-<version>.dmg`.

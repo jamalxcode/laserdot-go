@@ -46,7 +46,7 @@ Choices made by the owner (2026-11-10):
 - **G4 — drives, duplicates, content search, guidance, snapshot, Tier 2**, then the Swift app pointed at the Go
   daemon.
 
-## Design decision log (the app, 2026-11-10 → 11)
+## Design decision log (the app, 2026-11-10 → 12)
 
 Decisions the owner made while using the app (the conversation and the reasons: `docs/design-conversation.md`).
 Binding unless revisited deliberately; each is also in the spec.
@@ -54,7 +54,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Network:** only the Laserdot Updater helper may use the network, and only to reach github.com for releases
   (§7.4). The app shell is not OS-sandboxed (it could not hand protected files to Preview/VLC) and keeps the rule
   by having no network code, enforced in CI; `laserdotd` keeps its OS network block (§7.1).
-- **Distribution:** the repository and its releases are public; only the owner can push or publish. Updates need no
+- **Distribution:** the repository and its releases are public; only the owner can push or publish (enforced by the
+  Repo admin `access-lock` task: no collaborators, read-only workflow tokens, approval for outside pull requests,
+  `main` protected from deletion and force pushes). Updates need no
   token or account: the version comes from the `releases/latest` web redirect (the API is a fallback, its anonymous
   limit is often used up), and a background download installs on quit.
 - **Search like Spotlight:** type words and plain-language words stand for filters, explained on the hint line,
@@ -77,7 +79,17 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Mistakes can be undone (0.8.0):** file actions have Undo; an update can be undone (Go Back); all of Laserdot's
   data can be erased from Settings ▸ Privacy, which also shows what is kept. Drive passphrases are remembered only
   when the user ticks the box, and only in the login Keychain.
-- **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account).
+- **Permissions at once (0.9.1, 0.9.3):** before laserdotd starts, the app touches every macOS-protected place so
+  the prompts come together, then indexes by itself; each place has a time limit, so startup never hangs. Updates
+  keep the answers because each Mac signs its updates with its own key (`LocalSigner`, 0.9.2) — the owner chose to
+  keep no signing key on GitHub, accepting that a program already running on the Mac could use that key.
+- **One copy (0.9.3):** older copies of Laserdot are found at launch and offered for the Trash.
+- **What is shown exists (0.9.4):** results are checked before they are shown; deleted files leave the index by
+  themselves; ⌘R refreshes every folder. Offline folders are kept 30 days, as before.
+- **Measure before optimizing (0.9.3):** search is already fast; work goes to memory and the Mac walk, each change
+  checked by the race detector, the lifecycle test and the Mac speed test.
+- **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account), and more
+  languages than English and Arabic for now.
 
 ## Progress
 

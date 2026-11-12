@@ -228,12 +228,74 @@ and then index on its own".
 indexing around the disk; and because the app is signed ad hoc, macOS saw every update as a new app and asked again.
 
 **Decided:** before reading anything, Laserdot touches each protected place itself so the prompts come back to back
-(on first launch when the tour's Start is pressed), then indexes on its own.
+then indexes on its own.
 
 **Asked next:** "can the key be stored locally on my mac, rather than on github?" — **Decided (0.9.2):** yes. Releases
 stay as they are; Laserdot makes a key on the Mac the first time it updates and signs each update with it before
 installing, so macOS keeps its answers. Nothing secret is kept on GitHub. Trade-off, accepted: a program already
 running on the Mac could use that key; Erase All Laserdot Data deletes it.
+
+## 13. Stuck on "Starting the index…", and an old copy (0.9.3)
+
+**Asked:** a screenshot of the menu-bar menu, still on "Starting the index…" minutes after launch; then "i cant
+access an update function from laserdot, give me a link".
+
+**Found:** two causes. The permission step of 0.9.1 waited without limit on each place (a drive that never answers)
+and, on a first launch, on the welcome tour, which a launch at login never shows. And the menu in the screenshot
+was from a copy of about 0.2 still on the Mac: two copies share one identity, and macOS may start the old one.
+
+**Decided:**
+1. The permission step runs at every launch, not tied to the tour; each place has a time limit (a minute for a
+   folder, 8 seconds for a drive) and the menu says what it waits for.
+2. The newest copy finds older ones at launch and offers to move them to the Trash in one click.
+3. The owner removed the old copies by hand and got the link to the Releases page.
+
+## 14. Thumbnails, and caches in the results (0.9.3)
+
+**Asked:** "image view is nice, can i get also a thumbnail view also" — with a screenshot whose results were full of
+`~/Library/Caches` wallpaper files.
+
+**Decided:**
+1. ⌘J (or a header button) shows results as a grid of large thumbnails, in the same sections and order; ↑↓ move a
+   row; the choice is remembered.
+2. The cache files came from the old copy, which indexed all of `~/Library`; today's rules only applied when
+   `~/Library` itself was listed again. At start the engine now lists it again with today's rules, so they go.
+
+## 15. "Can it be made faster?" (0.9.3)
+
+**Asked:** "review the code, can it be made more efficient and optimized and faster", then "do A and B".
+
+**Measured first:** search is already fast (0.03–8 ms over a million files); the costs were memory and reading
+folders on the Mac.
+
+**Decided:**
+1. A 64 MB database cache that no longer helped was removed; after a full index the engine serves the index from
+   its file, as after a restart.
+2. Fixing that exposed two concurrency bugs (a lock-order deadlock and a data race while saving the index); the
+   race detector and the tests now cover both.
+3. (A) Finder tags are read after the first index, in the background: files are searchable sooner, tags follow a
+   few seconds later.
+4. (B) macOS reads folders in bulk (getattrlistbulk) instead of a call per file; a Mac test proves it gives the same
+   entries. Its own gain is not yet measured fairly (CI disk caching skews it).
+5. Result on CI's Mac: 100,000 files searchable after 1.7 s instead of 3.6 s.
+
+## 16. A deleted picture still listed (0.9.4)
+
+**Asked:** "when an image is deleted via the finder it still shows, have a refresh button that removes it from the
+index and everything else deleted also".
+
+**Decided:**
+1. Every result is checked before it is shown; a file that is gone is left out at once and removed from the index
+   in the background. An indexed folder that is itself missing counts as offline (kept for 30 days), not deleted.
+2. ⌘R (a header button, `> refresh`) looks at every indexed folder again and says how many files went and came.
+3. Why the change was missed on the owner's Mac is not known yet; Save Diagnostics shows whether the watcher runs.
+
+## 17. Only the owner can change the code
+
+**Asked (with the fifth critique):** "ensure i only have access to this repo to modify it". **Decided:** the Repo
+admin workflow's `access-lock` task removed collaborators, invitations and writable deploy keys (there were none),
+made workflow tokens read-only by default, requires the owner's approval before workflows run for anyone else's
+pull request, and protects `main` from deletion and force pushes. Releases are built by GitHub from `main` only.
 
 ---
 
@@ -244,3 +306,7 @@ running on the Mac could use that key; Erase All Laserdot Data deletes it.
 - The owner's screenshots were the bug reports; since 0.4.0 the self-test's screenshots let the developer see the app
   too, in English and Arabic.
 - The spec and Issue 002 were updated with every behavior change.
+- Measurements before changes: profiles and the Mac speed test (`app/scripts/perf-mac.sh`) decide what to optimize;
+  numbers in these notes come from CI's Macs, which are slower than the owner's.
+- Mistakes made along the way, and caught: a release started before `main` had the new commit (cancelled before
+  publishing; the release step now checks), and a commit pushed while a test failed (fixed in the next commit).
