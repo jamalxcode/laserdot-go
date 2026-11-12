@@ -272,3 +272,9 @@ Binding unless revisited deliberately; each is also in the spec.
   on Linux; `TestIndexKeepsTheSameIndexAsReopening` proves the result is identical), a quicker launch and its time in
   Save Diagnostics; LaserdotApp.swift and SearchModel.swift split. The self-test waits for results instead of fixed
   pauses and adds tags, history, drop, the unreadable list, the Keychain and, last, Erase All Data.
+
+- **0.9.1 (2026-11-12):** the owner saw macOS ask for different folders at different times. The app now asks for
+  every protected place at once before laserdotd starts (first launch: on the tour's Start), then indexes by itself.
+  The prompts also came back after updates because the app is signed ad hoc (macOS ties permissions to the exact
+  build); `bundle.sh` signs with the repository's own key when its secrets exist (Repo admin task `signing-cert`
+  creates it on GitHub; it needs the owner's go-ahead to store the secret).

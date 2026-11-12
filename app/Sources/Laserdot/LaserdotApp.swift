@@ -64,6 +64,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     /// Milliseconds from process start to the end of launching, and to the
     /// first answer from laserdotd (Save Diagnostics shows both).
     var launchMS = -1
+    /// startEngine ran (after the permission prompts).
+    var engineStarted = false
     var readyMS = -1
     var hotKey: HotKey?
     @Published private(set) var hotKeyChoice = HotKeyChoice.saved
@@ -102,21 +104,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             alert.informativeText = reason + "\n\n" + L("index.failedHelp")
             alert.runFront()
         }
-        // Nothing to ask on first launch: the default folders are indexed
-        // automatically (indexDefaultsOnce).
-        model.connect()
         folders = FoldersModel(engine: engine)
-        let content = ContentModel(engine: engine)
-        self.content = content
-        let drives = DrivesModel(engine: engine)
-        self.drives = drives
+        content = ContentModel(engine: engine)
+        drives = DrivesModel(engine: engine)
         updates.stopDaemon = { [weak engine] in engine?.shutdown() }
-        // After the first frame: nothing here is needed to show a window.
-        DispatchQueue.main.async { [weak self] in
-            _ = self?.overlay
-            content.refresh()
-            drives.start()
-            self?.probeDuplicates()
+        if SelfTest.active {
+            startEngine()
+        } else {
+            // First launch: the welcome tour explains the macOS prompts and
+            // its Start button asks them (tourClosed). Later launches ask
+            // straight away: nothing is shown for places already answered, and
+            // after an update that macOS sees as a new app, all prompts come
+            // together, before anything is read.
+            noteVersion()
+            if !showTour { askPermissionsThenStart() }
         }
         launchMS = msSinceProcessStart()
         if let out = SelfTest.outDir {
@@ -128,7 +129,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         updates.offerMoveToApplications()
         updates.startDailyChecks()
         openAtLoginByDefault()
-        noteVersion()
         power = PowerWatcher { [weak engine] pause in
             DispatchQueue.global().async { engine?.setBackground(paused: pause) }
         }
@@ -261,10 +261,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     func tourClosed() {
         showTour = false
-        guard !SelfTest.active, let engine else { return }
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let status = engine.status()
-            DispatchQueue.main.async { self?.indexDefaultsOnce(status) }
+        guard !SelfTest.active else { return }
+        if engineStarted {
+            // Help ▸ Welcome Tour, later: nothing more to start.
+            return
+        }
+        askPermissionsThenStart()
+    }
+
+    /// Every macOS prompt at once, then laserdotd (which then indexes the
+    /// default folders by itself, indexDefaultsOnce).
+    func askPermissionsThenStart() {
+        Permissions.askAll { [weak self] refused in
+            self?.startEngine()
+            Permissions.explain(refused)
+        }
+    }
+
+    /// Connects to laserdotd (starting it) and everything that talks to it.
+    func startEngine() {
+        guard !engineStarted, let model else { return }
+        engineStarted = true
+        model.connect()
+        // After the first frame: nothing here is needed to show a window.
+        DispatchQueue.main.async { [weak self] in
+            _ = self?.overlay
+            self?.content?.refresh()
+            self?.drives?.start()
+            self?.probeDuplicates()
         }
     }
 

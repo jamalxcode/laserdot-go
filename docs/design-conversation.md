@@ -219,6 +219,18 @@ this repo to modify it and thats all for now", and "fix everything else, except 
 | 10 | Big documents slow the preview | A time limit and a cache |
 | 12 | Two big source files | Split |
 
+## 12. Permissions, all at once (0.9.1)
+
+**Asked:** "laserdot keeps asking for different permissions at different times, let it ask for all of them at once,
+and then index on its own".
+
+**Why it happened:** macOS asks the first time an app touches each protected place, so the prompts followed
+indexing around the disk; and because the app is signed ad hoc, macOS saw every update as a new app and asked again.
+
+**Decided:** before reading anything, Laserdot touches each protected place itself so the prompts come back to back
+(on first launch when the tour's Start is pressed), then indexes on its own. Updates keep the answers once releases
+are signed with the repository's own key.
+
 ---
 
 ## How the work was done

@@ -17,9 +17,9 @@ Private, media-aware search for your Mac — a Spotlight successor that cannot p
 
 1. Download the latest **Laserdot-x.y.z.dmg** from [Releases](https://github.com/jamalxcode/laserdot-go/releases/latest).
 2. Open it and drag **Laserdot** to **Applications**.
-3. Open Laserdot. A short tour explains what macOS will ask; when you close it, Laserdot indexes your apps and your
-   home folder by itself (skipping `~/Library`, except iCloud Drive). When macOS asks to let it read Desktop,
-   Documents or Downloads, click **Allow**.
+3. Open Laserdot. A short tour ends with **Start**: macOS then asks about Desktop, Documents, Downloads, iCloud
+   Drive and any connected drive, one right after another — click **Allow** on each. Laserdot then indexes your apps
+   and your home folder by itself (skipping `~/Library`, except iCloud Drive).
 
 Updates install themselves: Laserdot checks once a day, downloads a new version in the background and installs it
 when you quit (or now, from **Check for Updates…**). No account or token is needed.

@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.1
+
+- macOS's permission questions (Desktop, Documents, Downloads, iCloud Drive, drives) now come all at once, before
+  Laserdot reads anything — then it indexes by itself.
+- If you said no to a place, Laserdot tells you once which files it can't see, and how to allow them.
+
 ## 0.9.0
 
 - Undo remembers more: press ⌥⌘Z again to undo the step before, even after quitting (up to 20 steps, for a week).

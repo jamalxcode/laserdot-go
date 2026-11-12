@@ -57,11 +57,16 @@ jobs:
       - name: Build ffmpeg (only when not cached)
         run: app/scripts/build-ffmpeg.sh
       - name: Bundle Laserdot.app
+        env:
+          # The app's own signing key (absent: ad hoc). See app/scripts/bundle.sh.
+          LASERDOT_SIGN_P12: ${{ secrets.LASERDOT_SIGN_P12 }}
+          LASERDOT_SIGN_PASSWORD: ${{ secrets.LASERDOT_SIGN_PASSWORD }}
         run: |
           app/scripts/bundle.sh
           test -x app/build/Laserdot.app/Contents/MacOS/Laserdot
           test -x app/build/Laserdot.app/Contents/MacOS/laserdotd
           plutil -lint app/build/Laserdot.app/Contents/Info.plist
+          codesign -dv app/build/Laserdot.app 2>&1 | grep -E "^(Identifier|Authority|Signature)=" || true
           test -x "app/build/Laserdot.app/Contents/Helpers/Laserdot Updater.app/Contents/MacOS/LaserdotUpdater"
           test -f app/build/Laserdot.app/Contents/Resources/AppIcon.icns
           # The bundled ffprobe/ffmpeg speak no network protocol.

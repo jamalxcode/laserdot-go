@@ -287,10 +287,10 @@
 "privacy.erase.title" = "Erase all Laserdot data?";
 "privacy.erase.text" = "The file index, the words of your documents, your history, the remembered passphrases and the settings are deleted. Your files are not touched. Laserdot then starts again with nothing indexed; add folders in Settings ▸ Folders.";
 "privacy.erase.confirm" = "Erase";
-"tour.4.title" = "macOS will ask first";
-"tour.4.a" = "When Laserdot starts reading your files, macOS may ask to let it see Desktop, Documents, Downloads or other folders.";
-"tour.4.b" = "Click Allow so those folders can be searched. Laserdot cannot send anything anywhere.";
-"tour.4.c" = "Clicked Don't Allow? Settings ▸ Privacy shows how to change it.";
+"tour.4.title" = "macOS asks once, for everything";
+"tour.4.a" = "When you click Start, macOS asks about Desktop, Documents, Downloads, iCloud Drive and any connected drive — one right after another.";
+"tour.4.b" = "Click Allow on each. Then Laserdot indexes your files by itself; there is nothing else to do.";
+"tour.4.c" = "Laserdot cannot send anything anywhere. Changed your mind? Settings ▸ Privacy.";
 "undo.button" = "Undo";
 "undo.renamed" = "Renamed to “%@”";
 "undo.compressed" = "Made %@";
@@ -314,3 +314,8 @@
 "unreadable.error" = "Could not be read";
 "unreadable.permissionHelp" = "macOS did not allow Laserdot to read some of these. Full Disk Access fixes that; then remove the folder and add it again.";
 "unreadable.more" = "…and %ld more";
+"permissions.icloud" = "iCloud Drive";
+"permissions.removable" = "external drives";
+"permissions.network" = "network drives";
+"permissions.refusedTitle" = "Some places can't be searched";
+"permissions.refusedText" = "macOS didn't allow Laserdot to read: %@. Files there won't be found. Full Disk Access lets Laserdot see everything with one switch.";

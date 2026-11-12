@@ -210,6 +210,9 @@ final class SelfTestRunner {
             extra["keychain"] = read == "selftest-secret" && counted >= 1 && gone ? "ok" : "failed read=\(read != nil) count=\(counted) gone=\(gone)"
         }
         extra["ready_ms"] = app.readyMS
+        // What the one-time permission step would ask (not asked here: no one
+        // is at the CI machine to answer).
+        extra["permission_places"] = Permissions.places().map(\.path)
         if let engine = app.engineForTests {
             extra["unreadable"] = (try? engine.unreadable())?.items.map { relative($0.path) } ?? ["?"]
         }

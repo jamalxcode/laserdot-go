@@ -73,6 +73,32 @@ cat > "$HELPER/Contents/Info.plist" <<PLIST
 PLIST
 cp "$APP/Contents/Resources/AppIcon.icns" "$HELPER/Contents/Resources/AppIcon.icns"
 
-codesign --force --deep --sign - "$APP"
+# Signing. With the repository's own key (Actions secrets LASERDOT_SIGN_P12
+# and LASERDOT_SIGN_PASSWORD) every version carries the same signature, so
+# macOS keeps the permissions the user gave (Desktop, Documents, drives…)
+# across updates. Without it (forks, local builds) the signature is ad hoc,
+# and macOS treats each build as a new app.
+if [ -n "${LASERDOT_SIGN_P12:-}" ] && [ -n "${LASERDOT_SIGN_PASSWORD:-}" ]; then
+  sign_dir=$(mktemp -d)
+  trap 'security delete-keychain "$sign_dir/sign.keychain-db" >/dev/null 2>&1 || true; rm -rf "$sign_dir"' EXIT
+  kc="$sign_dir/sign.keychain-db"
+  kc_pw=$(openssl rand -hex 16)
+  security create-keychain -p "$kc_pw" "$kc"
+  security set-keychain-settings -lut 3600 "$kc"
+  security unlock-keychain -p "$kc_pw" "$kc"
+  printf '%s' "$LASERDOT_SIGN_P12" | base64 -D > "$sign_dir/sign.p12"
+  security import "$sign_dir/sign.p12" -k "$kc" -P "$LASERDOT_SIGN_PASSWORD" -T /usr/bin/codesign >/dev/null
+  rm -f "$sign_dir/sign.p12"
+  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$kc_pw" "$kc" >/dev/null
+  # The certificate is self-signed (not trusted by macOS), so pick the
+  # identity by its hash rather than asking for a "valid" one.
+  identity=$(security find-identity -p codesigning "$kc" | awk '/Laserdot Self-Signed/ {print $2; exit}')
+  [ -n "$identity" ] || { echo "error: the signing key did not import" >&2; exit 1; }
+  codesign --force --deep --keychain "$kc" --sign "$identity" "$APP"
+  echo "signed with the Laserdot key ($identity)"
+else
+  codesign --force --deep --sign - "$APP"
+  echo "signed ad hoc (no LASERDOT_SIGN_P12)"
+fi
 codesign --verify --deep --strict "$APP"
 echo "built $APP ($VERSION, build $BUILD)"

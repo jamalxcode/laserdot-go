@@ -186,6 +186,10 @@ check(er.get("history_gone") is True, f"Erase forgets the search history (got {e
 if not kc.startswith("unavailable"):
     check(er.get("passphrases") == 0, f"Erase forgets the passphrases (got {er.get('passphrases')})")
 
+places = report.get("permission_places", [])
+check(any(p.endswith("/Desktop") for p in places) and any(p.endswith("/Documents") for p in places),
+      f"the permission step covers Desktop and Documents (got {places})")
+
 print(f"info ready to search: {report.get('ready_ms')} ms after start")
 launch = report.get("launch_ms", -1)
 print(f"info cold launch to ready: {launch} ms (target < 300 ms on a real Mac)")
