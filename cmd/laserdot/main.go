@@ -114,14 +114,17 @@ func run(args []string) error {
 			return nil
 		}
 		for _, p := range rest {
+			began := time.Now()
 			st, err := t.index(p)
+			took := time.Since(began).Milliseconds()
 			if err != nil {
 				return fmt.Errorf("%s: %w", p, err)
 			}
 			if st.Incremental {
 				fmt.Printf("%s: refreshed (+%d −%d)\n", st.Root, st.Added, st.Removed)
 			} else {
-				fmt.Printf("%s: %d files, %d folders (scan %d ms, write %d ms", st.Root, st.Files, st.Folders, st.ScanMS, st.WriteMS)
+				fmt.Printf("%s: %d files, %d folders (scan %d ms, probe %d ms, write %d ms; searchable after %d ms",
+					st.Root, st.Files, st.Folders, st.ScanMS, st.ProbeMS, st.WriteMS, took)
 				if st.ScanErrors > 0 {
 					fmt.Printf(", %d unreadable", st.ScanErrors)
 				}

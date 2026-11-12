@@ -425,7 +425,8 @@ func (ld *Laserdot) readTagsLater(root string) {
 		dirs := map[string]bool{}
 		var next atomic.Int64
 		var wg sync.WaitGroup
-		for w := 0; w < 8; w++ {
+		// Mostly waiting on the disk: more readers than cores.
+		for w := 0; w < max(16, 4*runtime.GOMAXPROCS(0)); w++ {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
