@@ -3,6 +3,11 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.3
+
+- Fixed: Laserdot could stay on "Starting the index…" for good, waiting on a drive that didn't answer or on the
+  welcome tour. Now it never waits more than a minute for macOS's questions, and the menu says what it is waiting for.
+
 ## 0.9.2
 
 - macOS now keeps your "Allow" answers when Laserdot updates: Laserdot signs each update with a key it makes on

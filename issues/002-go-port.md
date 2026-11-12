@@ -279,3 +279,8 @@ Binding unless revisited deliberately; each is also in the spec.
   build); the owner chose to keep the signing key on their Mac, not on GitHub, so each Mac makes its own key on its
   first update and signs every update with it before installing (`LocalSigner`, 0.9.2; Swift test
   `testUpdatesAreSignedWithThisMacsKeyAndKeepTheSameSignature`).
+
+- **0.9.3 (2026-11-12):** 0.9.2 could stay on "Starting the index…": laserdotd started only after the permission
+  step, which waited without limit on each place (and, on a first launch, on the welcome tour). Now each place has a
+  time limit (60 s folder, 8 s drive), the step runs at every launch regardless of the tour, the menu names the place
+  it waits for, and the self-test checks that a place that never answers is skipped.

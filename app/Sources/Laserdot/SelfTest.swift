@@ -33,6 +33,19 @@ final class SelfTestRunner {
             return
         }
         extra["launch_ms"] = app.launchMS
+        // A drive that never answers (a dead network mount) must not hold
+        // Laserdot up: the permission step skips it after its time limit.
+        let started = Date()
+        Permissions.askAll(places: [Permissions.Place(name: "hung", path: "/hung", drive: true),
+                                    Permissions.Place(name: "refused", path: "/refused")],
+                           open: { path in
+                               if path == "/hung" { Thread.sleep(forTimeInterval: 600) }
+                               return false
+                           },
+                           done: { refused in
+                               self.extra["hung_place_seconds"] = Int(Date().timeIntervalSince(started))
+                               self.extra["refused_places"] = refused.map(\.name)
+                           })
         DispatchQueue.global().async {
             // The fixtures' words are searchable too (content search).
             _ = try? engine.setContentFolder(folder: folder, add: true)

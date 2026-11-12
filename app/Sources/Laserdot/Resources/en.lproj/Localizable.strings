@@ -288,7 +288,7 @@
 "privacy.erase.text" = "The file index, the words of your documents, your history, the remembered passphrases and the settings are deleted. Your files are not touched. Laserdot then starts again with nothing indexed; add folders in Settings ▸ Folders.";
 "privacy.erase.confirm" = "Erase";
 "tour.4.title" = "macOS asks once, for everything";
-"tour.4.a" = "When you click Start, macOS asks about Desktop, Documents, Downloads, iCloud Drive and any connected drive — one right after another.";
+"tour.4.a" = "macOS asks about Desktop, Documents, Downloads, iCloud Drive and any connected drive — all at once, when Laserdot starts.";
 "tour.4.b" = "Click Allow on each. Then Laserdot indexes your files by itself; there is nothing else to do.";
 "tour.4.c" = "Laserdot cannot send anything anywhere. Changed your mind? Settings ▸ Privacy.";
 "undo.button" = "Undo";
@@ -320,3 +320,4 @@
 "permissions.refusedTitle" = "Some places can't be searched";
 "permissions.refusedText" = "macOS didn't allow Laserdot to read: %@. Files there won't be found. Full Disk Access lets Laserdot see everything with one switch.";
 "privacy.signing" = "Key that signs updates on this Mac (so macOS keeps its permissions)";
+"permissions.waiting" = "Waiting for macOS to allow %@…";

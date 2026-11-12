@@ -14,7 +14,18 @@ enum Permissions {
         /// For the message: "Desktop", "Documents"…
         let name: String
         let path: String
+        /// A drive: a dead network mount can hang forever, so it gets a
+        /// short time limit; folders on this Mac get time for a person to
+        /// read macOS's question.
+        var drive = false
     }
+
+    /// What a place's thread found (read after its semaphore signals).
+    private final class Outcome: @unchecked Sendable { var denied = false }
+
+    /// How long a place may take before Laserdot carries on without it.
+    static let folderWait: TimeInterval = 60
+    static let driveWait: TimeInterval = 8
 
     /// The protected places on this Mac (one per kind of drive mounted now).
     static func places() -> [Place] {
@@ -34,11 +45,11 @@ enum Permissions {
             guard v.path.hasPrefix("/Volumes/"), let r = try? v.resourceValues(forKeys: Set(keys)) else { continue }
             if r.volumeIsLocal == false, !network {
                 network = true
-                list.append(Place(name: L("permissions.network"), path: v.path))
+                list.append(Place(name: L("permissions.network"), path: v.path, drive: true))
             } else if r.volumeIsLocal != false, r.volumeIsInternal != true || r.volumeIsRemovable == true || r.volumeIsEjectable == true,
                       !removable {
                 removable = true
-                list.append(Place(name: L("permissions.removable"), path: v.path))
+                list.append(Place(name: L("permissions.removable"), path: v.path, drive: true))
             }
         }
         return list
@@ -46,20 +57,39 @@ enum Permissions {
 
     /// Touches every place in turn (each prompt waits for its answer), then
     /// calls `done` on the main thread with the places macOS refused.
-    static func askAll(done: @escaping ([Place]) -> Void) {
-        let list = places()
+    /// `waiting` hears which place it is waiting for (main thread). A place
+    /// that does not answer in time (a dead network drive, a question nobody
+    /// answers) is skipped: starting Laserdot never waits on it for good.
+    static func askAll(places list: [Place]? = nil, open: @escaping (String) -> Bool? = Permissions.touch,
+                       waiting: @escaping (Place) -> Void = { _ in }, done: @escaping ([Place]) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             var refused: [Place] = []
-            for p in list {
-                guard let dir = opendir(p.path) else {
-                    if errno == EPERM || errno == EACCES { refused.append(p) }
-                    continue
+            for p in list ?? places() {
+                DispatchQueue.main.async { waiting(p) }
+                let answered = DispatchSemaphore(value: 0)
+                let result = Outcome()
+                // Its own thread: if the call never returns, only that thread waits.
+                Thread.detachNewThread {
+                    if open(p.path) == false { result.denied = true }
+                    answered.signal()
                 }
-                _ = readdir(dir)
-                closedir(dir)
+                if answered.wait(timeout: .now() + (p.drive ? driveWait : folderWait)) == .success, result.denied {
+                    refused.append(p)
+                }
             }
             DispatchQueue.main.async { done(refused) }
         }
+    }
+
+    /// Reads a folder's first entry (which is what makes macOS ask): true
+    /// read, false refused, nil missing or another error.
+    static func touch(_ path: String) -> Bool? {
+        guard let dir = opendir(path) else {
+            return errno == EPERM || errno == EACCES ? false : nil
+        }
+        _ = readdir(dir)
+        closedir(dir)
+        return true
     }
 
     /// After the prompts: if some places were refused, say once what that

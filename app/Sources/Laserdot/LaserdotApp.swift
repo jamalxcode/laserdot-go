@@ -111,13 +111,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         if SelfTest.active {
             startEngine()
         } else {
-            // First launch: the welcome tour explains the macOS prompts and
-            // its Start button asks them (tourClosed). Later launches ask
-            // straight away: nothing is shown for places already answered, and
-            // after an update that macOS sees as a new app, all prompts come
-            // together, before anything is read.
+            // Every macOS question at once, before anything is read (nothing
+            // is shown for places already answered; after an update macOS
+            // sees as a new app, all of them come together), then the index.
+            // Not tied to the welcome tour: a menu-bar launch may never show it.
             noteVersion()
-            if !showTour { askPermissionsThenStart() }
+            askPermissionsThenStart()
         }
         launchMS = msSinceProcessStart()
         if let out = SelfTest.outDir {
@@ -245,9 +244,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     /// later stay removed.
     func indexDefaultsOnce(_ status: DaemonStatus) {
         let key = "laserdot.defaultsIndexed"
-        // Not while the first-launch tour explains the macOS prompts that
-        // indexing brings up; closing it starts indexing (tourClosed).
-        guard !showTour, status.running, !UserDefaults.standard.bool(forKey: key), let model else { return }
+        // The macOS questions were asked before laserdotd started.
+        guard status.running, !UserDefaults.standard.bool(forKey: key), let model else { return }
         UserDefaults.standard.set(true, forKey: key)
         let home = FileManager.default.homeDirectoryForCurrentUser.path
         // Apps first: they are quick and what people look for first.
@@ -261,21 +259,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     func tourClosed() {
         showTour = false
-        guard !SelfTest.active else { return }
-        if engineStarted {
-            // Help ▸ Welcome Tour, later: nothing more to start.
-            return
+        // Indexing may have waited for the tour (indexDefaultsOnce).
+        guard !SelfTest.active, engineStarted, let engine else { return }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let status = engine.status()
+            DispatchQueue.main.async { self?.indexDefaultsOnce(status) }
         }
-        askPermissionsThenStart()
     }
 
     /// Every macOS prompt at once, then laserdotd (which then indexes the
     /// default folders by itself, indexDefaultsOnce).
     func askPermissionsThenStart() {
-        Permissions.askAll { [weak self] refused in
+        Permissions.askAll(waiting: { [weak self] place in
+            guard self?.engineStarted == false else { return }
+            self?.statusLine = String(format: L("permissions.waiting"), place.name)
+        }, done: { [weak self] refused in
+            self?.statusLine = L("daemon.starting")
             self?.startEngine()
             Permissions.explain(refused)
-        }
+        })
     }
 
     /// Connects to laserdotd (starting it) and everything that talks to it.

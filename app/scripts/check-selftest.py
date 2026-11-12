@@ -186,6 +186,9 @@ check(er.get("history_gone") is True, f"Erase forgets the search history (got {e
 if not kc.startswith("unavailable"):
     check(er.get("passphrases") == 0, f"Erase forgets the passphrases (got {er.get('passphrases')})")
 
+hung = report.get("hung_place_seconds", -1)
+check(0 <= hung <= 12, f"a drive that never answers is skipped after its time limit (took {hung} s)")
+check(report.get("refused_places") == ["refused"], f"a refused place is reported (got {report.get('refused_places')})")
 places = report.get("permission_places", [])
 check(any(p.endswith("/Desktop") for p in places) and any(p.endswith("/Documents") for p in places),
       f"the permission step covers Desktop and Documents (got {places})")
