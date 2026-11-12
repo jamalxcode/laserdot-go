@@ -690,19 +690,49 @@ func (ld *Laserdot) Search(q string, opts SearchOptions) (*SearchResults, error)
 // checked (a drive could be a slow network volume); a file macOS will not
 // let Laserdot see is kept.
 func (ld *Laserdot) dropMissing(r *SearchResults) {
-	kept := r.Hits[:0]
-	var gone []string
-	for _, h := range r.Hits {
+	var missing []int
+	for i, h := range r.Hits {
 		if h.Volume == nil {
 			if _, err := os.Lstat(h.Path); errors.Is(err, fs.ErrNotExist) {
-				gone = append(gone, h.Path)
-				continue
+				missing = append(missing, i)
 			}
 		}
-		kept = append(kept, h)
+	}
+	if len(missing) == 0 {
+		return
+	}
+	// An indexed folder that is itself missing is offline (its entries stay
+	// searchable for 30 days, §10.3): only files whose indexed folder is
+	// still there count as deleted.
+	roots, _ := ld.db.Roots()
+	rootOf := func(p string) string {
+		best := ""
+		for _, rt := range roots {
+			if within(p, rt.Path) && len(rt.Path) > len(best) {
+				best = rt.Path
+			}
+		}
+		return best
+	}
+	drop := map[int]bool{}
+	var gone []string
+	for _, i := range missing {
+		p := r.Hits[i].Path
+		if root := rootOf(p); root != "" {
+			if _, err := os.Stat(root); err == nil {
+				drop[i] = true
+				gone = append(gone, p)
+			}
+		}
 	}
 	if len(gone) == 0 {
 		return
+	}
+	kept := r.Hits[:0]
+	for i, h := range r.Hits {
+		if !drop[i] {
+			kept = append(kept, h)
+		}
 	}
 	r.Hits = kept
 	r.Total -= min(r.Total, uint64(len(gone)))
