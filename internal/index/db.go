@@ -161,7 +161,7 @@ func isEncryptedFile(path string) bool {
 }
 
 func openConn(path, mount string) (*Db, error) {
-	dsn := "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)&_pragma=cache_size(-65536)"
+	dsn := "file:" + path + "?_pragma=busy_timeout(5000)&_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=temp_store(MEMORY)"
 	if mount != "" {
 		// A drive's index is input from outside this Mac: no trust.
 		dsn += "&_pragma=trusted_schema(OFF)&_pragma=cell_size_check(ON)"

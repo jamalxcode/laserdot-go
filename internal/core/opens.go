@@ -36,9 +36,9 @@ func (ld *Laserdot) loadOpens() {
 	}
 	h.loaded = true
 	h.records = map[string]openRecord{}
-	ld.wmu.Lock()
+	// Not under wmu: Search calls this holding mu, and Remap holds wmu
+	// while it waits for mu. A read needs no writer lock (sql.DB is safe).
 	raw, err := ld.db.Setting(opensSetting)
-	ld.wmu.Unlock()
 	if err == nil && raw != "" {
 		_ = json.Unmarshal([]byte(raw), &h.records)
 	}

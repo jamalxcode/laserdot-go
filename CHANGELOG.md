@@ -7,6 +7,8 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
 - Thumbnails: ⌘J (or the grid button next to the sort arrows) shows results as a grid of large previews; ↑↓ move by
   a row. Laserdot remembers your choice.
+- Uses less memory: after indexing, the search engine serves the index from its file (40 MB instead of about 70 MB
+  for 100,000 files); scrolling the grid no longer looks up icons again and again.
 - Cache files from `~/Library` that an older version indexed (wallpaper caches and the like) are removed by
   themselves.
 - Fixed: Laserdot could stay on "Starting the index…" for good, waiting on a drive that didn't answer or on the

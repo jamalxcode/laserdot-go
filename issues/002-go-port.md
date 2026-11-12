@@ -286,4 +286,8 @@ Binding unless revisited deliberately; each is also in the spec.
   it waits for, and the self-test checks that a place that never answers is skipped. The owner's menu turned out to be from a copy of about 0.2 (two copies of one bundle id: macOS may launch the old
   one at login); the newest copy now offers to move older ones to the Trash at launch. Also in 0.9.3: a thumbnail grid (⌘J), and `PruneLibrary` — the owner's results were full of
   `~/Library/Caches` wallpaper files indexed by the old copy, which today's rules only kept out when ~/Library itself
-  was listed again.
+  was listed again. Efficiency review (2026-11-12): the 64 MiB SQLite cache no longer helped
+  (writes are batched) and cost ~28 MB at peak — removed; laserdotd now remaps the store from the snapshot after a
+  full index (100k files: 62–74 MB → 40 MB resident, 15 MB anonymous), which exposed a lock-order deadlock (Search
+  held `mu` then took `wmu` to read the opens history; fixed by reading it without `wmu`); file icons cached in the
+  app.

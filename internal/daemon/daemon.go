@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -292,6 +293,15 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		return result(s.ld.Search(req.Query, opts))
 	case ipc.OpIndex:
 		defer s.rootsChanged()
+		// A full index builds the index in memory; serve it from the
+		// snapshot instead (file-backed pages, as after a restart) and give
+		// the build's memory back to the system.
+		defer func() {
+			go func() {
+				_ = s.ld.Remap()
+				debug.FreeOSMemory()
+			}()
+		}()
 		return result(s.ld.Index(req.Path))
 	case ipc.OpForget:
 		defer s.rootsChanged()

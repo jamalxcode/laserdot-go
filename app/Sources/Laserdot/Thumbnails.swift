@@ -11,6 +11,18 @@ final class ThumbnailCache {
 
     init() {
         cache.countLimit = 400
+        icons.countLimit = 1000
+    }
+
+    private let icons = NSCache<NSString, NSImage>()
+
+    /// The file's icon (Finder's), looked up once per path: views redraw
+    /// often (every selection change in the grid), and the lookup reads the disk.
+    func icon(for path: String) -> NSImage {
+        if let img = icons.object(forKey: path as NSString) { return img }
+        let img = NSWorkspace.shared.icon(forFile: path)
+        icons.setObject(img, forKey: path as NSString)
+        return img
     }
 
     /// `done` runs on the main thread, with nil when macOS has no thumbnail.
@@ -44,7 +56,7 @@ struct FileIcon: View {
     @State private var loadedFor: String?
 
     var body: some View {
-        Image(nsImage: (loadedFor == path ? image : nil) ?? NSWorkspace.shared.icon(forFile: path))
+        Image(nsImage: (loadedFor == path ? image : nil) ?? ThumbnailCache.shared.icon(for: path))
             .resizable()
             .interpolation(.high)
             .aspectRatio(contentMode: .fit)
