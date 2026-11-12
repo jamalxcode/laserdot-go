@@ -290,4 +290,7 @@ Binding unless revisited deliberately; each is also in the spec.
   (writes are batched) and cost ~28 MB at peak — removed; laserdotd now remaps the store from the snapshot after a
   full index (100k files: 62–74 MB → 40 MB resident, 15 MB anonymous), which exposed a lock-order deadlock (Search
   held `mu` then took `wmu` to read the opens history; fixed by reading it without `wmu`); file icons cached in the
-  app.
+  app. Then the owner asked for both bigger items: Finder tags are read after a first index, in the background
+  (`TestTagsArriveAfterTheFirstIndex`), and macOS reads folders with getattrlistbulk (`internal/scan/bulk_darwin.go`;
+  `TestBulkMatchesStat` compares every field with the lstat path on the macOS CI runner; `perf-mac.sh` prints the
+  time without it).

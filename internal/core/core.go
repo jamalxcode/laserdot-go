@@ -115,6 +115,9 @@ type OpenReport struct {
 // exclusively while they change it. wmu serializes writers (the database
 // and the store change together).
 type Laserdot struct {
+	// background: work a call starts and leaves running (the tag pass
+	// after a first index); WaitBackground waits for it.
+	background sync.WaitGroup
 	opens      openHistory
 	exclusions exclusionList
 	progress   atomic.Pointer[IndexProgress]
@@ -193,6 +196,7 @@ func OpenAt(dbPath string, now time.Time) (*Laserdot, error) {
 
 // Close closes the databases.
 func (ld *Laserdot) Close() error {
+	ld.background.Wait()
 	ld.closeDrives()
 	ld.content.Close()
 	return ld.db.Close()
@@ -371,7 +375,9 @@ func (ld *Laserdot) Index(root string) (IndexStats, error) {
 	defer ld.progress.Store(nil)
 	var fresh []index.RawEntry
 	var unreadable []scan.Error
-	st, err := index.IndexRoot(ld.db, root, ld.ScanOptions(), index.BulkOptions{
+	opts := ld.ScanOptions()
+	opts.DeferTags = true // read by readTagsLater, once the files are searchable
+	st, err := index.IndexRoot(ld.db, root, opts, index.BulkOptions{
 		Progress: func(phase string, done, total uint64) {
 			ld.progress.Store(&IndexProgress{Root: root, Phase: phase, Done: done, Total: total})
 		},
@@ -387,8 +393,70 @@ func (ld *Laserdot) Index(root string) (IndexStats, error) {
 			return st, err
 		}
 	}
-	return st, ld.reloadWith(st.Root, fresh)
+	if err := ld.reloadWith(st.Root, fresh); err != nil {
+		return st, err
+	}
+	ld.readTagsLater(st.Root)
+	return st, nil
 }
+
+// readTagsLater reads the Finder tags of a folder just indexed without them
+// (one extended-attribute read per file, a large share of a walk on macOS)
+// and brings in those it finds: each folder holding a tagged file is listed
+// again, which records its tags (§2.6.5). Runs in the background.
+func (ld *Laserdot) readTagsLater(root string) {
+	ld.mu.RLock()
+	var files []string
+	if id, ok := ld.store.Resolve(root); ok {
+		for _, c := range ld.store.Descendants(id) {
+			if !ld.store.IsDir(c) {
+				files = append(files, ld.store.Path(c))
+			}
+		}
+	}
+	ld.mu.RUnlock()
+	if len(files) == 0 {
+		return
+	}
+	ld.background.Add(1)
+	go func() {
+		defer ld.background.Done()
+		var mu sync.Mutex
+		dirs := map[string]bool{}
+		var next atomic.Int64
+		var wg sync.WaitGroup
+		for w := 0; w < 8; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for {
+					i := int(next.Add(1)) - 1
+					if i >= len(files) {
+						return
+					}
+					if len(scan.ReadTags(files[i])) > 0 {
+						mu.Lock()
+						dirs[filepath.Dir(files[i])] = true
+						mu.Unlock()
+					}
+				}
+			}()
+		}
+		wg.Wait()
+		if len(dirs) == 0 {
+			return
+		}
+		changes := make([]Change, 0, len(dirs))
+		for d := range dirs {
+			changes = append(changes, Change{Path: d})
+		}
+		_, _ = ld.applyLocal(changes)
+	}()
+}
+
+// WaitBackground waits for work left running by earlier calls (the tag
+// pass after a first index).
+func (ld *Laserdot) WaitBackground() { ld.background.Wait() }
 
 // reloadWith rebuilds the in-memory store from the other roots in the
 // database plus a root just written (its entries are in memory already, so

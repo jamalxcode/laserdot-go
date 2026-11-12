@@ -28,6 +28,8 @@ start=$(python3 -c 'import time; print(time.time())')
 "$d/laserdot" --db "$d/data/index.db" index "$d/files" | tail -1
 end=$(python3 -c 'import time; print(time.time())')
 rate=$(python3 -c "print(int(100000 / ($end - $start)))")
+# The same files read name by name (without the bulk call), to compare.
+LASERDOT_NO_BULK=1 "$d/laserdot" --db "$d/nobulk/index.db" index "$d/files" | tail -1 | sed 's/^/without bulk reading: /'
 echo "indexed 100000 files in $(python3 -c "print(round($end - $start, 2))") s: $rate files/s"
 worst=0
 for q in "invoice pdf" "beach jpg" "kind:video" "report*" "notes 12"; do

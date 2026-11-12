@@ -65,6 +65,10 @@ type Options struct {
 	// StableInodes: the volume's inode numbers survive remounts. When not
 	// (FAT, exFAT) every inode is reported as 0.
 	StableInodes bool
+	// DeferTags: leave Tags empty (a first index reads them afterwards, in
+	// the background: one extended-attribute read per file is a large share
+	// of a walk on macOS, and few files have tags).
+	DeferTags bool
 }
 
 // DefaultOptions are the spec's defaults.
@@ -123,7 +127,7 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	rootEntry := entryOf(root, -1, rootInfo, opts.StableInodes)
+	rootEntry := entryOf(root, -1, rootInfo, opts)
 	entries := []Entry{rootEntry}
 	var errs []Error
 	if !rootEntry.IsDir {
@@ -169,20 +173,34 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 	return dedupeHardLinks(entries), errs, nil
 }
 
-// readDir lists dir's children with the ignore rules applied.
+// readDir lists dir's children with the ignore rules applied: in bulk where
+// the system offers it (macOS, readDirBulk), else name by name.
 func readDir(dir string, parent int, rootDev uint64, opts Options) ([]Entry, []Error) {
+	if out, errs, ok := readDirBulk(dir, parent, opts); ok {
+		return out, errs
+	}
+	return readDirStat(dir, parent, opts)
+}
+
+// skip: the ignore rules for a child of dir.
+func skip(dir, name, path string, isDir bool, opts Options) bool {
+	only, restricted := opts.OnlyChildren[dir]
+	return (isDir && contains(opts.IgnoredDirs, name)) || IsPartialDownload(name) || contains(opts.ExcludedPaths, path) ||
+		(restricted && !contains(only, name))
+}
+
+// readDirStat lists dir by reading its names, then one lstat per child.
+func readDirStat(dir string, parent int, opts Options) ([]Entry, []Error) {
 	des, err := os.ReadDir(dir)
 	if err != nil && len(des) == 0 {
 		return nil, []Error{{Path: dir, Message: err.Error()}}
 	}
 	var out []Entry
 	var errs []Error
-	only, restricted := opts.OnlyChildren[dir]
 	for _, de := range des {
 		name := de.Name()
 		path := filepath.Join(dir, name)
-		if (de.IsDir() && contains(opts.IgnoredDirs, name)) || IsPartialDownload(name) || contains(opts.ExcludedPaths, path) ||
-			(restricted && !contains(only, name)) {
+		if skip(dir, name, path, de.IsDir(), opts) {
 			continue
 		}
 		info, err := os.Lstat(path)
@@ -190,7 +208,7 @@ func readDir(dir string, parent int, rootDev uint64, opts Options) ([]Entry, []E
 			errs = append(errs, Error{Path: path, Message: err.Error()})
 			continue
 		}
-		out = append(out, entryOf(path, parent, info, opts.StableInodes))
+		out = append(out, entryOf(path, parent, info, opts))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out, errs
@@ -271,7 +289,7 @@ func dedupeHardLinks(entries []Entry) []Entry {
 	return out
 }
 
-func entryOf(path string, parent int, info os.FileInfo, stableInodes bool) Entry {
+func entryOf(path string, parent int, info os.FileInfo, opts Options) Entry {
 	st := statOf(path, info)
 	e := Entry{
 		Path:      path,
@@ -291,10 +309,10 @@ func entryOf(path string, parent int, info os.FileInfo, stableInodes bool) Entry
 	if !e.IsDir {
 		e.Size = uint64(info.Size())
 	}
-	if !stableInodes {
+	if !opts.StableInodes {
 		e.Inode = 0
 	}
-	if !e.IsSymlink {
+	if !e.IsSymlink && !opts.DeferTags {
 		e.Tags = ReadTags(path)
 	}
 	return e
