@@ -86,6 +86,9 @@ Finder**):
 - **Settings → Privacy** shows each of these with its size; **Erase All Laserdot Data** deletes them all (and the
   remembered passphrases) and starts over with nothing indexed.
 - The version before the last update is kept in `~/Library/Application Support/Laserdot Previous Version/`.
+- `~/Library/Application Support/Laserdot Signing/` holds a key Laserdot makes on your Mac to sign each update before
+  installing it, so macOS keeps your "Allow" answers across updates. It never leaves your Mac; Erase All Laserdot
+  Data deletes it.
 
 **External drives** keep their own index on the drive, in a hidden `/Volumes/<drive>/.laserdot/` folder
 (`index.db`, `volume.json`), with paths relative to the drive — so it works on any Mac. Laserdot asks before indexing

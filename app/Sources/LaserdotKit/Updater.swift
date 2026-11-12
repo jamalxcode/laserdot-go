@@ -114,7 +114,16 @@ public final class Updater {
             .appendingPathComponent("Library/Application Support/Laserdot Previous Version")
     }
 
-    public init(current: URL = Bundle.main.bundleURL, previousDir: URL = Updater.defaultPreviousDir) {
+    /// Signs each update with this Mac's own key before it is installed, so
+    /// macOS keeps Laserdot's permissions across updates (nil: leave the
+    /// release's ad hoc signature).
+    public let signer: LocalSigner?
+    /// Why the last update could not be signed (it was installed anyway).
+    public private(set) var lastSigningError: String?
+
+    public init(current: URL = Bundle.main.bundleURL, previousDir: URL = Updater.defaultPreviousDir,
+                signer: LocalSigner? = LocalSigner()) {
+        self.signer = signer
         self.previousDir = previousDir
         self.current = current.standardizedFileURL
         let info = NSDictionary(contentsOf: current.appendingPathComponent("Contents/Info.plist"))
@@ -308,6 +317,16 @@ public final class Updater {
     public func install(_ c: UpdateCandidate, to target: URL? = nil) throws -> URL {
         defer { try? FileManager.default.removeItem(at: c.workDir) }
         let dest = target ?? installTarget
+        if let signer {
+            // Best effort: an update is never held back because it could not
+            // be signed (macOS would then only ask its questions again).
+            do {
+                try signer.sign(c.app)
+                lastSigningError = nil
+            } catch {
+                lastSigningError = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+            }
+        }
         keepPrevious(dest)
         return try Self.place(c.app, at: dest)
     }

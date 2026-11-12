@@ -190,6 +190,7 @@ extension AppDelegate {
         let dir = (Paths.defaultDbPath as NSString).deletingLastPathComponent
         try? FileManager.default.removeItem(atPath: dir)
         Keychain.forgetAll()
+        LocalSigner().forget() // the next update makes a new key (and macOS asks once more)
         if let domain = Bundle.main.bundleIdentifier {
             UserDefaults.standard.removePersistentDomain(forName: domain)
         }

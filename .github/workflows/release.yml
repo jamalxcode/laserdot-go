@@ -34,10 +34,6 @@ jobs:
       - name: Build ffmpeg (only when not cached)
         run: app/scripts/build-ffmpeg.sh
       - name: Build
-        env:
-          # The app's own signing key (absent: ad hoc). See app/scripts/bundle.sh.
-          LASERDOT_SIGN_P12: ${{ secrets.LASERDOT_SIGN_P12 }}
-          LASERDOT_SIGN_PASSWORD: ${{ secrets.LASERDOT_SIGN_PASSWORD }}
         run: |
           VERSION=${{ steps.v.outputs.version }} app/scripts/build-go.sh
           VERSION=${{ steps.v.outputs.version }} BUILD=${{ github.run_number }} app/scripts/bundle.sh

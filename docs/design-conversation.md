@@ -228,8 +228,12 @@ and then index on its own".
 indexing around the disk; and because the app is signed ad hoc, macOS saw every update as a new app and asked again.
 
 **Decided:** before reading anything, Laserdot touches each protected place itself so the prompts come back to back
-(on first launch when the tour's Start is pressed), then indexes on its own. Updates keep the answers once releases
-are signed with the repository's own key.
+(on first launch when the tour's Start is pressed), then indexes on its own.
+
+**Asked next:** "can the key be stored locally on my mac, rather than on github?" — **Decided (0.9.2):** yes. Releases
+stay as they are; Laserdot makes a key on the Mac the first time it updates and signs each update with it before
+installing, so macOS keeps its answers. Nothing secret is kept on GitHub. Trade-off, accepted: a program already
+running on the Mac could use that key; Erase All Laserdot Data deletes it.
 
 ---
 

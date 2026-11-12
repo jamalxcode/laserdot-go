@@ -276,5 +276,6 @@ Binding unless revisited deliberately; each is also in the spec.
 - **0.9.1 (2026-11-12):** the owner saw macOS ask for different folders at different times. The app now asks for
   every protected place at once before laserdotd starts (first launch: on the tour's Start), then indexes by itself.
   The prompts also came back after updates because the app is signed ad hoc (macOS ties permissions to the exact
-  build); `bundle.sh` signs with the repository's own key when its secrets exist (Repo admin task `signing-cert`
-  creates it on GitHub; it needs the owner's go-ahead to store the secret).
+  build); the owner chose to keep the signing key on their Mac, not on GitHub, so each Mac makes its own key on its
+  first update and signs every update with it before installing (`LocalSigner`, 0.9.2; Swift test
+  `testUpdatesAreSignedWithThisMacsKeyAndKeepTheSameSignature`).

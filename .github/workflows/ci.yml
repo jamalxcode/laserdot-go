@@ -57,10 +57,6 @@ jobs:
       - name: Build ffmpeg (only when not cached)
         run: app/scripts/build-ffmpeg.sh
       - name: Bundle Laserdot.app
-        env:
-          # The app's own signing key (absent: ad hoc). See app/scripts/bundle.sh.
-          LASERDOT_SIGN_P12: ${{ secrets.LASERDOT_SIGN_P12 }}
-          LASERDOT_SIGN_PASSWORD: ${{ secrets.LASERDOT_SIGN_PASSWORD }}
         run: |
           app/scripts/bundle.sh
           test -x app/build/Laserdot.app/Contents/MacOS/Laserdot

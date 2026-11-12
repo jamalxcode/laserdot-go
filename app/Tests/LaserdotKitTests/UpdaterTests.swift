@@ -60,7 +60,7 @@ final class UpdaterTests: XCTestCase {
 
     func testPreparesFromZipDmgAndNestedZipAndRejectsOldOrForeign() throws {
         let installed = try fakeApp(dir.appendingPathComponent("Applications"), version: "0.1.0")
-        let up = Updater(current: installed)
+        let up = Updater(current: installed, signer: nil)
         let newer = try fakeApp(dir.appendingPathComponent("new"), version: "0.2.0", build: "7")
 
         let z = dir.appendingPathComponent("Laserdot-0.2.0.zip")
@@ -111,7 +111,7 @@ final class UpdaterTests: XCTestCase {
     func testInstallReplacesTheAppAndMoveToApplicationsCopies() throws {
         let apps = dir.appendingPathComponent("Applications")
         let installed = try fakeApp(apps, version: "0.1.0")
-        let up = Updater(current: installed, previousDir: dir.appendingPathComponent("prev"))
+        let up = Updater(current: installed, previousDir: dir.appendingPathComponent("prev"), signer: nil)
         XCTAssertEqual(up.installTarget, installed.standardizedFileURL)
         let z = dir.appendingPathComponent("u.zip")
         try zip(try fakeApp(dir.appendingPathComponent("new"), version: "0.2.0"), to: z)
@@ -123,9 +123,9 @@ final class UpdaterTests: XCTestCase {
         let elsewhere = try fakeApp(dir.appendingPathComponent("Downloads"), version: "0.4.0")
         let fresh = dir.appendingPathComponent("FreshApplications")
         try FileManager.default.createDirectory(at: fresh, withIntermediateDirectories: true)
-        let moved = try Updater(current: elsewhere).moveToApplications(fresh)
+        let moved = try Updater(current: elsewhere, signer: nil).moveToApplications(fresh)
         XCTAssertEqual(AppVersion(bundle: moved)?.short, "0.4.0")
-        XCTAssertTrue(Updater(current: elsewhere).isOutsideApplications)
+        XCTAssertTrue(Updater(current: elsewhere, signer: nil).isOutsideApplications)
     }
 
     /// An update keeps the version it replaces; "Go back" puts it back.
@@ -133,7 +133,7 @@ final class UpdaterTests: XCTestCase {
         let apps = dir.appendingPathComponent("Applications")
         let prev = dir.appendingPathComponent("prev")
         let installed = try fakeApp(apps, version: "0.7.0")
-        let old = Updater(current: installed, previousDir: prev)
+        let old = Updater(current: installed, previousDir: prev, signer: nil)
         XCTAssertNil(old.previousVersion, "nothing kept before any update")
         let z = dir.appendingPathComponent("u.zip")
         try zip(try fakeApp(dir.appendingPathComponent("new"), version: "0.8.0"), to: z)
@@ -141,14 +141,53 @@ final class UpdaterTests: XCTestCase {
         XCTAssertEqual(AppVersion(bundle: installed)?.short, "0.8.0")
 
         // The relaunched 0.8.0 offers 0.7.0.
-        let new = Updater(current: installed, previousDir: prev)
+        let new = Updater(current: installed, previousDir: prev, signer: nil)
         XCTAssertEqual(new.previousVersion?.short, "0.7.0")
         let back = try new.goBack()
         XCTAssertEqual(AppVersion(bundle: back)?.short, "0.7.0")
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: apps.path), ["Laserdot.app"])
         // 0.8.0 is now the kept one, newer than the running app: not offered.
-        XCTAssertNil(Updater(current: installed, previousDir: prev).previousVersion)
+        XCTAssertNil(Updater(current: installed, previousDir: prev, signer: nil).previousVersion)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: prev.path), ["Laserdot.app"])
+    }
+
+    /// Updates are signed with this Mac's own key, made on first use: two
+    /// versions then have the same designated requirement, which is what
+    /// macOS ties its permissions to.
+    func testUpdatesAreSignedWithThisMacsKeyAndKeepTheSameSignature() throws {
+        let signer = LocalSigner(dir: dir.appendingPathComponent("signing"))
+        defer { signer.forget() }
+        let apps = dir.appendingPathComponent("Applications")
+        let installed = try realApp(apps, version: "0.9.1")
+        var requirements: [String] = []
+        for v in ["0.9.2", "0.9.3"] {
+            let up = Updater(current: installed, previousDir: dir.appendingPathComponent("prev"), signer: signer)
+            let z = dir.appendingPathComponent("u-\(v).zip")
+            try zip(try realApp(dir.appendingPathComponent("new-\(v)"), version: v), to: z)
+            let target = try up.install(try up.prepare(file: z))
+            XCTAssertNil(up.lastSigningError)
+            XCTAssertEqual(AppVersion(bundle: target)?.short, v)
+            let info = try Updater.run("/usr/bin/codesign", ["-dvv", target.path])
+            XCTAssertTrue(info.contains("Authority=\(LocalSigner.identityName)"), info)
+            _ = try Updater.run("/usr/bin/codesign", ["--verify", "--deep", "--strict", target.path])
+            requirements.append(try Updater.run("/usr/bin/codesign", ["-d", "-r-", target.path]))
+        }
+        XCTAssertEqual(requirements[0], requirements[1], "same signature from one update to the next")
+        XCTAssertTrue(signer.hasKey)
+        XCTAssertFalse(signer.searchList().contains(signer.keychain.path), "the key's keychain is not left on the search list")
+        signer.forget()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: signer.dir.path))
+    }
+
+    /// A Laserdot.app whose executables are real programs (codesign signs Mach-O files).
+    private func realApp(_ parent: URL, version: String) throws -> URL {
+        let app = try fakeApp(parent, version: version)
+        for exe in ["Laserdot", "laserdotd"] {
+            let f = app.appendingPathComponent("Contents/MacOS/\(exe)")
+            try FileManager.default.removeItem(at: f)
+            try FileManager.default.copyItem(atPath: "/usr/bin/true", toPath: f.path)
+        }
+        return app
     }
 
     func testStatusRoundTrips() throws {

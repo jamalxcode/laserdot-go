@@ -3,6 +3,11 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.2
+
+- macOS now keeps your "Allow" answers when Laserdot updates: Laserdot signs each update with a key it makes on
+  your Mac (it never leaves it). The first update after this one asks once more; after that, updates don't ask.
+
 ## 0.9.1
 
 - macOS's permission questions (Desktop, Documents, Downloads, iCloud Drive, drives) now come all at once, before

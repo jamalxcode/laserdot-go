@@ -113,6 +113,18 @@ struct PrivacySettings: View {
             StoredItem(id: "content", title: L("privacy.content"), path: dir, bytes: content),
             StoredItem(id: "drives", title: L("privacy.drives"), path: dir, bytes: size("drives")),
             StoredItem(id: "other", title: L("privacy.other"), path: dir, bytes: other),
-        ]
+        ] + signingItem()
+    }
+
+    /// This Mac's key for signing updates (LocalSigner), once it exists.
+    static func signingItem() -> [StoredItem] {
+        let signer = LocalSigner()
+        guard signer.hasKey else { return [] }
+        let fm = FileManager.default
+        let files = (try? fm.contentsOfDirectory(atPath: signer.dir.path)) ?? []
+        let bytes = files.reduce(Int64(0)) { sum, f in
+            sum + ((try? fm.attributesOfItem(atPath: signer.dir.appendingPathComponent(f).path)[.size] as? Int64) ?? 0)
+        }
+        return [StoredItem(id: "signing", title: L("privacy.signing"), path: signer.dir.path, bytes: bytes)]
     }
 }
