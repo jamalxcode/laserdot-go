@@ -290,7 +290,16 @@ index and everything else deleted also".
 2. ⌘R (a header button, `> refresh`) looks at every indexed folder again and says how many files went and came.
 3. Why the change was missed on the owner's Mac is not known yet; Save Diagnostics shows whether the watcher runs.
 
-## 17. Only the owner can change the code
+## 17. Finder's columns (0.9.5)
+
+**Asked:** a screenshot of Finder's list headers — "when files are listed have a tab showing attached and allowing
+sorting, just like finder behavior".
+
+**Decided:** a third view (the switch at the top, ⌘J): Name, Date Modified, Size, Kind, Date Created; click to sort
+the whole result set, again to reverse. Kind became an engine order. "Date Last Opened" and "Date Added" are left
+out: they are Spotlight's data, which Laserdot does not read (no AI, its own index only).
+
+## 18. Only the owner can change the code
 
 **Asked (with the fifth critique):** "ensure i only have access to this repo to modify it". **Decided:** the Repo
 admin workflow's `access-lock` task removed collaborators, invitations and writable deploy keys (there were none),

@@ -1,6 +1,7 @@
 import AppKit
 import LaserdotKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 // The pieces of the result list: rows, the status and key bar, the ⌘K pane.
 
@@ -283,5 +284,58 @@ struct UndoBanner: View {
         .background(.bar)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(step.title)
+    }
+}
+
+/// The columns' headers, as in Finder: click one to sort by it, again for
+/// the other way; the arrow shows which and which way.
+struct ColumnHeader: View {
+    @ObservedObject var model: SearchModel
+
+    static let dateWidth: CGFloat = 132
+    static let sizeWidth: CGFloat = 72
+    static let kindWidth: CGFloat = 120
+
+    /// "JPEG image", "Folder", "Application" — from the type, no disk access.
+    static func kindName(_ hit: Hit) -> String {
+        if hit.kind == "app" { return UTType.application.localizedDescription ?? "Application" }
+        if hit.isDir { return UTType.folder.localizedDescription ?? "Folder" }
+        let ext = (hit.name as NSString).pathExtension
+        return UTType(filenameExtension: ext)?.localizedDescription ?? ext.uppercased()
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Color.clear.frame(width: 16, height: 1)
+            header(L("column.name"), .name).frame(maxWidth: .infinity, alignment: .leading)
+            header(L("column.modified"), .modified).frame(width: Self.dateWidth, alignment: .leading)
+            header(L("column.size"), .size).frame(width: Self.sizeWidth, alignment: .trailing)
+            header(L("column.kind"), .kind).frame(width: Self.kindWidth, alignment: .leading)
+            header(L("column.created"), .created).frame(width: Self.dateWidth, alignment: .leading)
+        }
+        .font(.caption.weight(.medium))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 5)
+        .background(.bar)
+        .overlay(alignment: .bottom) { Divider() }
+    }
+
+    private func header(_ title: String, _ key: SortKey) -> some View {
+        let active = model.sort == key
+        // Name and kind start A→Z, sizes and dates largest/newest first.
+        let ascending = (key == .name || key == .kind) != model.reverse
+        return Button { model.sortBy(key) } label: {
+            HStack(spacing: 3) {
+                Text(title).foregroundStyle(active ? Color.primary : Color.secondary)
+                if active {
+                    Image(systemName: ascending ? "chevron.up" : "chevron.down").font(.caption2)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .help(String(format: L("column.sortHelp"), title))
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 }

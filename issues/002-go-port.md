@@ -310,3 +310,6 @@ Binding unless revisited deliberately; each is also in the spec.
 - **0.9.4 (2026-11-12):** the owner saw a picture deleted in Finder still listed. Results are now checked with
   lstat before they are returned (missing ones dropped, their folders listed again in the background;
   `TestDeletedFilesLeaveTheResults`), and ⌘R refreshes every indexed folder.
+
+- **0.9.5 (2026-11-12):** columns view like Finder's list (sortable headers; flat list; `kind` order added to the
+  engine, `TestSortByKind`).

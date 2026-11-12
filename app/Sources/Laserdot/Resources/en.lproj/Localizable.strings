@@ -328,3 +328,14 @@
 "view.asList" = "Show as List";
 "refresh.help" = "Refresh the Index (remove deleted files)";
 "refresh.done" = "Refreshed: %ld deleted removed, %ld new added";
+"sort.kind" = "Kind";
+"view.title" = "View";
+"view.list" = "As Rows";
+"view.columns" = "As Columns (sortable, like Finder)";
+"view.grid" = "As Thumbnails";
+"column.name" = "Name";
+"column.modified" = "Date Modified";
+"column.size" = "Size";
+"column.kind" = "Kind";
+"column.created" = "Date Created";
+"column.sortHelp" = "Sort by %@ (click again to reverse)";

@@ -82,8 +82,33 @@ final class SearchModel: ObservableObject {
     @Published var refreshing = false
     @Published var refreshNote: String?
     /// Results as thumbnails (⌘J), remembered.
-    @Published var gridView = UserDefaults.standard.bool(forKey: "laserdot.grid") {
-        didSet { UserDefaults.standard.set(gridView, forKey: "laserdot.grid") }
+    /// How results are shown (⌘J goes to the next), remembered: rich rows
+    /// in sections, Finder's columns (sortable headers), or thumbnails.
+    @Published var viewMode: ResultsView = ResultsView.saved {
+        didSet {
+            UserDefaults.standard.set(viewMode.rawValue, forKey: ResultsView.key)
+            if viewMode != oldValue {
+                // Columns are one flat list; the others group by kind.
+                let current = selected?.path
+                (results, sections) = arranged(allHits)
+                selection = results.firstIndex { $0.path == current } ?? 0
+                resultsID &+= 1
+            }
+        }
+    }
+    var gridView: Bool {
+        get { viewMode == .grid }
+        set { viewMode = newValue ? .grid : .list }
+    }
+
+    /// A column header was clicked: sort by it; clicked again, the other way.
+    func sortBy(_ key: SortKey) {
+        if sort == key {
+            reverse.toggle()
+        } else {
+            reverse = false
+            sort = key
+        }
     }
     /// Tiles per row in the grid (set by the view).
     var gridColumns = 1
@@ -405,7 +430,7 @@ final class SearchModel: ObservableObject {
     /// Sections by kind when sorted by relevance; one list in the chosen
     /// order otherwise.
     private func arranged(_ hits: [Hit]) -> ([Hit], [ResultSection]) {
-        guard sort != .relevance else { return Self.grouped(hits, expanded: expanded) }
+        guard sort != .relevance || viewMode == .columns else { return Self.grouped(hits, expanded: expanded) }
         let title = L("sort.\(sort.rawValue)")
         return (hits, hits.isEmpty ? [] : [ResultSection(id: "sorted", title: title, range: 0..<hits.count, filter: nil, total: hits.count, hidden: 0)])
     }

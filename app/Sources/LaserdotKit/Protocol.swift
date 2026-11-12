@@ -173,7 +173,7 @@ public enum DaemonRequest: Encodable, Sendable {
 
 /// Result order for `search`.
 public enum SortKey: String, Codable, Sendable, CaseIterable {
-    case relevance, name, size, modified, created
+    case relevance, name, size, modified, created, kind
 }
 
 /// Character range (Unicode scalars) in the query as typed.

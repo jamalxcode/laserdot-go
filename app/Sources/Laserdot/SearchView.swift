@@ -39,7 +39,8 @@ struct SearchView: View {
                             if model.showActions {
                                 Divider()
                                 ActionsPane(model: model).frame(width: fixedSize ? 280 : 300)
-                            } else if let hit = model.selected, !model.results.isEmpty, !model.isCommandMode {
+                            } else if let hit = model.selected, !model.results.isEmpty, !model.isCommandMode,
+                                      model.viewMode != .columns {
                                 Divider()
                                 PreviewPane(hit: hit, model: model).frame(width: fixedSize ? 280 : 300)
                             }
@@ -111,14 +112,17 @@ struct SearchView: View {
             .disabled(model.refreshing)
             .help(L("refresh.help") + " (⌘R)")
             .accessibilityLabel(L("refresh.help"))
-            // List or thumbnails.
-            Button { model.gridView.toggle() } label: {
-                Image(systemName: model.gridView ? "list.bullet" : "square.grid.2x2").font(.title3)
+            // Rows, Finder's columns, or thumbnails (⌘J: the next one).
+            Picker(L("view.title"), selection: $model.viewMode) {
+                ForEach(ResultsView.allCases, id: \.self) { v in
+                    Image(systemName: v.symbol).help(L("view.\(v.rawValue)")).tag(v)
+                }
             }
-            .buttonStyle(.borderless)
-            .keyboardShortcut("j", modifiers: .command)
-            .help(L(model.gridView ? "view.asList" : "view.asGrid") + " (⌘J)")
-            .accessibilityLabel(L(model.gridView ? "view.asList" : "view.asGrid"))
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .fixedSize()
+            .help(L("view.title") + " (⌘J)")
+            .accessibilityLabel(L("view.title"))
             // Result order.
             Menu {
                 Picker(L("sort.title"), selection: $model.sort) {
@@ -261,7 +265,17 @@ struct SearchView: View {
         } else {
             ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 2) {
+                    LazyVStack(alignment: .leading, spacing: model.viewMode == .columns ? 0 : 2,
+                               pinnedViews: model.viewMode == .columns ? [.sectionHeaders] : []) {
+                        if model.viewMode == .columns {
+                            Section {
+                                ForEach(model.results.indices.map { IndexedHit(index: $0, hit: model.results[$0]) }) { item in
+                                    columnRow(item.index, item.hit)
+                                }
+                            } header: {
+                                ColumnHeader(model: model)
+                            }
+                        } else {
                         ForEach(model.sections) { section in
                             if model.sections.count > 1 || section.id != "top" {
                                 Text(section.title)
@@ -291,6 +305,7 @@ struct SearchView: View {
                                     .padding(.vertical, 2)
                             }
                         }
+                        }
                         // The end of the list: fetch the next page.
                         if model.canLoadMore {
                             ProgressView().controlSize(.small).frame(maxWidth: .infinity).padding(8)
@@ -316,6 +331,52 @@ struct SearchView: View {
             .opacity(model.searching ? 0.35 : 1)
             .animation(model.searching ? .easeIn(duration: 0.15).delay(0.15) : .none, value: model.searching)
         }
+    }
+
+    /// Finder's list: name, dates, size, kind in columns.
+    private func columnRow(_ i: Int, _ hit: Hit) -> some View {
+        let selected = model.isSelected(i)
+        let onAccent = selected && emphasized
+        return HStack(spacing: 8) {
+            FileIcon(path: hit.path, size: 16)
+            Text(highlighted(hit.name, model.highlightWords))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Group {
+                Text(friendlyDate(hit.modified, long: false)).frame(width: ColumnHeader.dateWidth, alignment: .leading)
+                Text(hit.isDir ? "--" : ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file))
+                    .frame(width: ColumnHeader.sizeWidth, alignment: .trailing)
+                Text(ColumnHeader.kindName(hit)).frame(width: ColumnHeader.kindWidth, alignment: .leading)
+                Text(friendlyDate(hit.created, long: false)).frame(width: ColumnHeader.dateWidth, alignment: .leading)
+            }
+            .lineLimit(1)
+            .foregroundStyle(onAccent ? Color.white.opacity(0.85) : Color.secondary)
+        }
+        .font(.callout)
+        .foregroundStyle(onAccent ? Color.white : Color.primary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 3)
+        .background(selected ? (emphasized ? Color.accentColor : Color.secondary.opacity(0.2))
+                             : (i % 2 == 1 ? Color.secondary.opacity(0.06) : Color.clear))
+        .contentShape(Rectangle())
+        .id(hit.path)
+        .onTapGesture(count: 2) { model.open(hit) }
+        .onTapGesture { model.click(i) }
+        .contextMenu {
+            Button(L("action.open")) { model.open(hit) }
+            Button(L("action.quickLook")) { model.quickLook(hit) }
+            Button(L("action.reveal")) { model.reveal(hit) }
+            Button(L("action.copy")) { model.copyPath(hit) }
+            Divider()
+            Button(L("action.more")) {
+                if !model.isSelected(i) { model.click(i) }
+                model.toggleActions()
+            }
+        }
+        .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
 
     static let tileWidth: CGFloat = 132
@@ -462,6 +523,7 @@ struct SearchView: View {
             Button("") { model.copyPath() }.keyboardShortcut("c", modifiers: [.command, .shift])
             Button("") { model.quickLook() }.keyboardShortcut("y", modifiers: .command)
             Button("") { model.toggleActions() }.keyboardShortcut("k", modifiers: .command)
+            Button("") { model.viewMode = model.viewMode.next }.keyboardShortcut("j", modifiers: .command)
             Button("") { model.undo() }.keyboardShortcut("z", modifiers: [.command, .option])
                 .disabled(model.undoStep == nil)
             // While browsing results only: typing keeps ⌘→ (end of line).

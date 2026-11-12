@@ -30,7 +30,7 @@ usage: laserdot [--db PATH] [--local] COMMAND [ARGS]
 commands:
   index [FOLDER...]   index folders; with none, refresh everything indexed
   search QUERY        search — see 'laserdot help-syntax'
-      --sort relevance|name|size|modified|created  --reverse
+      --sort relevance|name|size|modified|created|kind  --reverse
       --limit N  --offset N  --paths (-0)  --json  --no-typo
   watch [--poll N]    keep the index current as files change (no daemon needed)
   forget FOLDER       stop indexing a folder

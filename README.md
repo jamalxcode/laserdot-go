@@ -61,12 +61,13 @@ downloads.
 | ↑ in the empty box | your earlier searches |
 | ⌘↩ / ⌘⇧C | Show in Finder / copy the path |
 | ⌘D | pin the search (pins show on the empty box) |
-| ⌘J | results as thumbnails or as a list |
+| ⌘J | the next view: rows, columns (click a header to sort, like Finder), thumbnails |
 | ⌘R | refresh: look at every indexed folder again (deleted files leave the index) |
 | Tab / ⌥1–⌥9 | complete a filter / press a suggestion chip |
 | Esc | close actions, the cheat sheet, then the window |
 
-Results can also be shown as **thumbnails** (⌘J). A file deleted in Finder disappears from the results right away;
+Results can also be shown as **columns** like Finder's list (click Name, Date Modified, Size, Kind or Date Created
+to sort; again to reverse) or as **thumbnails** — the view switch at the top, or ⌘J. A file deleted in Finder disappears from the results right away;
 **⌘R** (the circular arrow) looks at every indexed folder again.
 
 The preview pane on the right shows a large thumbnail, plays videos and songs, pages through PDFs, and for a

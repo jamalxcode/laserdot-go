@@ -25,7 +25,7 @@ def check(ok, what):
 
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
-for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -120,6 +120,12 @@ g = steps["grid"]
 check(g["grid"] is True and len(g["results"]) >= 3, f"the grid shows the images (got {g['results']})")
 check(g["grid_columns"] >= 2, f"several thumbnails to a row (got {g['grid_columns']})")
 check(steps["multi"]["grid"] is False, "back to the list")
+
+# Columns: a header click sorts by it; a second click reverses.
+c1, c2 = steps["columns"], steps["columnsreversed"]
+check(c1["view"] == "columns" and c1["sort"] == "size" and c1["section_ids"] == ["sorted"], f"columns view sorted by size (got {c1['view']}, {c1['sort']}, {c1['section_ids']})")
+check(c1["sizes"] == sorted(c1["sizes"], reverse=True) and len(c1["sizes"]) >= 2, f"largest first (got {c1['sizes']})")
+check(c2["reverse"] is True and c2["sizes"] == sorted(c2["sizes"]), f"a second click: smallest first (got {c2['sizes']})")
 
 # ⇧↓ selects a second result.
 check(steps["multi"]["selected_count"] == 2, f"two results selected (got {steps['multi']['selected_count']})")

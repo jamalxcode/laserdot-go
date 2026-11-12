@@ -106,7 +106,18 @@ final class SelfTestRunner {
             // ⇧↓ selects a second result.
             // Thumbnails (⌘J): the same results as a grid.
             Step(name: "grid", typed: "kind:image", before: { model.sort = .relevance; model.gridView = true }),
-            Step(name: "multi", typed: "jpg", before: { model.gridView = false }, after: { model.extend(1) }),
+            // Columns, as in Finder: a click on Size sorts largest first, a
+            // second click smallest first; one flat list.
+            Step(name: "columns", typed: "kind:image", before: {
+                model.viewMode = .columns
+                model.sortBy(.size)
+            }),
+            Step(name: "columnsreversed", typed: "kind:image", before: { model.sortBy(.size) }),
+            Step(name: "multi", typed: "jpg", before: {
+                model.viewMode = .list
+                model.sort = .relevance
+                model.reverse = false
+            }, after: { model.extend(1) }),
             // ⌘K ▸ Move to Trash removes a file; a new search no longer finds it.
             Step(name: "trash", typed: "trashme", after: {
                 model.actions.first { $0.id == "trash" }?.run()
@@ -481,6 +492,9 @@ final class SelfTestRunner {
         r["refreshing"] = model.refreshing
         r["refresh_note"] = model.refreshNote ?? ""
         r["grid"] = model.gridView
+        r["view"] = model.viewMode.rawValue
+        r["sort"] = model.sort.rawValue
+        r["reverse"] = model.reverse
         r["grid_columns"] = model.gridColumns
         r["undo"] = model.undoStep?.title ?? ""
         r["undo_banner"] = model.undoBannerVisible

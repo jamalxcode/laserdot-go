@@ -28,10 +28,12 @@ const (
 	BySize
 	ByModified
 	ByCreated
+	// ByKind: by kind of file (app, archive, audio… folder, video), then by name.
+	ByKind
 )
 
 // ParseSort reads a sort name ("relevance", "name", "size", "modified",
-// "created").
+// "created", "kind").
 func ParseSort(s string) (Sort, bool) {
 	switch s {
 	case "", "relevance":
@@ -44,12 +46,14 @@ func ParseSort(s string) (Sort, bool) {
 		return ByModified, true
 	case "created":
 		return ByCreated, true
+	case "kind":
+		return ByKind, true
 	}
 	return 0, false
 }
 
 func (s Sort) String() string {
-	return [...]string{"relevance", "name", "size", "modified", "created"}[s]
+	return [...]string{"relevance", "name", "size", "modified", "created", "kind"}[s]
 }
 
 // Page selects an order and a window of results.
@@ -467,6 +471,14 @@ func effectiveSort(page Page, clauses [][]*query.NameMatcher) (Sort, bool) {
 	return sort, natural != page.Reverse
 }
 
+// sortText is the text an entry sorts by in name and kind order.
+func (s *Store) sortText(sort Sort, id uint32) string {
+	if sort != ByKind {
+		return s.FoldedName(id)
+	}
+	return s.Kind(id).String() + "\x00" + s.FoldedName(id)
+}
+
 func (s *Store) colKey(sort Sort, id uint32) uint64 {
 	switch sort {
 	case BySize:
@@ -493,8 +505,8 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 		switch srt {
 		case Relevance:
 			return RankKey{Num: s.relevanceKey(clauses, penalty, id, page.Boost[id])}
-		case ByName:
-			return RankKey{Text: s.FoldedName(id), IsText: true, Desc: page.Reverse}
+		case ByName, ByKind:
+			return RankKey{Text: s.sortText(srt, id), IsText: true, Desc: page.Reverse}
 		}
 		if filterOnly {
 			// file/folder/hidden (2 bits) · opened less (8) · newest first (53)
@@ -523,7 +535,7 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 	}
 
 	// Large result sets in a column order: walk the pre-sorted order.
-	if srt != Relevance && srt != ByName && !filterOnly && hits.GetCardinality() > 20_000 {
+	if srt != Relevance && srt != ByName && srt != ByKind && !filterOnly && hits.GetCardinality() > 20_000 {
 		order := s.bySize
 		switch srt {
 		case ByModified:
@@ -587,9 +599,21 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 	}
 
 	ids := hits.ToArray()
-	if srt == ByName {
+	if srt == ByName || srt == ByKind {
+		text := make(map[uint32]string, len(ids))
+		if srt == ByKind {
+			for _, id := range ids {
+				text[id] = s.sortText(srt, id)
+			}
+		}
+		get := func(id uint32) string {
+			if srt == ByKind {
+				return text[id]
+			}
+			return s.FoldedName(id)
+		}
 		slices.SortFunc(ids, func(a, b uint32) int {
-			if c := strings.Compare(s.FoldedName(a), s.FoldedName(b)); c != 0 {
+			if c := strings.Compare(get(a), get(b)); c != 0 {
 				if page.Reverse {
 					return -c
 				}

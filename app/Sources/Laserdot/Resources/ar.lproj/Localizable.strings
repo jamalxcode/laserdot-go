@@ -328,3 +328,14 @@
 "view.asList" = "عرض كقائمة";
 "refresh.help" = "تحديث الفهرس (إزالة الملفات المحذوفة)";
 "refresh.done" = "حُدّث: أُزيل %ld محذوف، وأُضيف %ld جديد";
+"sort.kind" = "النوع";
+"view.title" = "العرض";
+"view.list" = "كصفوف";
+"view.columns" = "كأعمدة (قابلة للترتيب، مثل Finder)";
+"view.grid" = "كصور مصغّرة";
+"column.name" = "الاسم";
+"column.modified" = "تاريخ التعديل";
+"column.size" = "الحجم";
+"column.kind" = "النوع";
+"column.created" = "تاريخ الإنشاء";
+"column.sortHelp" = "الترتيب حسب %@ (اضغط مرة أخرى للعكس)";

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
@@ -203,5 +204,43 @@ func TestDeletedFilesLeaveTheResults(t *testing.T) {
 	again.reload()
 	if r, _ := again.search("beach", SearchOptions{Page: pageAll()}); len(r.Hits) != 0 {
 		t.Fatalf("still indexed: %+v", r.Hits)
+	}
+}
+
+// Kind order: by kind (app, archive, audio, code, document, folder, image…),
+// then by name; reversed it is the other way round.
+func TestSortByKind(t *testing.T) {
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(dir, "home")
+	for _, f := range []string{"b.jpg", "a.png", "notes.pdf", "song.mp3", "clip.mp4", "z/inside.txt"} {
+		write(t, root, f, "x")
+	}
+	ld, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	page := pageAll()
+	page.Sort = index.ByKind
+	r, err := ld.Search("in:"+root+" -inside", SearchOptions{Page: page})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, h := range r.Hits {
+		got = append(got, h.Name)
+	}
+	// audio, document, folder (z), image (a, b), video
+	want := []string{"song.mp3", "notes.pdf", "z", "a.png", "b.jpg", "clip.mp4"}
+	if strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("kind order: %v", got)
+	}
+	page.Reverse = true
+	r, _ = ld.Search("in:"+root+" -inside", SearchOptions{Page: page})
+	if len(r.Hits) == 0 || r.Hits[0].Name != "clip.mp4" {
+		t.Errorf("reversed: %+v", r.Hits)
 	}
 }

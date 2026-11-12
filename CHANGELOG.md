@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.5
+
+- Columns, like Finder: the view switch at the top (or ⌘J) adds a list with Name, Date Modified, Size, Kind and Date
+  Created; click a column to sort by it, click again to reverse.
+- Sort by Kind (also in the sort menu).
+
 ## 0.9.4
 
 - Files deleted in Finder no longer show up: every result is checked before it is shown, and anything gone is

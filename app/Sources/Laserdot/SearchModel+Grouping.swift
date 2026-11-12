@@ -66,3 +66,28 @@ extension SearchModel {
         return (out, sections)
     }
 }
+
+/// How results are shown.
+enum ResultsView: String, CaseIterable {
+    case list, columns, grid
+
+    static let key = "laserdot.view"
+
+    static var saved: ResultsView {
+        if let raw = UserDefaults.standard.string(forKey: key), let v = ResultsView(rawValue: raw) { return v }
+        return UserDefaults.standard.bool(forKey: "laserdot.grid") ? .grid : .list // before 0.9.5
+    }
+
+    var next: ResultsView {
+        let all = Self.allCases
+        return all[(all.firstIndex(of: self)! + 1) % all.count]
+    }
+
+    var symbol: String {
+        switch self {
+        case .list: return "list.bullet.rectangle"
+        case .columns: return "list.bullet"
+        case .grid: return "square.grid.2x2"
+        }
+    }
+}
