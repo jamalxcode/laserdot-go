@@ -283,4 +283,5 @@ Binding unless revisited deliberately; each is also in the spec.
 - **0.9.3 (2026-11-12):** 0.9.2 could stay on "Starting the index…": laserdotd started only after the permission
   step, which waited without limit on each place (and, on a first launch, on the welcome tour). Now each place has a
   time limit (60 s folder, 8 s drive), the step runs at every launch regardless of the tour, the menu names the place
-  it waits for, and the self-test checks that a place that never answers is skipped.
+  it waits for, and the self-test checks that a place that never answers is skipped. The owner's menu turned out to be from a copy of about 0.2 (two copies of one bundle id: macOS may launch the old
+  one at login); the newest copy now offers to move older ones to the Trash at launch.

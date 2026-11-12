@@ -126,6 +126,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             return
         }
         updates.offerMoveToApplications()
+        OlderCopies.offerCleanup()
         updates.startDailyChecks()
         openAtLoginByDefault()
         power = PowerWatcher { [weak engine] pause in

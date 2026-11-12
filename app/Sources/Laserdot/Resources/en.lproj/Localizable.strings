@@ -321,3 +321,6 @@
 "permissions.refusedText" = "macOS didn't allow Laserdot to read: %@. Files there won't be found. Full Disk Access lets Laserdot see everything with one switch.";
 "privacy.signing" = "Key that signs updates on this Mac (so macOS keeps its permissions)";
 "permissions.waiting" = "Waiting for macOS to allow %@…";
+"older.title" = "Older copies of Laserdot found";
+"older.text" = "macOS may start an old copy instead of this one (an old copy cannot update itself). Move them to the Trash?";
+"older.trash" = "Move to Trash";

@@ -7,6 +7,8 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
 - Fixed: Laserdot could stay on "Starting the index…" for good, waiting on a drive that didn't answer or on the
   welcome tour. Now it never waits more than a minute for macOS's questions, and the menu says what it is waiting for.
+- Older copies of Laserdot left on your Mac (which macOS may start instead, and which cannot update) are found at
+  launch; one click moves them to the Trash.
 
 ## 0.9.2
 
