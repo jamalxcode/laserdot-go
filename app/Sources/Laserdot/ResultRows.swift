@@ -339,3 +339,51 @@ struct ColumnHeader: View {
         .accessibilityAddTraits(active ? .isSelected : [])
     }
 }
+
+/// One row of the columns view (split out so each piece type-checks quickly).
+struct ColumnRow: View {
+    let hit: Hit
+    let onAccent: Bool
+    let highlight: [String]
+
+    private var sizeText: String {
+        hit.isDir ? "--" : ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file)
+    }
+
+    private var secondary: Color { onAccent ? Color.white.opacity(0.85) : Color.secondary }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            FileIcon(path: hit.path, size: 16)
+            name
+            cells
+        }
+        .font(.callout)
+        .foregroundStyle(onAccent ? Color.white : Color.primary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 3)
+    }
+
+    private var name: some View {
+        Text(highlighted(hit.name, highlight))
+            .lineLimit(1)
+            .truncationMode(.middle)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var cells: some View {
+        HStack(spacing: 8) {
+            cell(friendlyDate(hit.modified, long: false), width: ColumnHeader.dateWidth, alignment: .leading)
+            cell(sizeText, width: ColumnHeader.sizeWidth, alignment: .trailing)
+            cell(ColumnHeader.kindName(hit), width: ColumnHeader.kindWidth, alignment: .leading)
+            cell(friendlyDate(hit.created, long: false), width: ColumnHeader.dateWidth, alignment: .leading)
+        }
+    }
+
+    private func cell(_ text: String, width: CGFloat, alignment: Alignment) -> some View {
+        Text(text)
+            .lineLimit(1)
+            .foregroundStyle(secondary)
+            .frame(width: width, alignment: alignment)
+    }
+}

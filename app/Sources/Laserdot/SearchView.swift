@@ -336,29 +336,11 @@ struct SearchView: View {
     /// Finder's list: name, dates, size, kind in columns.
     private func columnRow(_ i: Int, _ hit: Hit) -> some View {
         let selected = model.isSelected(i)
-        let onAccent = selected && emphasized
-        return HStack(spacing: 8) {
-            FileIcon(path: hit.path, size: 16)
-            Text(highlighted(hit.name, model.highlightWords))
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Group {
-                Text(friendlyDate(hit.modified, long: false)).frame(width: ColumnHeader.dateWidth, alignment: .leading)
-                Text(hit.isDir ? "--" : ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file))
-                    .frame(width: ColumnHeader.sizeWidth, alignment: .trailing)
-                Text(ColumnHeader.kindName(hit)).frame(width: ColumnHeader.kindWidth, alignment: .leading)
-                Text(friendlyDate(hit.created, long: false)).frame(width: ColumnHeader.dateWidth, alignment: .leading)
-            }
-            .lineLimit(1)
-            .foregroundStyle(onAccent ? Color.white.opacity(0.85) : Color.secondary)
-        }
-        .font(.callout)
-        .foregroundStyle(onAccent ? Color.white : Color.primary)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 3)
-        .background(selected ? (emphasized ? Color.accentColor : Color.secondary.opacity(0.2))
-                             : (i % 2 == 1 ? Color.secondary.opacity(0.06) : Color.clear))
+        let stripe: Color = i % 2 == 1 ? Color.secondary.opacity(0.06) : Color.clear
+        let selectedColor: Color = emphasized ? Color.accentColor : Color.secondary.opacity(0.2)
+        let background: Color = selected ? selectedColor : stripe
+        return ColumnRow(hit: hit, onAccent: selected && emphasized, highlight: model.highlightWords)
+            .background(background)
         .contentShape(Rectangle())
         .id(hit.path)
         .onTapGesture(count: 2) { model.open(hit) }
