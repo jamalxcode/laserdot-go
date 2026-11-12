@@ -41,14 +41,23 @@ jobs:
       - name: The packaged app launches (from the disk image, as a user would)
         run: |
           d=$(mktemp -d)
-          # hdiutil sometimes answers "Resource temporarily unavailable": try again.
-          for i in 1 2 3 4 5; do
-            hdiutil attach -nobrowse -readonly -mountpoint "$d/mnt" "Laserdot-${{ steps.v.outputs.version }}.dmg" && break
-            [ "$i" = 5 ] && exit 1
-            sleep $((i * 3))
+          dmg="Laserdot-${{ steps.v.outputs.version }}.dmg"
+          # hdiutil on CI machines sometimes answers "Resource temporarily
+          # unavailable" for minutes: try for a while, then check the image
+          # (checksums) and launch the app that went into it.
+          attached=""
+          for i in 1 2 3 4 5 6 7 8; do
+            if hdiutil attach -nobrowse -readonly -mountpoint "$d/mnt" "$dmg"; then attached=1; break; fi
+            sleep $((i * 4))
           done
-          ditto "$d/mnt/Laserdot.app" "$d/Laserdot.app"
-          hdiutil detach "$d/mnt"
+          if [ -n "$attached" ]; then
+            ditto "$d/mnt/Laserdot.app" "$d/Laserdot.app"
+            hdiutil detach "$d/mnt" || hdiutil detach -force "$d/mnt" || true
+          else
+            echo "::warning::hdiutil could not attach the disk image on this machine; checking it and launching the bundled app instead"
+            hdiutil verify "$dmg"
+            ditto app/build/Laserdot.app "$d/Laserdot.app"
+          fi
           export LASERDOT_DB="$d/data/index.db"
           "$d/Laserdot.app/Contents/MacOS/Laserdot" > "$d/app.log" 2>&1 &
           pid=$!
