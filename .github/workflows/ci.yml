@@ -172,6 +172,8 @@ jobs:
           done
           exit $status
       - name: The updater finds and downloads the newest release (no token, no API)
+        env:
+          GH_TOKEN: ${{ github.token }} # only for this check's `gh release view`
         run: |
           d=$(mktemp -d)
           mkdir -p "$d/Old.app/Contents"
@@ -183,6 +185,12 @@ jobs:
           grep -q '"state" *: *"downloaded"' "$status"
           f=$(plutil -extract file raw "$status")
           test -s "$f" && hdiutil imageinfo "$f" >/dev/null && echo "downloaded a valid disk image: $f"
+          # Releases since 0.9.9 carry GitHub's build proof; the helper fetches it too.
+          if gh release view --repo "${{ github.repository }}" --json assets --jq '.assets[].name' | grep -q 'sigstore.json$'; then
+            test -s "$f.sigstore.json" && echo "and its build proof"
+          else
+            echo "the newest release predates build proofs"
+          fi
           test -f "app/build/Laserdot.app/Contents/Helpers/Laserdot Updater.app/Contents/Resources/AppIcon.icns"
       - uses: actions/upload-artifact@v4
         with:

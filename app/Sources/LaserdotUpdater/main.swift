@@ -194,11 +194,18 @@ do {
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     let dest = folder.appendingPathComponent(name)
     // The proof that the release workflow built it (ReleaseProof), fetched
-    // afresh each time: Laserdot installs nothing without it.
+    // afresh each time. Laserdot installs nothing without it; a release
+    // published before proofs existed (0.9.8 and older) has none, which
+    // Laserdot reports when asked to install it.
     let proofName = name + ".sigstore.json"
     let proofURL = URL(string: "https://github.com/\(repo)/releases/download/v\(latest)/\(proofName)")!
-    try download(request(proofURL, accept: "application/octet-stream"), to: folder.appendingPathComponent(proofName),
-                 version: latest, report: false)
+    let proofFile = folder.appendingPathComponent(proofName)
+    try? FileManager.default.removeItem(at: proofFile)
+    do {
+        try download(request(proofURL, accept: "application/octet-stream"), to: proofFile, version: latest, report: false)
+    } catch let e as HTTPError where e.status == 404 {
+        // No proof published for this release.
+    }
     // A download is moved into place only once complete, so a file that is
     // there is whole; Laserdot checks it again before installing.
     if !FileManager.default.fileExists(atPath: dest.path) {
