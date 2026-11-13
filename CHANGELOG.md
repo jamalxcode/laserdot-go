@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.10
+
+- Find Duplicates shows what it is doing: each step (choosing files, comparing files of the same size, reading files
+  that look the same, looking at pictures and videos), a progress bar, how many files are done, and the time so far.
+- Fixed: on big drives Find Duplicates stopped with "cannot reach laserdotd: timed out" after ten minutes. A scan
+  now takes as long as it needs.
+
 ## 0.9.9
 
 - You can see indexing move: the menu and the window say how many files have been found so far, then how far the

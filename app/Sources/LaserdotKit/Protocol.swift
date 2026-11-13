@@ -216,10 +216,12 @@ public enum Wire {
         public var indexing: IndexProgress?
         /// The watcher's hourly comparison with the disk (newer daemons).
         public var catchUp: CatchUp?
+        /// The duplicate scan running now (newer daemons).
+        public var dupes: DupeProgress?
 
         enum CodingKeys: String, CodingKey {
             case protocolVersion = "protocol", version, pid, networkDenied = "network_denied", watcher, db, entries, indexing
-            case catchUp = "catch_up"
+            case catchUp = "catch_up", dupes
         }
 
         public init(from decoder: Decoder) throws {
@@ -233,7 +235,16 @@ public enum Wire {
             entries = try c.value(.entries, or: 0)
             indexing = try c.decodeIfPresent(IndexProgress.self, forKey: .indexing)
             catchUp = try c.decodeIfPresent(CatchUp.self, forKey: .catchUp)
+            dupes = try c.decodeIfPresent(DupeProgress.self, forKey: .dupes)
         }
+    }
+
+    /// `status.dupes`: how far a duplicate scan has got. Phase: listing,
+    /// quick, full, images, videos or saving; Done of Total files.
+    public struct DupeProgress: Decodable, Sendable, Equatable {
+        public var phase: String
+        public var done: UInt64
+        public var total: UInt64
     }
 
     /// `status.catch_up`: when the indexed folders were last compared with

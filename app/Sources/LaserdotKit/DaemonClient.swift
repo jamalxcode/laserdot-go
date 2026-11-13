@@ -76,8 +76,8 @@ public final class DaemonClient {
         if fd >= 0 { Darwin.close(fd) }
     }
 
-    /// How long a call may wait for its answer. A first duplicate scan can
-    /// take minutes.
+    /// How long a call may wait for its answer (0: no limit). A first
+    /// duplicate scan can take minutes, or hours on big drives.
     public func setTimeout(_ seconds: TimeInterval) {
         var tv = timeval()
         tv.tv_sec = Int(seconds)

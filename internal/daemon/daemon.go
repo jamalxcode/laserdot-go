@@ -291,6 +291,9 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		if p := s.ld.Progress(); p != nil {
 			st.Indexing = &ipc.IndexProgress{Root: p.Root, Phase: p.Phase, Done: p.Done, Total: p.Total}
 		}
+		if p := s.ld.DupeProgress(); p != nil {
+			st.Dupes = &ipc.DupeProgress{Phase: p.Phase, Done: p.Done, Total: p.Total}
+		}
 		return ok(st)
 	case ipc.OpSearch:
 		srt, valid := index.ParseSort(req.Sort)

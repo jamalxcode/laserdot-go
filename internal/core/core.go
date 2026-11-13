@@ -131,13 +131,15 @@ type Laserdot struct {
 	progress   atomic.Pointer[IndexProgress]
 	// details: the background header pass (probeLater), when running.
 	details atomic.Pointer[IndexProgress]
-	dbPath  string
-	wmu     sync.Mutex
-	db      *index.Db
-	mu      sync.RWMutex
-	store   *index.Store
-	loadMS  uint64
-	report  OpenReport
+	// dupes: the duplicate scan running now.
+	dupes  atomic.Pointer[DupeProgress]
+	dbPath string
+	wmu    sync.Mutex
+	db     *index.Db
+	mu     sync.RWMutex
+	store  *index.Store
+	loadMS uint64
+	report OpenReport
 	// content: file contents (§2.4), in its own file next to the index.
 	content         *index.ContentIndex
 	contentSettings ContentSettings

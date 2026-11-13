@@ -361,6 +361,14 @@ could wait an hour. **Asked:** "fix all". **Decided:**
   stuck". **Decided:** indexing reports a live count of files found while walking, then the saving percentage,
   then the background details pass, in the menu and the window footer.
 
+## 23. Find Duplicates on big drives (0.9.10)
+
+**Asked (Mac mini, a 16 TB and an 8 TB drive):** "i need the same tracking and indicator for find duplicates, im not
+sure if something is happening or not", then a screenshot of "cannot reach laserdotd: timed out waiting for
+laserdotd" and "fix it". **Found:** the app gave a scan ten minutes, while reading same-size video files whole on
+those drives takes longer. **Decided:** no time limit for a scan (it ends if laserdotd stops); the daemon reports
+the step and files done of total, and the window shows them with a bar and the time so far.
+
 ---
 
 ## How the work was done

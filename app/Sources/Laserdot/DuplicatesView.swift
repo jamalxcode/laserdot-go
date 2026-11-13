@@ -16,6 +16,11 @@ final class DuplicatesModel: ObservableObject {
     /// `nil`: the Trash.
     @Published var folder: URL?
     @Published var preview: CleanupPreview?
+    /// While scanning: the step and how many files it has read, and since when.
+    @Published private(set) var progress: Wire.DupeProgress?
+    @Published private(set) var started: Date?
+    private var progressTimer: Timer?
+    private let progressQueue = DispatchQueue(label: "laserdot.dupes.progress", qos: .utility)
 
     private let engine: Engine
     private let queue = DispatchQueue(label: "laserdot.dupes", qos: .userInitiated)
@@ -28,12 +33,16 @@ final class DuplicatesModel: ObservableObject {
         guard !scanning else { return }
         scanning = true
         message = nil
+        progress = nil
+        started = Date()
+        startProgress()
         let (engine, scope, exact) = (self.engine, self.scope, self.exactOnly)
         queue.async { [weak self] in
             let outcome = Result { try engine.findDuplicates(scope: scope, exactOnly: exact) }
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.scanning = false
+                self.stopProgress()
                 switch outcome {
                 case .success(let r):
                     self.report = r
@@ -46,6 +55,74 @@ final class DuplicatesModel: ObservableObject {
                     self.message = Self.describe(e)
                 }
             }
+        }
+    }
+
+    /// Ask the daemon twice a second how far the scan has got.
+    private func startProgress() {
+        progressTimer?.invalidate()
+        progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            let engine = self.engine
+            self.progressQueue.async {
+                let p = engine.dupeProgress()
+                DispatchQueue.main.async {
+                    guard self.scanning else { return }
+                    if let p { self.progress = p }
+                    self.objectWillChange.send() // the elapsed time moves on
+                }
+            }
+        }
+    }
+
+    private func stopProgress() {
+        progressTimer?.invalidate()
+        progressTimer = nil
+        progress = nil
+        started = nil
+    }
+
+    /// "Comparing files of the same size…"
+    var progressTitle: String {
+        guard let p = progress else { return L("dupes.scanning") }
+        let key = "dupes.phase.\(p.phase)"
+        let s = L(key)
+        return s == key ? L("dupes.scanning") : s
+    }
+
+    /// "1,200 of 5,000 files · 1 min 12 s so far"
+    var progressDetail: String {
+        var parts: [String] = []
+        if let p = progress, p.total > 0 {
+            let n = NumberFormatter()
+            n.numberStyle = .decimal
+            let f = { (v: UInt64) in n.string(from: NSNumber(value: v)) ?? "\(v)" }
+            parts.append(String(format: L("dupes.progress.count"), f(p.done), f(p.total)))
+        }
+        if let started {
+            let d = DateComponentsFormatter()
+            d.unitsStyle = .short
+            d.allowedUnits = [.hour, .minute, .second]
+            parts.append(String(format: L("dupes.elapsed"), d.string(from: Date().timeIntervalSince(started)) ?? ""))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// 0…1 for the reading steps; nil shows a moving bar.
+    var progressFraction: Double? {
+        guard let p = progress, p.total > 0 else { return nil }
+        return min(1, Double(p.done) / Double(p.total))
+    }
+
+    /// The self-test: the progress view at a given step, without a scan.
+    func showProgressForTests(_ json: String?) {
+        if let json, let p = try? JSONDecoder().decode(Wire.DupeProgress.self, from: Data(json.utf8)) {
+            scanning = true
+            started = Date().addingTimeInterval(-72)
+            progress = p
+        } else {
+            scanning = false
+            stopProgress()
         }
     }
 
@@ -155,7 +232,21 @@ struct DuplicatesView: View {
             .padding(10)
             Divider()
             if model.scanning {
-                ProgressView(L("dupes.scanning")).frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Each step, a bar and the count: a long scan never looks stuck.
+                VStack(spacing: 10) {
+                    Text(model.progressTitle).font(.headline)
+                    if let f = model.progressFraction {
+                        ProgressView(value: f).progressViewStyle(.linear)
+                    } else {
+                        ProgressView().progressViewStyle(.linear)
+                    }
+                    Text(model.progressDetail)
+                        .font(.caption)
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: 380)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let r = model.report {
                 if r.groups.isEmpty {
                     Text(L("dupes.none")).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)

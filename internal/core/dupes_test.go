@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"runtime"
 	"slices"
+	"sync"
 	"testing"
 	"time"
 )
@@ -102,7 +103,27 @@ func exactOnly() DupeOptions {
 
 func TestStory23FindsExactSimilarAndReencoded(t *testing.T) {
 	l := dupeLibrary(t)
+	var mu sync.Mutex
+	seen := map[string]uint64{} // phase → largest Done
+	dupeProgressSeen = func(p DupeProgress) {
+		mu.Lock()
+		defer mu.Unlock()
+		seen[p.Phase] = max(seen[p.Phase], p.Done)
+	}
+	defer func() { dupeProgressSeen = nil }()
 	r, err := l.ld.FindDuplicates(DefaultDupeOptions())
+	// The Duplicates window shows each step and how many files it has read.
+	for _, phase := range []string{"listing", "quick", "full", "images", "saving"} {
+		if _, ok := seen[phase]; !ok {
+			t.Errorf("no %q progress (saw %v)", phase, seen)
+		}
+	}
+	if seen["quick"] == 0 || seen["images"] == 0 {
+		t.Errorf("no files counted (saw %v)", seen)
+	}
+	if l.ld.DupeProgress() != nil {
+		t.Error("progress left behind after the scan")
+	}
 	if err != nil {
 		t.Fatal(err)
 	}

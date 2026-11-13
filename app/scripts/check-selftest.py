@@ -235,6 +235,12 @@ pf, pd = report.get("progress_found", ""), report.get("progress_details", "")
 check("Movies" in pf and digits.search(pf), f"indexing shows how many files were found so far (got {pf!r})")
 check(len(digits.findall(pd)) >= 5, f"the details pass shows done of total (got {pd!r})")
 
+# Find Duplicates shows the step, a bar and how many files it has read.
+dt, dd = report.get("dupes_progress_title", ""), report.get("dupes_progress_detail", "")
+check(dt and "…" in dt, f"the duplicate scan names its step (got {dt!r})")
+check(len(digits.findall(dd)) >= 8, f"the duplicate scan shows files done of total and the time so far (got {dd!r})")
+check(abs(report.get("dupes_progress_fraction", -1) - 0.24) < 0.001, "the duplicate scan's bar fills with the count")
+
 # Updates are never silent: a window with the step, a filled bar and the sizes.
 check(report.get("update_window_visible") is True, "the update window shows while an update downloads")
 check("update-progress.png" in report["screenshots"], "screenshot update-progress.png")

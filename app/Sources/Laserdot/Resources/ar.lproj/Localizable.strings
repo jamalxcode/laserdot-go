@@ -359,3 +359,11 @@
 "update.menu.downloading" = "جارٍ تنزيل التحديث… %ld%%";
 "index.found" = "جارٍ البحث عن الملفات في %@… %@ حتى الآن";
 "index.details" = "جارٍ قراءة تفاصيل الصور والفيديو والموسيقى… %@ من %@";
+"dupes.phase.listing" = "جارٍ اختيار الملفات للمقارنة…";
+"dupes.phase.quick" = "جارٍ مقارنة الملفات المتساوية الحجم…";
+"dupes.phase.full" = "جارٍ قراءة الملفات المتشابهة…";
+"dupes.phase.images" = "جارٍ فحص الصور…";
+"dupes.phase.videos" = "جارٍ فحص الفيديو…";
+"dupes.phase.saving" = "جارٍ حفظ ما تعلّمه للمرة القادمة…";
+"dupes.progress.count" = "%@ من %@ ملف";
+"dupes.elapsed" = "%@ حتى الآن";

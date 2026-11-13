@@ -85,6 +85,14 @@ extension SelfTestRunner {
     /// "x MB of y MB" (no real update is fetched).
     func updateWindow(done: @escaping () -> Void) {
         extra["launch_phases"] = LaunchTimer.summary
+        // The Duplicates window shows the step, a bar and the count.
+        if let dm = app.duplicatesModel {
+            dm.showProgressForTests(#"{"phase":"full","done":1200,"total":5000}"#)
+            extra["dupes_progress_title"] = dm.progressTitle
+            extra["dupes_progress_detail"] = dm.progressDetail
+            extra["dupes_progress_fraction"] = dm.progressFraction ?? -1
+            dm.showProgressForTests(nil)
+        }
         // Indexing says how many files it has found so far (a big folder
         // takes a while; the count shows it is moving).
         let found = #"{"root":"/x/Movies","phase":"scanning","done":412000,"total":0}"#

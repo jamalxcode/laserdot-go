@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/RoaringBitmap/roaring/v2"
@@ -89,6 +90,26 @@ type DupeGroup struct {
 	Reclaimable uint64       `json:"reclaimable"`
 }
 
+// DupeProgress: how far a duplicate scan has got. Phase is "listing"
+// (choosing the files to compare), "quick" (reading the start of
+// same-size files), "full" (reading whole files whose starts match),
+// "images" (looking at pictures), "videos" (looking at video frames) or
+// "saving"; Done of Total files for the reading phases.
+type DupeProgress struct {
+	Phase string `json:"phase"`
+	Done  uint64 `json:"done"`
+	Total uint64 `json:"total"`
+}
+
+// DupeProgress: the duplicate scan running now, or nil.
+func (ld *Laserdot) DupeProgress() *DupeProgress { return ld.dupes.Load() }
+
+// dupeProgressSeen: tests watch the progress reports.
+var dupeProgressSeen func(DupeProgress)
+
+// progressFn reports a phase's progress (nil: not reported).
+type progressFn func(phase string, done, total uint64)
+
 // DupeReport is the result of a scan.
 type DupeReport struct {
 	Groups       []DupeGroup `json:"groups"`
@@ -135,6 +156,15 @@ func (s sets) union(a, b int) {
 // Mac's index, so a second scan reads only what changed.
 func (ld *Laserdot) FindDuplicates(opts DupeOptions) (*DupeReport, error) {
 	t := time.Now()
+	prog := func(phase string, done, total uint64) {
+		p := &DupeProgress{Phase: phase, Done: done, Total: total}
+		ld.dupes.Store(p)
+		if dupeProgressSeen != nil {
+			dupeProgressSeen(*p)
+		}
+	}
+	prog("listing", 0, 0)
+	defer ld.dupes.Store(nil)
 	cands, err := ld.dupeCandidates(opts)
 	if err != nil {
 		return nil, err
@@ -189,14 +219,15 @@ func (ld *Laserdot) FindDuplicates(opts DupeOptions) (*DupeReport, error) {
 	}
 	videoEdge := make([]bool, len(cands))
 	if opts.Exact {
-		exactPass(cands, fps, s, exactRoot, rep)
+		exactPass(cands, fps, s, exactRoot, rep, prog)
 	}
 	if opts.Images {
-		imagePass(cands, fps, s, opts, rep)
+		imagePass(cands, fps, s, opts, rep, prog)
 	}
 	if opts.Videos && rep.VideoDecoder != nil {
-		videoPass(cands, fps, s, videoEdge, opts, rep)
+		videoPass(cands, fps, s, videoEdge, opts, rep, prog)
 	}
+	prog("saving", 0, 0)
 	var keys []string
 	var changed []index.Fingerprint
 	for i := range cands {
@@ -319,13 +350,19 @@ func (ld *Laserdot) dupeCandidates(opts DupeOptions) ([]cand, error) {
 
 // compute runs f over the chosen candidates in parallel; f returns the
 // bytes read, or ok false for an unreadable file.
-func compute(cands []cand, fps []index.Fingerprint, which []int, rep *DupeReport, f func(c *cand, fp *index.Fingerprint) (uint64, bool)) {
+func compute(cands []cand, fps []index.Fingerprint, which []int, rep *DupeReport, phase string, prog progressFn,
+	f func(c *cand, fp *index.Fingerprint) (uint64, bool)) {
 	type res struct {
 		fp   index.Fingerprint
 		read uint64
 		ok   bool
 	}
 	out := make([]res, len(which))
+	total := uint64(len(which))
+	var done atomic.Uint64
+	if prog != nil {
+		prog(phase, 0, total)
+	}
 	var wg sync.WaitGroup
 	sem := make(chan struct{}, 8)
 	for k, i := range which {
@@ -336,6 +373,9 @@ func compute(cands []cand, fps []index.Fingerprint, which []int, rep *DupeReport
 			fp := fps[i]
 			n, ok := f(&cands[i], &fp)
 			out[k] = res{fp, n, ok}
+			if d := done.Add(1); prog != nil {
+				prog(phase, d, total)
+			}
 		}()
 	}
 	wg.Wait()
@@ -349,7 +389,7 @@ func compute(cands []cand, fps []index.Fingerprint, which []int, rep *DupeReport
 	}
 }
 
-func exactPass(cands []cand, fps []index.Fingerprint, s sets, exactRoot []int, rep *DupeReport) {
+func exactPass(cands []cand, fps []index.Fingerprint, s sets, exactRoot []int, rep *DupeReport, prog progressFn) {
 	bySize := map[uint64][]int{}
 	for i, c := range cands {
 		bySize[c.size] = append(bySize[c.size], i)
@@ -365,7 +405,7 @@ func exactPass(cands []cand, fps []index.Fingerprint, s sets, exactRoot []int, r
 		}
 	}
 	slices.Sort(needQuick)
-	compute(cands, fps, needQuick, rep, func(c *cand, fp *index.Fingerprint) (uint64, bool) {
+	compute(cands, fps, needQuick, rep, "quick", prog, func(c *cand, fp *index.Fingerprint) (uint64, bool) {
 		h, err := media.QuickHash(c.path, c.size)
 		if err != nil {
 			return 0, false
@@ -402,7 +442,7 @@ func exactPass(cands []cand, fps []index.Fingerprint, s sets, exactRoot []int, r
 		}
 	}
 	slices.Sort(needFull)
-	compute(cands, fps, needFull, rep, func(c *cand, fp *index.Fingerprint) (uint64, bool) {
+	compute(cands, fps, needFull, rep, "full", prog, func(c *cand, fp *index.Fingerprint) (uint64, bool) {
 		h, err := media.FullHash(c.path)
 		if err != nil {
 			return 0, false
@@ -431,7 +471,7 @@ func exactPass(cands []cand, fps []index.Fingerprint, s sets, exactRoot []int, r
 	}
 }
 
-func imagePass(cands []cand, fps []index.Fingerprint, s sets, opts DupeOptions, rep *DupeReport) {
+func imagePass(cands []cand, fps []index.Fingerprint, s sets, opts DupeOptions, rep *DupeReport, prog progressFn) {
 	var imgs, need []int
 	for i, c := range cands {
 		if c.kind == media.Image && media.HashableImage(c.ext) {
@@ -441,7 +481,7 @@ func imagePass(cands []cand, fps []index.Fingerprint, s sets, opts DupeOptions, 
 			}
 		}
 	}
-	compute(cands, fps, need, rep, func(c *cand, fp *index.Fingerprint) (uint64, bool) {
+	compute(cands, fps, need, rep, "images", prog, func(c *cand, fp *index.Fingerprint) (uint64, bool) {
 		g, ok := media.ImageGray(c.path, c.ext)
 		if !ok {
 			fp.Flags |= index.FPImageFailed
@@ -553,7 +593,7 @@ func nearPairs(hashed []hashedImage, maxD int) [][2]int {
 	return pairs
 }
 
-func videoPass(cands []cand, fps []index.Fingerprint, s sets, videoEdge []bool, opts DupeOptions, rep *DupeReport) {
+func videoPass(cands []cand, fps []index.Fingerprint, s sets, videoEdge []bool, opts DupeOptions, rep *DupeReport, prog progressFn) {
 	dur := func(i int) uint64 { return uint64(cands[i].quality.DurationMS) }
 	var vids []int
 	for i, c := range cands {
@@ -581,7 +621,7 @@ func videoPass(cands []cand, fps []index.Fingerprint, s sets, videoEdge []bool, 
 	}
 	slices.Sort(need)
 	need = slices.Compact(need)
-	compute(cands, fps, need, rep, func(c *cand, fp *index.Fingerprint) (uint64, bool) {
+	compute(cands, fps, need, rep, "videos", prog, func(c *cand, fp *index.Fingerprint) (uint64, bool) {
 		frames, err := media.VideoFrames(c.path, uint64(c.quality.DurationMS))
 		if err != nil {
 			fp.Flags |= index.FPVideoFailed

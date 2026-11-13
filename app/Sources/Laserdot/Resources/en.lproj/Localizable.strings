@@ -359,3 +359,11 @@
 "update.menu.downloading" = "Downloading update… %ld%%";
 "index.found" = "Finding files in %@… %@ so far";
 "index.details" = "Reading photo, video and music details… %@ of %@";
+"dupes.phase.listing" = "Choosing the files to compare…";
+"dupes.phase.quick" = "Comparing files of the same size…";
+"dupes.phase.full" = "Reading files that look the same…";
+"dupes.phase.images" = "Looking at pictures…";
+"dupes.phase.videos" = "Looking at videos…";
+"dupes.phase.saving" = "Saving what it learned for next time…";
+"dupes.progress.count" = "%@ of %@ files";
+"dupes.elapsed" = "%@ so far";

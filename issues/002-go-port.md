@@ -322,6 +322,9 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.10 (2026-11-13):** `core.DupeProgress` (listing, quick, full, images, videos, saving; Done/Total from
+  `compute`), `status.dupes`, `Engine.dupeProgress()`; the Duplicates window polls it twice a second. The scan's own
+  connection has no receive timeout (it was 600 s: "timed out waiting for laserdotd" on big drives).
 - **0.9.9 (2026-11-13):** the eighth critique. `ReleaseProof.swift`: the release job runs
   actions/attest-build-provenance on the DMG and publishes the Sigstore bundle as `Laserdot-x.dmg.sigstore.json`; the
   helper downloads it; `Updater.prepare` checks it offline (Fulcio chain to the embedded Sigstore root at the

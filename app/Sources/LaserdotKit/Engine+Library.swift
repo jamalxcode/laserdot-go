@@ -156,12 +156,22 @@ extension Engine {
     // MARK: duplicates (spec §4)
 
     /// Find duplicates among files matching `scope` (empty: everything).
+    /// How far the running duplicate scan has got (nil: none, or an older
+    /// daemon). The scan has a connection of its own, so this answers.
+    public func dupeProgress() -> Wire.DupeProgress? {
+        (try? call(.status, as: Wire.Status.self))?.dupes
+    }
+
     public func findDuplicates(scope: String, exactOnly: Bool) throws -> DuplicateReport {
         let request = DaemonRequest.dupes(options: Wire.DupeOptions(scope: scope, images: !exactOnly, videos: !exactOnly))
         // A scan can take minutes: use a connection of its own so searches
         // on the shared one are not held up.
         let r: Wire.DupeReport
         if supports(request.op), let own = DaemonClient.connectLive(socketPath: socketPath) {
+            // No time limit: on big drives reading same-size files whole can
+            // take far longer than ten minutes (the window shows progress).
+            // If laserdotd stops, the connection closes and this returns.
+            own.setTimeout(0)
             do {
                 r = try own.call(request, as: Wire.DupeReport.self)
             } catch DaemonClientError.remote(let e) {
