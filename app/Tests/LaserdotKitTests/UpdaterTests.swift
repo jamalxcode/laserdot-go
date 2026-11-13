@@ -179,7 +179,8 @@ final class UpdaterTests: XCTestCase {
         // A staged copy that is not newer than the running app is removed.
         let stale = apps.appendingPathComponent(".Laserdot-staged-0.8.0-old.app")
         try FileManager.default.copyItem(at: installed, to: stale)
-        XCTAssertNil(u.stagedUpdate())
+        // (The relaunched 0.8.0 looks.)
+        XCTAssertNil(Updater(current: installed, previousDir: prev, signer: nil, proof: nil).stagedUpdate())
         XCTAssertFalse(FileManager.default.fileExists(atPath: stale.path))
     }
 
