@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.7
+
+- Much faster first indexing of big folders: files can be searched as soon as they are listed (a million files in
+  about 10 seconds on GitHub's test Mac, instead of almost a minute); picture and video details follow a moment later.
+- Uses less memory while indexing.
+
 ## 0.9.6
 
 - Columns can be made wider or narrower: drag the line before a column's name. Laserdot remembers the widths.

@@ -149,7 +149,7 @@ launch time, and saves screenshots
 
 A speed test on a Mac (`app/scripts/perf-mac.sh`) indexes 100,000 files (and again without bulk folder reading, to
 compare), times searches and measures the daemon's memory. On CI's Mac, 100,000 files are searchable after about
-1.7 s; searches take 2–4 ms.
+0.6 s and a million after about 10 s (the weekly **perf-big** run); searches take a few milliseconds.
 
 Releases publish themselves: when CI passes on `main` and the newest version in `CHANGELOG.md` has no release yet,
 the **Release** workflow builds that exact commit, launch-tests it and publishes `Laserdot-<version>.dmg` with that

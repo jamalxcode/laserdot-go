@@ -321,3 +321,8 @@ Binding unless revisited deliberately; each is also in the spec.
   (`opened` order, `TestLastOpenedFieldAndOrder`), thumbnail size, What's New for every version since the last
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
+
+- **0.9.7 (2026-11-13):** the first million-file run showed 54 s to searchable (46 s of it opening media files for
+  their headers on macOS) and about 1 GB resident. Media headers are now read after files are searchable (bulk,
+  parallel, one rebuild; `TestFilesAreSearchableBeforeTheirHeadersAreRead`), indexing allocates far less, and
+  laserdotd has a generous soft memory limit. CI's Mac: 9.9 s, peak ~0.9 GB. The owner: "use more memory if needed".

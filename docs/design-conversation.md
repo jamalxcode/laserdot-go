@@ -317,7 +317,15 @@ checks, 11 an Arabic review).
 | 9 | Too many update messages | What's New lists everything since your version; fixes-only versions stay quiet |
 | 12 | Big files again | SearchView and the self-test split |
 
-## 19. Only the owner can change the code
+## 19. A million files (0.9.7)
+
+**Found:** the first million-file run took 54 s before files could be searched and used about 1 GB. **Asked:** "yes,
+fix both", then, while it was being done, "use more memory if needed". **Decided:** files are searchable as soon as
+they are listed and picture and video details follow in the background (46 s of the 54 were opening files for those
+details); indexing wastes far less memory; a soft memory limit only stops runaways, so speed wins over footprint.
+Result: 9.9 s to searchable, about 0.9 GB at the peak.
+
+## 20. Only the owner can change the code
 
 **Asked (with the fifth critique):** "ensure i only have access to this repo to modify it". **Decided:** the Repo
 admin workflow's `access-lock` task removed collaborators, invitations and writable deploy keys (there were none),
