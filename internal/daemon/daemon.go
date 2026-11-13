@@ -28,9 +28,11 @@ import (
 // app's version; the app replaces a running daemon that reports another.
 var Version = "dev"
 
-// maxLine bounds one request (a query is short; this stops a runaway
-// client from growing memory without bound).
-const maxLine = 1 << 20
+// maxLine bounds one request. Most are short, but a duplicate cleanup lists
+// every file to move and every copy kept (tens of thousands of paths): the
+// app sends those in batches, and this leaves room for a big batch while
+// still stopping a runaway client.
+const maxLine = 64 << 20
 
 // Server answers requests for one index.
 type Server struct {

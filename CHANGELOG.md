@@ -3,6 +3,14 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.11
+
+- Cleaning up duplicates is obvious now: one big button, "Move 27,670 Duplicates to Trash (37.31 GB)…", then a
+  clear confirmation (what is freed, that one copy of each file stays, that nothing is deleted).
+- Select All Extras and Select None, and a count of what is chosen.
+- Moving thousands of duplicates shows its progress and no longer fails with "Broken pipe". The list updates at
+  once afterwards, without scanning your drives again.
+
 ## 0.9.10
 
 - Find Duplicates shows what it is doing: each step (choosing files, comparing files of the same size, reading files

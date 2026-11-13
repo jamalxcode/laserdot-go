@@ -170,6 +170,8 @@ public struct CleanupOutcome: Sendable {
     public var bytes: UInt64
     public var skipped: [String]
     public var failed: [String]
+    /// The files that were moved (the window drops them without a rescan).
+    public var movedPaths: [String] = []
 }
 
 /// A mounted drive for the Drives menu (spec §9.6).

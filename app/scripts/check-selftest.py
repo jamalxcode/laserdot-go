@@ -226,6 +226,10 @@ check(url["query"] == "beach" and "beach.jpg" in url["results"], f"laserdot://se
 # Storage and Duplicates windows.
 check(report.get("storage_items", -1) >= 1, f"the Storage window lists folders (got {report.get('storage_items')})")
 check(report.get("duplicate_groups", -1) >= 1, f"the Duplicates window found the copied clip (got {report.get('duplicate_groups')})")
+# Cleaning up duplicates: its own button, Select None / All, a dry run that answers.
+check("Move" in report.get("dupes_button", "") or "نقل" in report.get("dupes_button", ""), f"a clear Move Duplicates button (got {report.get('dupes_button')!r})")
+check(report.get("dupes_none") == 0 and report.get("dupes_all", 0) >= 1, f"Select None and Select All Extras work (got {report.get('dupes_none')}, {report.get('dupes_all')})")
+check(report.get("dupes_preview_files", -1) >= 1, f"the dry run before moving answers (got {report.get('dupes_preview_files')}, {report.get('dupes_preview_error')!r})")
 for shot in ("storage.png", "duplicates.png", "settings-folders.png", "settings-drives.png", "settings-privacy.png"):
     check(shot in report["screenshots"], f"screenshot {shot}")
 

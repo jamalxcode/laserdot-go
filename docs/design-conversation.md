@@ -369,6 +369,16 @@ laserdotd" and "fix it". **Found:** the app gave a scan ten minutes, while readi
 those drives takes longer. **Decided:** no time limit for a scan (it ends if laserdotd stops); the daemon reports
 the step and files done of total, and the window shows them with a bar and the time so far.
 
+## 24. Deleting the duplicates (0.9.11)
+
+**Asked:** "theres no obvious way to delete the duplicates", then, after trying with 27,670 files (37 GB):
+"i got a broken pipe, lets make it more obvious and with its own button and confirm dialog". **Found:** the daemon
+refused requests over 1 MB and hung up; the button was "Review N Files…". **Decided:** a prominent red "Move N
+Duplicates to Trash (size)…" button, Select All Extras / Select None, a confirmation that says what is freed, that
+one copy of each stays and that nothing is deleted; the app sends cleanups in batches of 500 groups on a
+connection of its own with progress; the daemon accepts requests up to 64 MB; moved files leave the list without a
+rescan.
+
 ---
 
 ## How the work was done

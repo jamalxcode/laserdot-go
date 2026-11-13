@@ -199,16 +199,73 @@ extension Engine {
             videoDecoder: r.videoDecoder, elapsedMs: r.ms)
     }
 
-    /// Dry run: what would move (`folder` = `nil`: to the Trash).
-    public func cleanupPreview(sets: [CleanupSet], folder: String?) throws -> CleanupPreview {
-        let p = try call(.cleanupPlan(request: cleanupRequest(sets, folder)), as: Wire.CleanupPlan.self)
-        return CleanupPreview(files: p.moves.count, bytes: p.bytes, skipped: p.skipped)
+    /// Groups per cleanup request: tens of thousands of duplicates go in
+    /// batches (each request stays small, and the window can show progress).
+    public static let cleanupBatch = 500
+
+    /// Dry run: what would move (`folder` = `nil`: to the Trash). `progress`
+    /// gets files checked so far and in all.
+    public func cleanupPreview(sets: [CleanupSet], folder: String?,
+                               progress: ((Int, Int) -> Void)? = nil) throws -> CleanupPreview {
+        var out = CleanupPreview(files: 0, bytes: 0, skipped: [])
+        let total = sets.reduce(0) { $0 + $1.remove.count }
+        var done = 0
+        let line = longJobConnection()
+        for start in stride(from: 0, to: sets.count, by: Self.cleanupBatch) {
+            let batch = Array(sets[start..<min(sets.count, start + Self.cleanupBatch)])
+            let p = try longCall(line, .cleanupPlan(request: cleanupRequest(batch, folder)), as: Wire.CleanupPlan.self)
+            out.files += p.moves.count
+            out.bytes += p.bytes
+            out.skipped += p.skipped
+            done += batch.reduce(0) { $0 + $1.remove.count }
+            progress?(done, total)
+        }
+        return out
     }
 
     /// Move the files to the Trash (or `folder`), after the user confirmed.
-    public func cleanup(sets: [CleanupSet], folder: String?) throws -> CleanupOutcome {
-        let r = try call(.cleanup(request: cleanupRequest(sets, folder)), as: Wire.CleanupResult.self)
-        return CleanupOutcome(moved: r.moved.count, bytes: r.bytes, skipped: r.skipped, failed: r.failed)
+    /// `progress` gets files handled so far and in all.
+    public func cleanup(sets: [CleanupSet], folder: String?,
+                        progress: ((Int, Int) -> Void)? = nil) throws -> CleanupOutcome {
+        var out = CleanupOutcome(moved: 0, bytes: 0, skipped: [], failed: [])
+        let total = sets.reduce(0) { $0 + $1.remove.count }
+        var done = 0
+        let line = longJobConnection()
+        for start in stride(from: 0, to: sets.count, by: Self.cleanupBatch) {
+            let batch = Array(sets[start..<min(sets.count, start + Self.cleanupBatch)])
+            let r = try longCall(line, .cleanup(request: cleanupRequest(batch, folder)), as: Wire.CleanupResult.self)
+            out.moved += r.moved.count
+            out.bytes += r.bytes
+            out.skipped += r.skipped
+            out.failed += r.failed
+            out.movedPaths += r.moved.map(\.from)
+            done += batch.reduce(0) { $0 + $1.remove.count }
+            progress?(done, total)
+        }
+        return out
+    }
+
+    /// A connection of its own for a long job, with no time limit (nil: use
+    /// the shared one). Searches on the shared connection go on meanwhile.
+    func longJobConnection() -> DaemonClient? {
+        guard let c = DaemonClient.connectLive(socketPath: socketPath) else { return nil }
+        c.setTimeout(0)
+        return c
+    }
+
+    /// One call on a long job's connection (or the shared one). It is never
+    /// sent twice: a broken connection is an error, not a retry.
+    func longCall<T: Decodable>(_ own: DaemonClient?, _ request: DaemonRequest, as type: T.Type) throws -> T {
+        guard let own else { return try call(request, as: type) }
+        do {
+            return try own.call(request, as: type)
+        } catch DaemonClientError.remote(let e) {
+            let err = LaserdotError(e)
+            if case .unsupported = err { markUnsupported(request.op) }
+            throw err
+        } catch {
+            throw LaserdotError.unavailable("\(error)")
+        }
     }
 
     private func cleanupRequest(_ sets: [CleanupSet], _ folder: String?) -> Wire.CleanupRequest {

@@ -322,6 +322,10 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.11 (2026-11-13):** duplicate cleanup. `maxLine` 1 MiB → 64 MiB (`TestBigRequestsAreAnswered`, 30,000
+  groups); `Engine.cleanupPreview`/`cleanup` send 500 groups per request on a connection of their own with no time
+  limit, never resend, report progress and return the moved paths; the window drops moved files without a rescan.
+  New button, Select All Extras / Select None, confirmation text. CLAUDE.md: a commit is tested once (hard rule).
 - **0.9.10 (2026-11-13):** `core.DupeProgress` (listing, quick, full, images, videos, saving; Done/Total from
   `compute`), `status.dupes`, `Engine.dupeProgress()`; the Duplicates window polls it twice a second. The scan's own
   connection has no receive timeout (it was 600 s: "timed out waiting for laserdotd" on big drives).

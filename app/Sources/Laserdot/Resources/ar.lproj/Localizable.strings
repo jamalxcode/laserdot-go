@@ -367,3 +367,17 @@
 "dupes.phase.saving" = "جارٍ حفظ ما تعلّمه للمرة القادمة…";
 "dupes.progress.count" = "%@ من %@ ملف";
 "dupes.elapsed" = "%@ حتى الآن";
+"dupes.selected" = "%@ نسخة إضافية مختارة · %@";
+"dupes.selectAll" = "اختيار كل النسخ الإضافية";
+"dupes.selectNone" = "إلغاء الاختيار";
+"dupes.moveButton.trash" = "نقل %@ نسخة مكررة إلى سلة المهملات (%@)…";
+"dupes.moveButton.folder" = "نقل %@ نسخة مكررة إلى «%@» (%@)…";
+"dupes.confirm.titleTrash" = "نقل %@ نسخة مكررة إلى سلة المهملات؟";
+"dupes.confirm.titleFolder" = "نقل %@ نسخة مكررة إلى «%@»؟";
+"dupes.confirm.body" = "سيتم توفير %@. تبقى نسخة واحدة من كل ملف. لا يُحذف شيء: يمكنك إعادة الملفات من %@.";
+"dupes.confirm.skipped" = "سيتم تخطي %lld لأن نسخة محفوظة تغيّرت منذ الفحص:";
+"dupes.confirm.moveTrash" = "نقل إلى سلة المهملات";
+"dupes.checking" = "جارٍ التأكد من أن كل نسخة محفوظة ما زالت موجودة…";
+"dupes.movingTrash" = "جارٍ نقل النسخ المكررة إلى سلة المهملات…";
+"dupes.movingFolder" = "جارٍ نقل النسخ المكررة…";
+"dupes.notMoved" = "لم يُنقل %lld:";

@@ -58,6 +58,25 @@ extension SelfTestRunner {
                     self.screenshot(w, name: "duplicates")
                 }
                 self.extra["duplicate_groups"] = self.app.duplicatesModel?.report?.groups.count ?? -1
+                // Cleaning up has its own button and a confirmation: the
+                // chosen copies, Select None / All, then the dry run.
+                if let dm = self.app.duplicatesModel {
+                    self.extra["dupes_button"] = dm.moveButtonTitle
+                    dm.selectNone()
+                    self.extra["dupes_none"] = dm.selectedCount
+                    dm.selectAllExtras()
+                    self.extra["dupes_all"] = dm.selectedCount
+                    dm.review()
+                }
+                self.waitFor(10, { self.app.duplicatesModel?.preview != nil || self.app.duplicatesModel?.message != nil }) {
+                if let dm = self.app.duplicatesModel {
+                    self.extra["dupes_preview_files"] = dm.preview?.files ?? -1
+                    self.extra["dupes_preview_error"] = dm.message ?? ""
+                    if let w = NSApp.windows.first(where: { $0.isVisible && $0.title == L("dupes.title") }) {
+                        self.screenshot(w, name: "duplicates-confirm")
+                    }
+                    dm.preview = nil // Cancel: nothing moves
+                }
                 UserDefaults.standard.set("folders", forKey: "laserdot.settingsTab")
                 self.app.showSettings()
                 self.after(1.5) {
@@ -76,6 +95,7 @@ extension SelfTestRunner {
                         }
                         self.updateWindow(done: done)
                     }
+                }
                 }
             }
         }

@@ -367,3 +367,17 @@
 "dupes.phase.saving" = "Saving what it learned for next time…";
 "dupes.progress.count" = "%@ of %@ files";
 "dupes.elapsed" = "%@ so far";
+"dupes.selected" = "%@ extra copies chosen · %@";
+"dupes.selectAll" = "Select All Extras";
+"dupes.selectNone" = "Select None";
+"dupes.moveButton.trash" = "Move %@ Duplicates to Trash (%@)…";
+"dupes.moveButton.folder" = "Move %@ Duplicates to “%@” (%@)…";
+"dupes.confirm.titleTrash" = "Move %@ duplicates to the Trash?";
+"dupes.confirm.titleFolder" = "Move %@ duplicates to “%@”?";
+"dupes.confirm.body" = "%@ will be freed. One copy of each file is kept. Nothing is deleted: you can put the files back from %@.";
+"dupes.confirm.skipped" = "%lld will be skipped because a kept copy changed since the scan:";
+"dupes.confirm.moveTrash" = "Move to Trash";
+"dupes.checking" = "Checking that every kept copy is still there…";
+"dupes.movingTrash" = "Moving duplicates to the Trash…";
+"dupes.movingFolder" = "Moving duplicates…";
+"dupes.notMoved" = "%lld were not moved:";

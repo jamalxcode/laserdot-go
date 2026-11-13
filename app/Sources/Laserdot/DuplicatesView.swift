@@ -8,8 +8,13 @@ final class DuplicatesModel: ObservableObject {
     @Published var scope = ""
     @Published var exactOnly = false
     @Published private(set) var report: DuplicateReport?
+    /// Files moved since the scan: their groups shrink without a rescan
+    /// (a scan of big drives can take hours).
+    @Published private(set) var moved = Set<String>()
+    /// Checking or moving: what, and files done of total.
+    @Published private(set) var work: (title: String, done: Int, total: Int)?
     @Published private(set) var scanning = false
-    @Published private(set) var working = false
+    var working: Bool { work != nil }
     @Published var message: String?
     /// Paths marked for removal.
     @Published var remove = Set<String>()
@@ -46,6 +51,7 @@ final class DuplicatesModel: ObservableObject {
                 switch outcome {
                 case .success(let r):
                     self.report = r
+                    self.moved = []
                     // The recommendation: everything but the best copy.
                     self.remove = Set(r.groups.flatMap { $0.files.filter { !$0.keep }.map(\.path) })
                     if r.videoDecoder == nil && !exact {
@@ -138,25 +144,72 @@ final class DuplicatesModel: ObservableObject {
     var selectedCount: Int { remove.count }
 
     var selectedBytes: UInt64 {
-        report?.groups.flatMap(\.files).filter { remove.contains($0.path) }.reduce(0) { $0 + $1.size } ?? 0
+        groups.flatMap(\.files).filter { remove.contains($0.path) }.reduce(0) { $0 + $1.size }
     }
 
-    private var sets: [CleanupSet] {
-        (report?.groups ?? []).compactMap { g in
-            let gone = g.files.filter { remove.contains($0.path) }
-            let kept = g.files.filter { !remove.contains($0.path) }
-            return gone.isEmpty ? nil : CleanupSet(keep: kept, remove: gone)
+    /// The groups still to deal with: moved files are gone, and a group with
+    /// one copy left is no longer a duplicate.
+    var groups: [DuplicateGroup] {
+        guard let r = report else { return [] }
+        if moved.isEmpty { return r.groups }
+        return r.groups.compactMap { g in
+            var g = g
+            g.files = g.files.filter { !moved.contains($0.path) }
+            guard g.files.count > 1 else { return nil }
+            let keep = g.files.first(where: \.keep) ?? g.files[0]
+            g.reclaimable = g.files.filter { $0.path != keep.path }.reduce(0) { $0 + $1.size }
+            return g
         }
     }
 
-    /// The dry run; the view shows it and asks before moving anything.
+    /// Every copy but the recommended one in each group.
+    func selectAllExtras() {
+        remove = Set(groups.flatMap { g in g.files.filter { !$0.keep }.map(\.path) })
+    }
+
+    func selectNone() {
+        remove = []
+    }
+
+    /// "Move 27,670 Duplicates to Trash (37.31 GB)…"
+    var moveButtonTitle: String {
+        let size = ByteCountFormatter.string(fromByteCount: Int64(selectedBytes), countStyle: .file)
+        if let f = folder {
+            return String(format: L("dupes.moveButton.folder"), Self.number(selectedCount), f.lastPathComponent, size)
+        }
+        return String(format: L("dupes.moveButton.trash"), Self.number(selectedCount), size)
+    }
+
+    static func number(_ n: Int) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+
+    private var sets: [CleanupSet] {
+        groups.compactMap { g in
+            let gone = g.files.filter { remove.contains($0.path) }
+            let kept = g.files.filter { !remove.contains($0.path) }
+            return gone.isEmpty || kept.isEmpty ? nil : CleanupSet(keep: kept, remove: gone)
+        }
+    }
+
+    /// The dry run (in batches, with progress); the view then asks before
+    /// moving anything.
     func review() {
         let (engine, sets, folder) = (self.engine, self.sets, self.folder?.path)
-        working = true
+        guard !sets.isEmpty else { return }
+        message = nil
+        let total = sets.reduce(0) { $0 + $1.remove.count }
+        work = (L("dupes.checking"), 0, total)
         queue.async { [weak self] in
-            let outcome = Result { try engine.cleanupPreview(sets: sets, folder: folder) }
+            let outcome = Result {
+                try engine.cleanupPreview(sets: sets, folder: folder) { done, total in
+                    DispatchQueue.main.async { self?.work = (L("dupes.checking"), done, total) }
+                }
+            }
             DispatchQueue.main.async {
-                self?.working = false
+                self?.work = nil
                 switch outcome {
                 case .success(let p): self?.preview = p
                 case .failure(let e): self?.message = Self.describe(e)
@@ -165,23 +218,36 @@ final class DuplicatesModel: ObservableObject {
         }
     }
 
+    /// After the user confirmed: move them (in batches, with progress), then
+    /// drop them from the list.
     func confirm() {
         let (engine, sets, folder) = (self.engine, self.sets, self.folder?.path)
         preview = nil
-        working = true
+        let total = sets.reduce(0) { $0 + $1.remove.count }
+        let title = folder == nil ? L("dupes.movingTrash") : L("dupes.movingFolder")
+        work = (title, 0, total)
         queue.async { [weak self] in
-            let outcome = Result { try engine.cleanup(sets: sets, folder: folder) }
+            let outcome = Result {
+                try engine.cleanup(sets: sets, folder: folder) { done, total in
+                    DispatchQueue.main.async { self?.work = (title, done, total) }
+                }
+            }
             DispatchQueue.main.async {
                 guard let self else { return }
-                self.working = false
+                self.work = nil
                 switch outcome {
                 case .success(let o):
+                    self.moved.formUnion(o.movedPaths)
+                    self.remove.subtract(o.movedPaths)
                     var text = String(
                         format: L("dupes.moved"), Int64(o.moved),
                         ByteCountFormatter.string(fromByteCount: Int64(o.bytes), countStyle: .file))
-                    if !o.failed.isEmpty { text += "\n" + o.failed.joined(separator: "\n") }
+                    let problems = o.failed + o.skipped
+                    if !problems.isEmpty {
+                        text += " " + String(format: L("dupes.notMoved"), Int64(problems.count))
+                        text += "\n" + problems.prefix(3).joined(separator: "\n")
+                    }
                     self.message = text
-                    self.scan()
                 case .failure(let e):
                     self.message = Self.describe(e)
                 }
@@ -247,15 +313,38 @@ struct DuplicatesView: View {
                 }
                 .frame(maxWidth: 380)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if let r = model.report {
-                if r.groups.isEmpty {
+            } else if let w = model.work {
+                // Checking or moving: what, a bar and files done of total.
+                VStack(spacing: 10) {
+                    Text(w.title).font(.headline)
+                    ProgressView(value: w.total > 0 ? Double(w.done) / Double(w.total) : 0).progressViewStyle(.linear)
+                    Text(String(format: L("dupes.progress.count"), DuplicatesModel.number(w.done), DuplicatesModel.number(w.total)))
+                        .font(.caption).monospacedDigit().foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: 380)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if model.report != nil {
+                let groups = model.groups
+                if groups.isEmpty {
                     Text(L("dupes.none")).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
+                    // What is chosen, and quick ways to choose.
+                    HStack(spacing: 10) {
+                        Text(String(format: L("dupes.selected"), DuplicatesModel.number(model.selectedCount), bytes(model.selectedBytes)))
+                            .font(.callout.weight(.medium))
+                        Spacer()
+                        Button(L("dupes.selectAll")) { model.selectAllExtras() }
+                        Button(L("dupes.selectNone")) { model.selectNone() }
+                            .disabled(model.selectedCount == 0)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    Divider()
                     // One card per group: the copies side by side, to compare
                     // at a glance; the recommended one is marked Keep.
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 14) {
-                            ForEach(Array(r.groups.enumerated()), id: \.offset) { _, g in
+                            ForEach(Array(groups.enumerated()), id: \.offset) { _, g in
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack(spacing: 6) {
                                         Text(kindTitle(g.kind)).font(.headline)
@@ -285,8 +374,9 @@ struct DuplicatesView: View {
             }
             Divider()
             HStack {
-                if let r = model.report {
-                    Text(String(format: L("dupes.summary"), Int64(r.groups.count), bytes(r.reclaimable)))
+                if model.report != nil {
+                    let groups = model.groups
+                    Text(String(format: L("dupes.summary"), Int64(groups.count), bytes(groups.reduce(0) { $0 + $1.reclaimable })))
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -298,31 +388,45 @@ struct DuplicatesView: View {
                     Text(model.folder?.lastPathComponent ?? L("dupes.folder")).tag(1)
                 }
                 .frame(width: 220)
-                Button(String(format: L("dupes.review"), Int64(model.selectedCount), bytes(model.selectedBytes))) {
-                    model.review()
-                }
-                .disabled(model.selectedCount == 0 || model.working || model.scanning)
+                // The one way to clean up: its own button, then a confirmation.
+                Button(model.moveButtonTitle) { model.review() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .tint(.red)
+                    .disabled(model.selectedCount == 0 || model.working || model.scanning)
+                    .accessibilityIdentifier("dupes-move")
             }
             .padding(10)
         }
         .frame(minWidth: 720, minHeight: 460)
         .alert(
-            L("dupes.confirm.title"),
+            confirmTitle,
             isPresented: Binding(get: { model.preview != nil }, set: { if !$0 { model.preview = nil } }),
             presenting: model.preview
-        ) { _ in
-            Button(L("dupes.confirm.move"), role: .destructive) { model.confirm() }
-            Button(L("drive.notNow"), role: .cancel) { model.preview = nil }
+        ) { p in
+            Button(model.folder == nil ? L("dupes.confirm.moveTrash") : L("dupes.confirm.move"), role: .destructive) { model.confirm() }
+                .disabled(p.files == 0)
+            Button(L("action.cancel"), role: .cancel) { model.preview = nil }
         } message: { p in
             Text(confirmText(p))
         }
     }
 
-    /// The dry run, in words (spec §4.4).
+    private var confirmTitle: String {
+        let n = DuplicatesModel.number(model.preview?.files ?? 0)
+        if let f = model.folder { return String(format: L("dupes.confirm.titleFolder"), n, f.lastPathComponent) }
+        return String(format: L("dupes.confirm.titleTrash"), n)
+    }
+
+    /// The dry run, in words (spec §4.4): what is freed, that one copy of
+    /// each stays, that nothing is deleted, and what is skipped.
     private func confirmText(_ p: CleanupPreview) -> String {
-        let place = model.folder?.path ?? L("dupes.trash")
-        var text = String(format: L("dupes.confirm.text"), Int64(p.files), bytes(p.bytes), place)
-        if !p.skipped.isEmpty { text += "\n\n" + p.skipped.joined(separator: "\n") }
+        let place = model.folder?.lastPathComponent ?? L("dupes.trash")
+        var text = String(format: L("dupes.confirm.body"), bytes(p.bytes), place)
+        if !p.skipped.isEmpty {
+            text += "\n\n" + String(format: L("dupes.confirm.skipped"), Int64(p.skipped.count))
+            text += "\n" + p.skipped.prefix(3).joined(separator: "\n")
+        }
         return text
     }
 

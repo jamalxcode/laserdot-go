@@ -1,7 +1,10 @@
 package daemon
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
@@ -220,5 +223,36 @@ func TestDaemonBinaryIsSandboxed(t *testing.T) {
 		}
 	case <-time.After(10 * time.Second):
 		t.Error("daemon did not exit after shutdown")
+	}
+}
+
+// A duplicate cleanup lists thousands of files in one request (several MB):
+// the daemon answers it instead of hanging up ("Broken pipe").
+func TestBigRequestsAreAnswered(t *testing.T) {
+	dir, _, _ := start(t)
+	conn, err := net.Dial("unix", ipc.SocketFor(filepath.Join(dir, "db", "index.db")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	var groups []string
+	for i := 0; i < 30000; i++ {
+		p := fmt.Sprintf(`/nowhere/some/long/folder/name/copy-%06d.mov`, i)
+		groups = append(groups, fmt.Sprintf(`{"keep":[{"path":%q,"size":1,"modified":1}],"remove":[{"path":%q,"size":1,"modified":1}]}`, p+".a", p+".b"))
+	}
+	req := `{"op":"cleanup_plan","request":{"groups":[` + strings.Join(groups, ",") + `],"dest":{"to":"trash"}}}` + "\n"
+	if len(req) < 2<<20 {
+		t.Fatalf("request only %d bytes", len(req))
+	}
+	if _, err := conn.Write([]byte(req)); err != nil {
+		t.Fatal(err)
+	}
+	conn.SetReadDeadline(time.Now().Add(20 * time.Second))
+	line, err := bufio.NewReader(conn).ReadBytes('\n')
+	if err != nil {
+		t.Fatalf("no answer to a %d-byte request: %v", len(req), err)
+	}
+	if !bytes.Contains(line, []byte(`"ok"`)) && !bytes.Contains(line, []byte(`"skipped"`)) {
+		t.Fatalf("unexpected answer: %.300s", line)
 	}
 }
