@@ -110,6 +110,9 @@ VERSION=0.2.0 app/scripts/bundle.sh   # → app/build/Laserdot.app (laserdotd, H
 app/scripts/make-dmg.sh out/Laserdot-0.2.0.dmg
 # Releases: add a "## x.y.z" section to CHANGELOG.md and merge to main; when CI passes there, release.yml
 # publishes that version by itself (a v* tag or `gh workflow run release.yml -f version=x.y.z` also work).
+# HARD RULE (owner): a commit is tested once. Test on the branch, then fast-forward main to that exact commit:
+# main's CI sees the passing run for the same commit and skips straight to the release. Never re-run the full
+# suite for a commit that already passed, and never merge to main before the branch run is green.
 ```
 
 Run gofmt, vet and the full test suite before committing.

@@ -6,7 +6,33 @@ permissions:
   contents: read
 
 jobs:
+  # Hard rule (owner): a commit is tested once. Work is tested on its branch
+  # and main is fast-forwarded to the same commit; main's run then reuses
+  # that passing result instead of waiting for Mac machines again, so the
+  # release starts at once. Any other commit is tested in full.
+  tested:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+    outputs:
+      already: ${{ steps.check.outputs.already }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          already=false
+          if [ "${{ github.event_name }}" = push ] && [ "${{ github.ref }}" = refs/heads/main ]; then
+            n=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&status=success&per_page=20" \
+                  --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }} and .event == "push")] | length')
+            if [ "${n:-0}" -gt 0 ]; then already=true; fi
+          fi
+          echo "already=$already" >> "$GITHUB_OUTPUT"
+          if [ "$already" = true ]; then echo "${{ github.sha }} already passed every test on its branch: not testing it again"; fi
+
   test:
+    needs: tested
+    if: needs.tested.outputs.already != 'true'
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -25,6 +51,8 @@ jobs:
         run: app/scripts/perf-mac.sh
 
   app:
+    needs: tested
+    if: needs.tested.outputs.already != 'true'
     runs-on: macos-latest
     permissions:
       contents: read
