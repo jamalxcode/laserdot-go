@@ -3,6 +3,17 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.9
+
+- Updates are checked before they are installed: each release now comes with GitHub's proof that Laserdot's own
+  release build made it, and Laserdot installs nothing without that proof. No signing key is stored anywhere.
+- A Cancel button while an update downloads.
+- Quitting with an update ready no longer waits: the update is prepared in the background as soon as it has
+  downloaded, so installing it is instant.
+- The thumbnail view is one plain grid, as in Finder (no Top Hit or kind headings).
+- A file added, deleted or renamed while Laserdot missed the change now shows up within 5 minutes instead of an
+  hour.
+
 ## 0.9.8
 
 - Updates are never silent any more: a small window shows each step (checking, downloading with a progress bar

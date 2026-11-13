@@ -322,6 +322,16 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.9 (2026-11-13):** the eighth critique. `ReleaseProof.swift`: the release job runs
+  actions/attest-build-provenance on the DMG and publishes the Sigstore bundle as `Laserdot-x.dmg.sigstore.json`; the
+  helper downloads it; `Updater.prepare` checks it offline (Fulcio chain to the embedded Sigstore root at the
+  certificate's issue time, issuer token.actions.githubusercontent.com, SAN = this repo's release.yml, DSSE ECDSA
+  signature, in-toto subject = the file's SHA-256; Rekor is not re-checked offline). CI attests its own DMG on every
+  push and `ReleaseProofTests` checks it and its tampered variants; the release publishes nothing unless the same
+  test accepts the release's proof. `Updater.stage`/`finishStaged`: install on quit is a rename. `cancelCheck`.
+  The grid is unsectioned. `QuickCheck` (every 5 minutes): folders whose mtime differs are re-listed; `diffDir`
+  now records a listed folder's own mtime (read before listing). perf-mac reports vmmap's physical footprint.
+  `LaunchTimer` marks. Protocol, Engine, SearchModel and Updater split into topic files.
 - **0.9.8 (2026-11-13):** update progress. The helper writes `update-progress.json` (`UpdateProgress`: phase,
   bytes received/total, version) while it checks and downloads; the app polls it four times a second and shows a
   floating `UpdateProgressPanel` (steps, determinate bar while downloading). `Updater.install` reports its signing

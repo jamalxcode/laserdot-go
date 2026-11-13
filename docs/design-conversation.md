@@ -342,6 +342,22 @@ signature), installing, restarting. Checking and downloading can be hidden; the 
 slow steps run off the main thread, so Laserdot never freezes, also when an update installs as Laserdot quits.
 Automatic daily checks stay quiet (only the menu shows them); the window opens when the user asks or installs.
 
+## 22. The eighth critique (0.9.9)
+
+**Found:** opening took 420–515 ms on CI's Mac (goal 300 ms); updates were trusted on GitHub's secure connection
+alone; the memory figure counted pages macOS can drop; quitting with an update waited for the install; a download
+could not be cancelled; the grid repeated the list's sections; four code files were 480–900 lines; a missed change
+could wait an hour. **Asked:** "fix all". **Decided:**
+- Updates carry GitHub's keyless build proof (Sigstore): the release workflow's run gets a certificate naming the
+  repository and workflow, signs the disk image's SHA-256, and Laserdot checks it offline against Sigstore's root
+  before unpacking. This honours the earlier choice to keep no signing key on GitHub, since there is no key at all.
+- The downloaded update is signed and copied next to the app in the background, so installing on quit is a rename.
+- Cancel stops the helper; the grid is one plain grid; every folder's time is compared every 5 minutes (adds,
+  deletes and renames show up within minutes; changes inside files still at the hourly check).
+- The memory test reports the physical footprint (Activity Monitor's Memory column) and judges that.
+- Launch is measured step by step (shown in Save Diagnostics and the self-test) so the slow part can be fixed.
+- The big files are split by topic.
+
 ---
 
 ## How the work was done

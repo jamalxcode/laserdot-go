@@ -24,7 +24,8 @@ Private, media-aware search for your Mac — a Spotlight successor that cannot p
 
 Updates install themselves: Laserdot checks once a day, downloads a new version in the background and installs it
 when you quit (or now, from **Check for Updates…** in the menu-bar icon's menu). No account or token is needed. Each
-update is signed on your Mac with a key Laserdot makes there, so macOS keeps your "Allow" answers. Not happy with
+update comes with GitHub's proof that Laserdot's own release build made it, and is installed only when that proof
+checks out. Each update is then signed on your Mac with a key Laserdot makes there, so macOS keeps your "Allow" answers. Not happy with
 an update? **Settings ▸ General ▸ Go Back**.
 
 The app is signed ad hoc, not with an Apple Developer ID, so the first launch may need **right-click → Open**.

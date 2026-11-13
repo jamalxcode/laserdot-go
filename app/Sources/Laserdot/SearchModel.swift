@@ -70,7 +70,7 @@ final class SearchModel: ObservableObject {
     @Published var commandIndex = 0
     var commandProvider: (() -> [ActionItem])?
     /// "Indexing “Home”… 45%", while a folder is first indexed.
-    @Published private(set) var progressText: String?
+    @Published var progressText: String?
     var progressTimer: Timer?
     /// The overlay shrinks to a slim bar when there is nothing to show.
     @Published private(set) var compact = true
@@ -143,9 +143,9 @@ final class SearchModel: ObservableObject {
     }
     @Published private(set) var networkBlocked = false
     /// Zero-results suggestions (spec §8.3).
-    @Published private(set) var coaching: [CoachingInfo] = []
+    @Published var coaching: [CoachingInfo] = []
     /// Live counts for the cheat sheet, by key then value (spec §8.9.5).
-    @Published private(set) var counts: [String: [String: UInt64]] = [:]
+    @Published var counts: [String: [String: UInt64]] = [:]
     /// Cheat-sheet entry selected with the keyboard (spec §8.9.8).
     @Published var cheatIndex = 0
     /// The cheat sheet's own filter box (§8.9.7).
@@ -189,7 +189,7 @@ final class SearchModel: ObservableObject {
         insertFilter(e[cheatIndex].key)
     }
     /// Pinned queries, shown as chips on an empty box (spec §8.6).
-    @Published private(set) var pinned: [String] = UserDefaults.standard.stringArray(forKey: "laserdot.pinned") ?? []
+    @Published var pinned: [String] = UserDefaults.standard.stringArray(forKey: "laserdot.pinned") ?? []
     /// Recent queries, newest first (spec §8.6). Stays on this Mac.
     var history: [String] = UserDefaults.standard.stringArray(forKey: "laserdot.history") ?? []
     var historyIndex = -1
