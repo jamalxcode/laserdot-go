@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -159,6 +160,13 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 		close(next)
 		wg.Wait()
 		var nextLevel []int
+		// One allocation per level, not repeated doubling (a million entries
+		// would otherwise be copied many times over).
+		total := 0
+		for i := range level {
+			total += len(results[i])
+		}
+		entries = slices.Grow(entries, total)
 		for i := range level {
 			errs = append(errs, failures[i]...)
 			for _, e := range results[i] {

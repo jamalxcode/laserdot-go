@@ -51,10 +51,24 @@ type BulkOptions struct {
 	Raw *[]RawEntry
 	// Errors, when set, receives what could not be read.
 	Errors *[]scan.Error
+	// ProbeLater: do not read media headers now; store those files as
+	// pending (the caller reads them afterwards), so files are searchable
+	// as soon as they are listed. Opening hundreds of thousands of files is
+	// most of a first index on macOS.
+	ProbeLater bool
 }
 
 // ErrInterrupted: indexing stopped before the end (StopAfterChunks).
 var ErrInterrupted = errors.New("indexing interrupted")
+
+// wantsProbe: an entry whose header a probe would read.
+func wantsProbe(e *scan.Entry) bool {
+	if e.IsDir || e.Dataless || e.IsSymlink || e.Parent < 0 {
+		return false
+	}
+	ext := media.Extension(fold.Fold(filepath.Base(e.Path)))
+	return media.WantsProbe(media.Classify(ext, false, e.Size), ext)
+}
 
 // probeEntry reads one entry's header unless it must not be read.
 func probeEntry(e *scan.Entry) Probe {
@@ -71,7 +85,7 @@ func probeEntry(e *scan.Entry) Probe {
 }
 
 // probeAll probes entries in parallel; reuse may supply an earlier result.
-func probeAll(entries []scan.Entry, reuse func(e *scan.Entry) (Probe, bool), probed, reused, failed *atomic.Uint64) []Probe {
+func probeAll(entries []scan.Entry, reuse func(e *scan.Entry) (Probe, bool), later bool, probed, reused, failed *atomic.Uint64) []Probe {
 	out := make([]Probe, len(entries))
 	parallelChunks(len(entries), 64, func(i int) {
 		e := &entries[i]
@@ -81,6 +95,12 @@ func probeAll(entries []scan.Entry, reuse func(e *scan.Entry) (Probe, bool), pro
 				out[i] = p
 				return
 			}
+		}
+		if later {
+			if wantsProbe(e) {
+				out[i] = Probe{Later: true}
+			}
+			return
 		}
 		p := probeEntry(e)
 		if p.Status != media.ProbeSkipped {
@@ -167,7 +187,7 @@ func IndexRoot(db *Db, root string, opts scan.Options, bulk BulkOptions) (IndexS
 		for start := 0; start < len(entries); start += chunk {
 			end := min(start+chunk, len(entries))
 			t := time.Now()
-			ps := probeAll(entries[start:end], reuse, &probed, &reusedN, &failed)
+			ps := probeAll(entries[start:end], reuse, bulk.ProbeLater, &probed, &reusedN, &failed)
 			select {
 			case ready <- probedChunk{start, end, ps, uint64(time.Since(t).Milliseconds())}:
 			case <-stop:

@@ -56,7 +56,9 @@ func TestReindexReusesProbesAndDefersFresh(t *testing.T) {
 	ld, _ := Open(filepath.Join(dir, "i.db"))
 	defer ld.Close()
 	st, _ := ld.Index(root)
-	if st.Probed != 1 {
+	// A first index reads headers afterwards, in the background (the tests
+	// wait for it): none during the index itself.
+	if st.Probed != 0 || st.Files != 2 {
 		t.Errorf("%+v", st)
 	}
 	r, _ := ld.Search("trip", DefaultSearchOptions)

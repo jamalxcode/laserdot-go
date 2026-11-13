@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/jamalxcode/laserdot-go/internal/watch"
 	"os"
 	"path/filepath"
@@ -328,5 +329,47 @@ func TestLastOpenedFieldAndOrder(t *testing.T) {
 	}
 	if r.Hits[0].Opened == 0 || r.Hits[2].Opened != 0 {
 		t.Errorf("opened: %+v", r.Hits)
+	}
+}
+
+// A first index makes files searchable before reading media headers; the
+// headers follow in the background, and media filters then find the files.
+func TestFilesAreSearchableBeforeTheirHeadersAreRead(t *testing.T) {
+	syncBackground = false
+	defer func() { syncBackground = true }()
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(dir, "home")
+	src, err := filepath.Abs("../media/testdata/dupes/clip.mp4")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(src)
+	if err != nil {
+		t.Skipf("no fixture: %v", err)
+	}
+	for i := 0; i < 3; i++ {
+		writeAged(t, filepath.Join(root, fmt.Sprintf("folder%d/clip%d.mp4", i, i)), data) // not being written
+	}
+	ld, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := ld.Search("clip", SearchOptions{Page: pageAll()}); len(r.Hits) != 3 {
+		t.Fatalf("searchable at once: %+v", r.Hits)
+	}
+	ld.WaitBackground()
+	if n := ld.pendingCount(); n != 0 {
+		t.Fatalf("%d headers still pending", n)
+	}
+	r, err := ld.Search("codec:h264", SearchOptions{Page: pageAll()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(r.Hits) != 3 {
+		t.Fatalf("media filter after the headers were read: %+v", r.Hits)
 	}
 }

@@ -46,6 +46,9 @@ const StableSecs = 10
 type Probe struct {
 	Status media.ProbeStatus
 	Record *media.Record // when Status is ProbeOK
+	// Later: not read yet on purpose (a first index makes files searchable
+	// first); stored as pending, so the header is read afterwards.
+	Later bool
 }
 
 // Db is the durable store.
@@ -476,7 +479,7 @@ func probeParts(p Probe) (code int, w, h uint32, blob []byte) {
 
 func storedCode(e *scan.Entry, p Probe) (int, uint32, uint32, []byte) {
 	code, w, h, blob := probeParts(p)
-	if p.Status == media.ProbeSkipped && ShouldDefer(e) {
+	if p.Status == media.ProbeSkipped && (p.Later || ShouldDefer(e)) {
 		code = codePending
 	}
 	return code, w, h, blob
@@ -563,7 +566,7 @@ func (d *Db) InsertChunk(rootID, base int64, entries []scan.Entry, start int, pr
 		if len(probes)-k >= batchRows {
 			args = args[:0]
 			for j := 0; j < batchRows; j++ {
-				args = append(args, d.rowArgs(rootID, base, rootName, entries, start+k+j, probes[k+j])...)
+				args = d.appendRowArgs(args, rootID, base, rootName, entries, start+k+j, probes[k+j])
 			}
 			if _, err := batch.Exec(args...); err != nil {
 				return err
@@ -571,7 +574,7 @@ func (d *Db) InsertChunk(rootID, base int64, entries []scan.Entry, start int, pr
 			k += batchRows
 			continue
 		}
-		if _, err := stmt.Exec(d.rowArgs(rootID, base, rootName, entries, start+k, probes[k])...); err != nil {
+		if _, err := stmt.Exec(d.appendRowArgs(nil, rootID, base, rootName, entries, start+k, probes[k])...); err != nil {
 			return err
 		}
 		k++
@@ -592,7 +595,9 @@ var insertBatchSQL = func() string {
 }()
 
 // rowArgs: the insert values of entries[i].
-func (d *Db) rowArgs(rootID, base int64, rootName string, entries []scan.Entry, i int, p Probe) []any {
+// appendRowArgs appends one row's values to dst (one slice for a whole
+// batch: no slice per row).
+func (d *Db) appendRowArgs(dst []any, rootID, base int64, rootName string, entries []scan.Entry, i int, p Probe) []any {
 	e := &entries[i]
 	var parent any
 	name := filepath.Base(e.Path)
@@ -602,8 +607,45 @@ func (d *Db) rowArgs(rootID, base int64, rootName string, entries []scan.Entry, 
 		parent = base + int64(e.Parent)
 	}
 	code, w, h, blob := storedCode(e, p)
-	return []any{base + int64(i), rootID, parent, name, e.IsDir, e.IsSymlink, e.Dataless, int64(e.Size), e.Modified,
-		e.Created, int64(e.Inode), int64(e.Dev), code, w, h, blob, tagsText(e.Tags)}
+	return append(dst, base+int64(i), rootID, parent, name, e.IsDir, e.IsSymlink, e.Dataless, int64(e.Size), e.Modified,
+		e.Created, int64(e.Inode), int64(e.Dev), code, w, h, blob, tagsText(e.Tags))
+}
+
+// SetProbes stores headers read after a first index (ProbeLater): only rows
+// still pending are changed (a row the update engine replaced meanwhile is
+// left alone).
+func (d *Db) SetProbes(ids []int64, probes []Probe) error {
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if err := invalidateSnapshot(tx); err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare("UPDATE entries SET probe = ?, width = ?, height = ?, media = ? WHERE id = ? AND probe = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for i, id := range ids {
+		code, w, h, blob := probeParts(probes[i])
+		if _, err := stmt.Exec(code, w, h, blob, id, codePending); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// ProbePath reads the header of one file (for SetProbes).
+func ProbePath(path string, size uint64) Probe {
+	ext := media.Extension(fold.Fold(filepath.Base(path)))
+	kind := media.Classify(ext, false, size)
+	if !media.WantsProbe(kind, ext) {
+		return Probe{}
+	}
+	st, rec := media.Probe(path, kind, ext, size)
+	return Probe{Status: st, Record: rec}
 }
 
 // FinishRoot marks a root's first index complete.

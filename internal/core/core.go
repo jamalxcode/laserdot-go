@@ -123,7 +123,9 @@ type Laserdot struct {
 	// after a first index); WaitBackground waits for it.
 	background sync.WaitGroup
 	// fixing: folders being listed again because a result there was gone.
-	fixing     sync.Map
+	fixing sync.Map
+	// probing: the background header pass is running.
+	probing    atomic.Bool
 	opens      openHistory
 	exclusions exclusionList
 	progress   atomic.Pointer[IndexProgress]
@@ -341,6 +343,14 @@ func (ld *Laserdot) ScanOptions() scan.Options {
 // already indexed (or inside one) is refreshed in place, so renames are
 // tracked and unchanged files are not touched.
 func (ld *Laserdot) Index(root string) (IndexStats, error) {
+	st, err := ld.index(root)
+	if syncBackground {
+		ld.background.Wait() // outside wmu: the passes take it
+	}
+	return st, err
+}
+
+func (ld *Laserdot) index(root string) (IndexStats, error) {
 	root, err := canonical(root)
 	if err != nil {
 		return IndexStats{}, err
@@ -384,6 +394,7 @@ func (ld *Laserdot) Index(root string) (IndexStats, error) {
 	opts := ld.ScanOptions()
 	opts.DeferTags = true // read by readTagsLater, once the files are searchable
 	st, err := index.IndexRoot(ld.db, root, opts, index.BulkOptions{
+		ProbeLater: true, // media headers: probeLater, once the files are searchable
 		Progress: func(phase string, done, total uint64) {
 			ld.progress.Store(&IndexProgress{Root: root, Phase: phase, Done: done, Total: total})
 		},
@@ -403,7 +414,104 @@ func (ld *Laserdot) Index(root string) (IndexStats, error) {
 		return st, err
 	}
 	ld.readTagsLater(st.Root)
+	ld.probeLater()
 	return st, nil
+}
+
+// syncBackground: Index returns only once its background passes (tags,
+// media headers) are done. For tests that check those right after.
+var syncBackground = false
+
+// probeChunk: headers read and stored per step of the background pass.
+const probeChunk = 20_000
+
+// probeLater reads, in the background, the media headers a first index left
+// for later (pending files that are not being written): in parallel, a
+// chunk at a time, straight into the database; then the in-memory index is
+// rebuilt once from it and served from its snapshot. Name searches work all
+// along; media filters (res:, codec:…) find the files once this is done.
+func (ld *Laserdot) probeLater() {
+	if !ld.probing.CompareAndSwap(false, true) {
+		return // a pass is running
+	}
+	ld.background.Add(1)
+	go func() {
+		defer ld.background.Done()
+		defer ld.probing.Store(false)
+		type job struct {
+			db   int64
+			path string
+			size uint64
+		}
+		// Which ones: ids only for now (paths a chunk at a time).
+		ld.mu.RLock()
+		var ids []uint32
+		it := ld.store.Pending().Iterator()
+		for it.HasNext() {
+			id := it.Next()
+			if !ld.store.IsDataless(id) && time.Now().Unix()-ld.store.Modified(id) >= index.StableSecs {
+				ids = append(ids, id)
+			}
+		}
+		ld.mu.RUnlock()
+		if len(ids) == 0 {
+			return
+		}
+		wrote := false
+		for start := 0; start < len(ids); start += probeChunk {
+			chunk := ids[start:min(len(ids), start+probeChunk)]
+			jobs := make([]job, 0, len(chunk))
+			ld.mu.RLock()
+			for _, id := range chunk {
+				jobs = append(jobs, job{ld.store.DBID(id), ld.store.Path(id), ld.store.Size(id)})
+			}
+			ld.mu.RUnlock()
+			probes := make([]index.Probe, len(jobs))
+			var next atomic.Int64
+			var wg sync.WaitGroup
+			for w := 0; w < max(8, 2*runtime.GOMAXPROCS(0)); w++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					for {
+						i := int(next.Add(1)) - 1
+						if i >= len(jobs) {
+							return
+						}
+						probes[i] = index.ProbePath(jobs[i].path, jobs[i].size)
+					}
+				}()
+			}
+			wg.Wait()
+			dbIDs := make([]int64, len(jobs))
+			for i, j := range jobs {
+				dbIDs[i] = j.db
+			}
+			ld.wmu.Lock()
+			err := ld.db.SetProbes(dbIDs, probes)
+			ld.wmu.Unlock()
+			if err != nil {
+				return
+			}
+			wrote = true
+		}
+		if !wrote {
+			return
+		}
+		// One rebuild with every header, then file-backed pages again.
+		ld.wmu.Lock()
+		err := ld.reload()
+		ld.wmu.Unlock()
+		if err == nil {
+			_ = ld.Remap()
+		}
+	}()
+}
+
+func (ld *Laserdot) pendingCount() uint64 {
+	ld.mu.RLock()
+	defer ld.mu.RUnlock()
+	return ld.store.Pending().GetCardinality()
 }
 
 // readTagsLater reads the Finder tags of a folder just indexed without them
@@ -411,45 +519,56 @@ func (ld *Laserdot) Index(root string) (IndexStats, error) {
 // and brings in those it finds: each folder holding a tagged file is listed
 // again, which records its tags (§2.6.5). Runs in the background.
 func (ld *Laserdot) readTagsLater(root string) {
+	// Ids only (4 bytes each); paths are made a chunk at a time.
 	ld.mu.RLock()
-	var files []string
+	var ids []uint32
 	if id, ok := ld.store.Resolve(root); ok {
 		for _, c := range ld.store.Descendants(id) {
 			if !ld.store.IsDir(c) {
-				files = append(files, ld.store.Path(c))
+				ids = append(ids, c)
 			}
 		}
 	}
 	ld.mu.RUnlock()
-	if len(files) == 0 {
+	if len(ids) == 0 {
 		return
 	}
 	ld.background.Add(1)
 	go func() {
 		defer ld.background.Done()
-		var mu sync.Mutex
 		dirs := map[string]bool{}
-		var next atomic.Int64
-		var wg sync.WaitGroup
-		// Mostly waiting on the disk: more readers than cores.
-		for w := 0; w < max(16, 4*runtime.GOMAXPROCS(0)); w++ {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-				for {
-					i := int(next.Add(1)) - 1
-					if i >= len(files) {
-						return
+		const chunk = 20_000
+		for start := 0; start < len(ids); start += chunk {
+			part := ids[start:min(len(ids), start+chunk)]
+			paths := make([]string, len(part))
+			ld.mu.RLock()
+			for i, id := range part {
+				paths[i] = ld.store.Path(id)
+			}
+			ld.mu.RUnlock()
+			var mu sync.Mutex
+			var next atomic.Int64
+			var wg sync.WaitGroup
+			// Mostly waiting on the disk: more readers than cores.
+			for w := 0; w < max(16, 4*runtime.GOMAXPROCS(0)); w++ {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					for {
+						i := int(next.Add(1)) - 1
+						if i >= len(paths) {
+							return
+						}
+						if len(scan.ReadTags(paths[i])) > 0 {
+							mu.Lock()
+							dirs[filepath.Dir(paths[i])] = true
+							mu.Unlock()
+						}
 					}
-					if len(scan.ReadTags(files[i])) > 0 {
-						mu.Lock()
-						dirs[filepath.Dir(files[i])] = true
-						mu.Unlock()
-					}
-				}
-			}()
+				}()
+			}
+			wg.Wait()
 		}
-		wg.Wait()
 		if len(dirs) == 0 {
 			return
 		}
@@ -477,12 +596,17 @@ func (ld *Laserdot) reloadWith(root string, fresh []index.RawEntry) error {
 	if err != nil {
 		return err
 	}
-	off := len(raw)
-	for _, r := range fresh {
-		if r.Parent >= 0 {
-			r.Parent += off
+	if len(raw) == 0 {
+		raw = fresh // the only root: no copy
+	} else {
+		off := len(raw)
+		raw = slices.Grow(raw, len(fresh)) // one allocation, not doubling
+		for _, r := range fresh {
+			if r.Parent >= 0 {
+				r.Parent += off
+			}
+			raw = append(raw, r)
 		}
-		raw = append(raw, r)
 	}
 	s := index.Build(raw)
 	ld.mu.Lock()
@@ -610,6 +734,11 @@ func (ld *Laserdot) Refresh() (UpdateStats, error) {
 // CheckPending re-examines files that were still being written; any that
 // are now stable get probed (§2.6.3).
 func (ld *Laserdot) CheckPending() (UpdateStats, error) {
+	if ld.probing.Load() {
+		// The background pass is reading a first index's headers; the files
+		// being written wait until it is done.
+		return UpdateStats{OfflineRoots: []string{}}, nil
+	}
 	ld.mu.RLock()
 	var changes []Change
 	seen := map[string]bool{}

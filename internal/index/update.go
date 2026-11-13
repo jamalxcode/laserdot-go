@@ -605,9 +605,10 @@ func sameChildren(s *Store, dir uint32, path string, opts scan.Options) bool {
 
 func rawOf(e *scan.Entry, p Probe, dbID int64) RawEntry {
 	r := RawEntry{
-		Name: filepath.Base(e.Path), IsDir: e.IsDir, IsSymlink: e.IsSymlink, Dataless: e.Dataless,
+		// Its own copy: the name alone, not the whole path behind it.
+		Name: strings.Clone(filepath.Base(e.Path)), IsDir: e.IsDir, IsSymlink: e.IsSymlink, Dataless: e.Dataless,
 		Size: e.Size, Modified: e.Modified, Created: e.Created, DBID: dbID, Tags: e.Tags, Inode: e.Inode,
-		Pending: p.Status == media.ProbeSkipped && ShouldDefer(e),
+		Pending: p.Status == media.ProbeSkipped && (p.Later || ShouldDefer(e)),
 	}
 	if p.Status == media.ProbeOK && p.Record != nil {
 		r.Media = p.Record

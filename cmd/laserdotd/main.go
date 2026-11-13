@@ -141,6 +141,7 @@ func run() error {
 		how = "mapped from the snapshot"
 	}
 	fmt.Fprintf(os.Stderr, "laserdotd: index %s\n", how)
+	fmt.Fprintf(os.Stderr, "laserdotd: soft memory limit %d MB\n", daemon.SetMemoryLimit()>>20)
 	// Serve from the snapshot: file-backed columns, not dirty memory.
 	if err := ld.Remap(); err != nil {
 		fmt.Fprintln(os.Stderr, "laserdotd: could not write the snapshot:", err)
