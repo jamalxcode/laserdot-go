@@ -168,7 +168,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     /// Laserdot started laserdotd; it stops it when it quits.
     func applicationWillTerminate(_ notification: Notification) {
         engine?.shutdown()
-        updates.installOnQuit()
+    }
+
+    /// Quitting with a downloaded update installs it first, with the update
+    /// window showing each step (the work runs off the main thread).
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        updates.installOnQuit { NSApp.reply(toApplicationShouldTerminate: true) } ? .terminateLater : .terminateNow
     }
 
     /// Closing the window keeps Laserdot (and ⌥Space) running; the Dock icon

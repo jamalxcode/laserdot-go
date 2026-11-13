@@ -74,10 +74,28 @@ extension SelfTestRunner {
                         for title in [L("menu.storageTitle"), L("dupes.title")] {
                             NSApp.windows.first { $0.title == title }?.close()
                         }
-                        done()
+                        self.updateWindow(done: done)
                     }
                 }
             }
+        }
+    }
+
+    /// The update window part way through a download: a filled bar and
+    /// "x MB of y MB" (no real update is fetched).
+    func updateWindow(done: @escaping () -> Void) {
+        let u = app.updates
+        u.showStepForTests(.downloading(received: 18_400_000, total: 41_000_000), version: "9.9.9")
+        after(1) {
+            let w = u.progressPanelForTests
+            if let w { self.screenshot(w, name: "update-progress") }
+            self.extra["update_window_visible"] = w?.isVisible ?? false
+            self.extra["update_step"] = u.step?.title ?? ""
+            self.extra["update_detail"] = u.step?.detail ?? ""
+            self.extra["update_menu"] = u.statusText
+            u.showStepForTests(nil)
+            self.extra["update_window_closes"] = !(w?.isVisible ?? false)
+            done()
         }
     }
 

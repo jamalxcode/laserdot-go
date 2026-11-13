@@ -314,10 +314,12 @@ public final class Updater {
     /// atomically, and return where it now lives. Stop the daemon first so
     /// the new app starts its own `laserdotd`.
     @discardableResult
-    public func install(_ c: UpdateCandidate, to target: URL? = nil) throws -> URL {
+    public func install(_ c: UpdateCandidate, to target: URL? = nil,
+                        step: (InstallStep) -> Void = { _ in }) throws -> URL {
         defer { try? FileManager.default.removeItem(at: c.workDir) }
         let dest = target ?? installTarget
         if let signer {
+            step(.signing)
             // Best effort: an update is never held back because it could not
             // be signed (macOS would then only ask its questions again).
             do {
@@ -327,9 +329,13 @@ public final class Updater {
                 lastSigningError = (error as? LocalizedError)?.errorDescription ?? "\(error)"
             }
         }
+        step(.placing)
         keepPrevious(dest)
         return try Self.place(c.app, at: dest)
     }
+
+    /// What install is doing (for the update window).
+    public enum InstallStep: Sendable { case signing, placing }
 
     // MARK: going back
 

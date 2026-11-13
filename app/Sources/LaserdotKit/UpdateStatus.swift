@@ -63,3 +63,50 @@ public struct UpdateStatus: Codable, Equatable, Sendable {
         try Self.coder().0.encode(self).write(to: url, options: .atomic)
     }
 }
+
+/// How far the Laserdot Updater helper has got (it writes this while it
+/// works; the app shows it in its update window).
+public struct UpdateProgress: Codable, Equatable, Sendable {
+    public enum Phase: String, Codable, Sendable {
+        case checking, downloading
+    }
+
+    public var phase: Phase
+    /// Bytes received so far, and in all (0 when not known yet).
+    public var received: Int64
+    public var total: Int64
+    public var version: String?
+    public var updatedAt: Date
+
+    public init(phase: Phase, received: Int64 = 0, total: Int64 = 0, version: String? = nil, updatedAt: Date = Date()) {
+        self.phase = phase
+        self.received = received
+        self.total = total
+        self.version = version
+        self.updatedAt = updatedAt
+    }
+
+    /// 0…1 while downloading, when the size is known.
+    public var fraction: Double? {
+        phase == .downloading && total > 0 ? min(1, Double(received) / Double(total)) : nil
+    }
+
+    /// ~/Library/Application Support/laserdot/update-progress.json
+    public static var defaultURL: URL {
+        UpdateStatus.defaultURL.deletingLastPathComponent().appendingPathComponent("update-progress.json")
+    }
+
+    public static func load(from url: URL = defaultURL) -> UpdateProgress? {
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        let d = JSONDecoder()
+        d.dateDecodingStrategy = .iso8601
+        return try? d.decode(UpdateProgress.self, from: data)
+    }
+
+    public func save(to url: URL = defaultURL) {
+        let e = JSONEncoder()
+        e.dateEncodingStrategy = .iso8601
+        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? e.encode(self).write(to: url, options: .atomic)
+    }
+}

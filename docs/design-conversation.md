@@ -332,6 +332,16 @@ admin workflow's `access-lock` task removed collaborators, invitations and writa
 made workflow tokens read-only by default, requires the owner's approval before workflows run for anyone else's
 pull request, and protects `main` from deletion and force pushes. Releases are built by GitHub from `main` only.
 
+## 21. Updates show what they are doing (0.9.8)
+
+**Asked:** "when doing a check for update, the computer pauses or stays quiet with no indication then the update
+happens, put some visual feedback on what is happening and a scrolling bar as the update happens". **Decided:** a
+small floating window shows each step with a bar: checking (a moving bar), downloading (a filling bar with "x MB of
+y MB", which the helper reports as it downloads), checking the download, preparing it for this Mac (the local
+signature), installing, restarting. Checking and downloading can be hidden; the menu then shows the percentage. The
+slow steps run off the main thread, so Laserdot never freezes, also when an update installs as Laserdot quits.
+Automatic daily checks stay quiet (only the menu shows them); the window opens when the user asks or installs.
+
 ---
 
 ## How the work was done

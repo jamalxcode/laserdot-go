@@ -272,3 +272,22 @@ final class UpdaterTests: XCTestCase {
         XCTAssertNil(UpdateStatus.load(from: dir.appendingPathComponent("missing.json")))
     }
 }
+
+final class UpdateProgressTests: XCTestCase {
+    /// The helper writes how far it has got; the app reads it back for its
+    /// update window.
+    func testProgressRoundTripsAndGivesAFraction() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("progress-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = dir.appendingPathComponent("update-progress.json")
+        XCTAssertNil(UpdateProgress.load(from: url))
+        UpdateProgress(phase: .downloading, received: 25, total: 100, version: "1.2.3").save(to: url)
+        let p = try XCTUnwrap(UpdateProgress.load(from: url))
+        XCTAssertEqual(p.phase, .downloading)
+        XCTAssertEqual(p.version, "1.2.3")
+        XCTAssertEqual(p.fraction ?? -1, 0.25, accuracy: 0.0001)
+        XCTAssertNil(UpdateProgress(phase: .checking).fraction, "checking has no size: a moving bar")
+        XCTAssertNil(UpdateProgress(phase: .downloading, received: 5).fraction, "size not known yet")
+        XCTAssertEqual(UpdateProgress.defaultURL.deletingLastPathComponent(), UpdateStatus.defaultURL.deletingLastPathComponent())
+    }
+}

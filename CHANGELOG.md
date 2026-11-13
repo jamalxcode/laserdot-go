@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.8
+
+- Updates are never silent any more: a small window shows each step (checking, downloading with a progress bar
+  and how many MB are done, checking the download, preparing it for this Mac, installing, restarting). You can hide
+  it while it downloads; the menu then shows the percentage, and clicking that brings the window back.
+- Laserdot no longer freezes while it installs an update, including when it installs one as you quit.
+
 ## 0.9.7
 
 - Much faster first indexing of big folders: files can be searched as soon as they are listed (a million files in

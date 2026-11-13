@@ -346,3 +346,14 @@
 "column.resize" = "اسحب لتوسيع العمود أو تضييقه";
 "view.tileSize" = "حجم الصور المصغّرة";
 "sort.opened" = "آخر فتح (في Laserdot)";
+"update.window.title" = "جارٍ تحديث Laserdot";
+"update.window.titleVersion" = "جارٍ تحديث Laserdot إلى %@";
+"update.window.hide" = "إخفاء";
+"update.step.checking" = "جارٍ البحث عن إصدار جديد…";
+"update.step.downloading" = "جارٍ التنزيل…";
+"update.step.bytesOf" = "%@ من %@";
+"update.step.verifying" = "جارٍ فحص التنزيل…";
+"update.step.signing" = "جارٍ تجهيزه لهذا الماك…";
+"update.step.installing" = "جارٍ التثبيت…";
+"update.step.restarting" = "جارٍ إعادة تشغيل Laserdot…";
+"update.menu.downloading" = "جارٍ تنزيل التحديث… %ld%%";

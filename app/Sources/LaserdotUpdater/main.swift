@@ -79,10 +79,10 @@ func fetch(_ r: URLRequest) throws -> Data {
     return try result.get()
 }
 
-func download(_ r: URLRequest, to dest: URL) throws {
+func download(_ r: URLRequest, to dest: URL, version: String) throws {
     let done = DispatchSemaphore(value: 0)
     var failure: Error?
-    session.downloadTask(with: r) { tmp, response, error in
+    let task = session.downloadTask(with: r) { tmp, response, error in
         defer { done.signal() }
         if let error { failure = error; return }
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -91,8 +91,18 @@ func download(_ r: URLRequest, to dest: URL) throws {
             try? FileManager.default.removeItem(at: dest)
             try FileManager.default.moveItem(at: tmp, to: dest)
         } catch { failure = error }
-    }.resume()
+    }
+    // How far it has got, for the app's update window (a few times a second).
+    var last = Date.distantPast
+    let watch = task.progress.observe(\.completedUnitCount) { p, _ in
+        guard Date().timeIntervalSince(last) > 0.25 else { return }
+        last = Date()
+        UpdateProgress(phase: .downloading, received: p.completedUnitCount, total: max(0, p.totalUnitCount),
+                       version: version).save()
+    }
+    task.resume()
     done.wait()
+    watch.invalidate()
     if let failure { throw failure }
 }
 
@@ -162,6 +172,7 @@ guard let current = AppVersion(bundle: appURL) else {
     finish(UpdateStatus(state: .failed, message: "Laserdot.app not found at \(appURL.path)"))
 }
 
+UpdateProgress(phase: .checking).save()
 do {
     let tag: String
     do {
@@ -185,7 +196,8 @@ do {
     // A download is moved into place only once complete, so a file that is
     // there is whole; Laserdot checks it again before installing.
     if !FileManager.default.fileExists(atPath: dest.path) {
-        try download(request(url, accept: "application/octet-stream"), to: dest)
+        UpdateProgress(phase: .downloading, version: latest).save()
+        try download(request(url, accept: "application/octet-stream"), to: dest, version: latest)
     }
     finish(UpdateStatus(state: .downloaded, latest: latest, file: dest.path))
 } catch {

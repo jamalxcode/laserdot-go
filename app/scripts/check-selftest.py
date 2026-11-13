@@ -227,6 +227,14 @@ check(report.get("duplicate_groups", -1) >= 1, f"the Duplicates window found the
 for shot in ("storage.png", "duplicates.png", "settings-folders.png", "settings-drives.png", "settings-privacy.png"):
     check(shot in report["screenshots"], f"screenshot {shot}")
 
+# Updates are never silent: a window with the step, a filled bar and the sizes.
+check(report.get("update_window_visible") is True, "the update window shows while an update downloads")
+check("update-progress.png" in report["screenshots"], "screenshot update-progress.png")
+detail = report.get("update_detail", "")
+check(detail.count("MB") == 2 or detail.count("ميغا") == 2 or len(detail) > 6, f"the update window says how much is downloaded (got {detail!r})")
+check("44" in report.get("update_menu", ""), f"the menu shows the download percentage (got {report.get('update_menu')!r})")
+check(report.get("update_window_closes") is True, "the update window closes when the update is over")
+
 # The empty box shows what was opened.
 home = steps["home"]
 check("beach.jpg" in home["results"], f"the empty box lists recently opened files (got {home['results']})")

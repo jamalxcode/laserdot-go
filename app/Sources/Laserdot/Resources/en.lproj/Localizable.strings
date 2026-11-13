@@ -346,3 +346,14 @@
 "column.resize" = "Drag to make the column wider or narrower";
 "view.tileSize" = "Thumbnail size";
 "sort.opened" = "Last Opened (in Laserdot)";
+"update.window.title" = "Updating Laserdot";
+"update.window.titleVersion" = "Updating Laserdot to %@";
+"update.window.hide" = "Hide";
+"update.step.checking" = "Checking for a new version…";
+"update.step.downloading" = "Downloading…";
+"update.step.bytesOf" = "%@ of %@";
+"update.step.verifying" = "Checking the download…";
+"update.step.signing" = "Preparing it for this Mac…";
+"update.step.installing" = "Installing…";
+"update.step.restarting" = "Restarting Laserdot…";
+"update.menu.downloading" = "Downloading update… %ld%%";

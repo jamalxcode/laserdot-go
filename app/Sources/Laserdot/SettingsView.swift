@@ -80,7 +80,10 @@ struct GeneralSettings: View {
                 LabeledContent(L("settings.version"), value: updates.currentVersion)
                 HStack {
                     Spacer()
-                    if updates.checking { ProgressView().controlSize(.small) }
+                    if updates.checking {
+                        ProgressView().controlSize(.small)
+                        Button(updates.statusText) { updates.showProgress() }.buttonStyle(.link)
+                    }
                     Button(L("settings.checkNow")) { updates.check(interactive: true) }
                         .disabled(updates.checking)
                 }

@@ -29,8 +29,11 @@ struct StatusMenu: View {
         if let r = updates.ready {
             Button(String(format: L("update.button"), r.latest ?? "")) { updates.offerInstall() }
         }
-        Button(L("menu.checkUpdates")) { updates.check(interactive: true) }
-            .disabled(updates.checking)
+        if updates.checking {
+            Button(updates.statusText) { updates.showProgress() }
+        } else {
+            Button(L("menu.checkUpdates")) { updates.check(interactive: true) }
+        }
         Button(L("menu.settings")) { delegate.showSettings() }
             .keyboardShortcut(",")
         Divider()
@@ -69,7 +72,8 @@ struct MainWindow: View {
                 Spacer()
                 if updates.checking {
                     ProgressView().controlSize(.small)
-                    Text(L("update.checking"))
+                    Button(updates.statusText) { updates.showProgress() }
+                        .buttonStyle(.link)
                 }
                 if let r = updates.ready {
                     Button(String(format: L("update.button"), r.latest ?? "")) { updates.offerInstall() }
