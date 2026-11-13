@@ -141,3 +141,35 @@ func (ld *Laserdot) RecentOpens(limit int) []Hit {
 	}
 	return out
 }
+
+// openTimes: when each opened entry of s was last opened (for the "opened"
+// order).
+func (ld *Laserdot) openTimes(s *index.Store) map[uint32]int64 {
+	h := &ld.opens
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	ld.loadOpens()
+	out := make(map[uint32]int64, len(h.records))
+	for p, r := range h.records {
+		if id, ok := s.Resolve(p); ok {
+			out[id] = r.Last
+		}
+	}
+	return out
+}
+
+// addOpened fills in when this Mac's results were last opened.
+func (ld *Laserdot) addOpened(r *SearchResults) {
+	h := &ld.opens
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	ld.loadOpens()
+	if len(h.records) == 0 {
+		return
+	}
+	for i := range r.Hits {
+		if r.Hits[i].Volume == nil {
+			r.Hits[i].Opened = h.records[r.Hits[i].Path].Last
+		}
+	}
+}

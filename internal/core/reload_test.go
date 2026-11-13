@@ -2,10 +2,13 @@ package core
 
 import (
 	"encoding/json"
+	"github.com/jamalxcode/laserdot-go/internal/watch"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
 )
@@ -242,5 +245,88 @@ func TestSortByKind(t *testing.T) {
 	r, _ = ld.Search("in:"+root+" -inside", SearchOptions{Page: page})
 	if len(r.Hits) == 0 || r.Hits[0].Name != "clip.mp4" {
 		t.Errorf("reversed: %+v", r.Hits)
+	}
+}
+
+// A change the watcher never delivers is found by the catch-up, which then
+// restarts watching.
+func TestCatchUpFindsMissedChanges(t *testing.T) {
+	old := CatchUpEvery
+	CatchUpEvery = 600 * time.Millisecond
+	defer func() { CatchUpEvery = old }()
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(dir, "home")
+	write(t, root, "keep.txt", "x")
+	write(t, root, "lost.txt", "y")
+	ld, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	started := make(chan struct{}, 4)
+	var missed atomic.Int64
+	// Polling once an hour: no change arrives as an event during the test.
+	w := ld.Watch(watch.Options{ForcePoll: true, PollInterval: time.Hour, Latency: 50 * time.Millisecond}, WatchEvents{
+		Started: func(watch.Backend) { started <- struct{}{} },
+		Missed:  func(u UpdateStats) { missed.Add(int64(u.Removed)) },
+	})
+	defer w.Stop()
+	<-started
+	time.Sleep(200 * time.Millisecond) // after the refresh that starts watching
+	os.Remove(filepath.Join(root, "lost.txt"))
+	deadline := time.Now().Add(5 * time.Second)
+	for w.Health().Missed == 0 && time.Now().Before(deadline) {
+		time.Sleep(50 * time.Millisecond)
+	}
+	h := w.Health()
+	if h.Missed == 0 || h.Restarts == 0 || h.LastCatchUp == 0 || missed.Load() != 1 {
+		t.Fatalf("health %+v, missed %d", h, missed.Load())
+	}
+	if r, _ := ld.search("lost", SearchOptions{Page: pageAll()}); len(r.Hits) != 0 {
+		t.Fatalf("still indexed: %+v", r.Hits)
+	}
+}
+
+// Results carry when they were last opened from Laserdot, and can be
+// ordered by it: the most recently opened first, never-opened ones after.
+func TestLastOpenedFieldAndOrder(t *testing.T) {
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(dir, "home")
+	for _, f := range []string{"a.txt", "b.txt", "c.txt"} {
+		write(t, root, f, "x")
+	}
+	ld, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	if err := ld.RecordOpen(filepath.Join(root, "b.txt")); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(1100 * time.Millisecond) // seconds resolution
+	if err := ld.RecordOpen(filepath.Join(root, "c.txt")); err != nil {
+		t.Fatal(err)
+	}
+	page := pageAll()
+	page.Sort = index.ByOpened
+	r, err := ld.Search("txt", SearchOptions{Page: page})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, h := range r.Hits {
+		got = append(got, h.Name)
+	}
+	if strings.Join(got, ",") != "c.txt,b.txt,a.txt" {
+		t.Errorf("order: %v", got)
+	}
+	if r.Hits[0].Opened == 0 || r.Hits[2].Opened != 0 {
+		t.Errorf("opened: %+v", r.Hits)
 	}
 }

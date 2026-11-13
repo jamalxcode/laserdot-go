@@ -158,8 +158,13 @@ func run() error {
 	}
 	if !noWatch {
 		w := ld.Watch(wopts, core.WatchEvents{
-			Started: func(b watch.Backend) { fmt.Fprintln(os.Stderr, "laserdotd: watching with", b) },
-			Error:   func(err error) { fmt.Fprintln(os.Stderr, "laserdotd: update failed:", err) },
+			Started:    func(b watch.Backend) { fmt.Fprintln(os.Stderr, "laserdotd: watching with", b) },
+			Error:      func(err error) { fmt.Fprintln(os.Stderr, "laserdotd: update failed:", err) },
+			CanCatchUp: func() bool { return !srv.Paused() },
+			Missed: func(u core.UpdateStats) {
+				fmt.Fprintf(os.Stderr, "laserdotd: catch-up found %d changes the events missed; watching again\n",
+					u.Added+u.Removed+u.Modified+u.Renamed)
+			},
 			Applied: func(u core.UpdateStats) {
 				srv.MarkContentDirty()
 				fmt.Fprintf(os.Stderr, "laserdotd: +%d −%d ~%d renamed %d (%d ms)\n", u.Added, u.Removed, u.Modified, u.Renamed, u.MS)

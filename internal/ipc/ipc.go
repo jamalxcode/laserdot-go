@@ -186,6 +186,16 @@ type Status struct {
 	// Indexing: a folder being indexed now (protocol 5 addition; absent
 	// otherwise and from older daemons).
 	Indexing *IndexProgress `json:"indexing,omitempty"`
+	// CatchUp: the watcher's hourly comparison with the disk (absent from
+	// older daemons and when not watching).
+	CatchUp *CatchUp `json:"catch_up,omitempty"`
+}
+
+// CatchUp: see core.WatcherHealth.
+type CatchUp struct {
+	LastCatchUp int64  `json:"last_catch_up"`
+	Missed      uint64 `json:"missed"`
+	Restarts    uint64 `json:"restarts"`
 }
 
 // IndexProgress: see core.IndexProgress.

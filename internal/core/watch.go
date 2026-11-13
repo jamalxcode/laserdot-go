@@ -17,6 +17,28 @@ type WatchEvents struct {
 	Error func(error)
 	// Started is called with the backend each time watching (re)starts.
 	Started func(watch.Backend)
+	// CanCatchUp, when set, says whether background work may run now (not
+	// on battery, say); the hourly catch-up waits otherwise.
+	CanCatchUp func() bool
+	// Missed is called when a catch-up found changes the events had not
+	// brought (the watcher is then restarted).
+	Missed func(UpdateStats)
+}
+
+// CatchUpEvery: how often every indexed folder is compared with the disk
+// while watching, so a change the system's events never delivered (the
+// stream stalled, events dropped) is still picked up — and watching is
+// restarted when that happens.
+var CatchUpEvery = time.Hour
+
+// WatcherHealth is what the catch-ups found.
+type WatcherHealth struct {
+	// LastCatchUp: Unix seconds of the last catch-up (0: none yet).
+	LastCatchUp int64 `json:"last_catch_up"`
+	// Missed: changes found by catch-ups since the daemon started.
+	Missed uint64 `json:"missed"`
+	// Restarts: times watching was restarted because changes were missed.
+	Restarts uint64 `json:"restarts"`
 }
 
 // Watcher keeps an index current until stopped.
@@ -27,6 +49,18 @@ type Watcher struct {
 	done    chan struct{}
 	restart atomic.Bool
 	backend atomic.Value // string
+	health  struct {
+		last, missed, restarts atomic.Int64
+	}
+}
+
+// Health reports the catch-ups.
+func (w *Watcher) Health() WatcherHealth {
+	return WatcherHealth{
+		LastCatchUp: w.health.last.Load(),
+		Missed:      uint64(w.health.missed.Load()),
+		Restarts:    uint64(w.health.restarts.Load()),
+	}
 }
 
 // Watch starts keeping the index current with the platform's file events
@@ -124,6 +158,7 @@ func (w *Watcher) run(ev WatchEvents) {
 			report(w.ld.Refresh())
 		}
 		lastPending := time.Now()
+		lastCatchUp := time.Now()
 		for !w.stopped() && !w.restart.Load() {
 			b, ok := wt.NextBatch(500 * time.Millisecond)
 			if ok && len(b.Changes) > 0 {
@@ -140,6 +175,21 @@ func (w *Watcher) run(ev WatchEvents) {
 			if time.Since(lastPending) > 5*time.Second {
 				lastPending = time.Now()
 				report(w.ld.CheckPending())
+			}
+			if time.Since(lastCatchUp) > CatchUpEvery && (ev.CanCatchUp == nil || ev.CanCatchUp()) {
+				lastCatchUp = time.Now()
+				u, err := w.ld.Refresh()
+				report(u, err)
+				w.health.last.Store(time.Now().Unix())
+				if n := u.Added + u.Removed + u.Renamed + u.Modified; err == nil && n > 0 {
+					// The events missed these: start watching afresh.
+					w.health.missed.Add(int64(n))
+					w.health.restarts.Add(1)
+					if ev.Missed != nil {
+						ev.Missed(u)
+					}
+					w.restart.Store(true)
+				}
 			}
 		}
 		wt.Close()

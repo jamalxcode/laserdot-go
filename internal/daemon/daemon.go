@@ -168,6 +168,17 @@ func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
 	}()
 }
 
+// Paused: background work waits (battery, heat, Low Power Mode).
+func (s *Server) Paused() bool { return s.paused.Load() }
+
+func (s *Server) catchUp() *ipc.CatchUp {
+	if s.watcher == nil {
+		return nil
+	}
+	h := s.watcher.Health()
+	return &ipc.CatchUp{LastCatchUp: h.LastCatchUp, Missed: h.Missed, Restarts: h.Restarts}
+}
+
 func (s *Server) watcherName() string {
 	if s.watcher == nil {
 		return "None"
@@ -274,7 +285,7 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 	case ipc.OpStatus:
 		st := ipc.Status{
 			Protocol: ipc.ProtocolVersion, Version: Version, PID: os.Getpid(),
-			NetworkDenied: sandbox.IsEnforced(), Watcher: s.watcherName(),
+			NetworkDenied: sandbox.IsEnforced(), Watcher: s.watcherName(), CatchUp: s.catchUp(),
 			DB: s.ld.DBPath(), Entries: s.ld.Stats().Entries,
 		}
 		if p := s.ld.Progress(); p != nil {

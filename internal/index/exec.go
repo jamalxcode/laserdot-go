@@ -30,10 +30,12 @@ const (
 	ByCreated
 	// ByKind: by kind of file (app, archive, audio… folder, video), then by name.
 	ByKind
+	// ByOpened: last opened from Laserdot first (Page.Opened), the rest after.
+	ByOpened
 )
 
 // ParseSort reads a sort name ("relevance", "name", "size", "modified",
-// "created", "kind").
+// "created", "kind", "opened").
 func ParseSort(s string) (Sort, bool) {
 	switch s {
 	case "", "relevance":
@@ -48,12 +50,14 @@ func ParseSort(s string) (Sort, bool) {
 		return ByCreated, true
 	case "kind":
 		return ByKind, true
+	case "opened":
+		return ByOpened, true
 	}
 	return 0, false
 }
 
 func (s Sort) String() string {
-	return [...]string{"relevance", "name", "size", "modified", "created", "kind"}[s]
+	return [...]string{"relevance", "name", "size", "modified", "created", "kind", "opened"}[s]
 }
 
 // Page selects an order and a window of results.
@@ -67,6 +71,9 @@ type Page struct {
 	// Boost: entries the user opened (spec §6.2), 1–255; they rank first
 	// among equally good matches.
 	Boost map[uint32]uint8
+	// Opened: when each entry was last opened from Laserdot (Unix seconds),
+	// for the ByOpened order.
+	Opened map[uint32]int64
 }
 
 // DefaultPage is relevance order, first 100.
@@ -467,7 +474,7 @@ func effectiveSort(page Page, clauses [][]*query.NameMatcher) (Sort, bool) {
 	if sort == Relevance && len(clauses) == 0 {
 		sort = ByModified
 	}
-	natural := sort == BySize || sort == ByModified || sort == ByCreated
+	natural := sort == BySize || sort == ByModified || sort == ByCreated || sort == ByOpened
 	return sort, natural != page.Reverse
 }
 
@@ -517,6 +524,9 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 			return RankKey{Num: m | uint64(255-page.Boost[id])<<54 | s.demotion(id)<<62}
 		}
 		v := s.colKey(srt, id)
+		if srt == ByOpened {
+			v = uint64(max(0, page.Opened[id])) // never opened: 0, after every opened one
+		}
 		if desc {
 			v = ^v
 		}
@@ -535,7 +545,7 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 	}
 
 	// Large result sets in a column order: walk the pre-sorted order.
-	if srt != Relevance && srt != ByName && srt != ByKind && !filterOnly && hits.GetCardinality() > 20_000 {
+	if srt != Relevance && srt != ByName && srt != ByKind && srt != ByOpened && !filterOnly && hits.GetCardinality() > 20_000 {
 		order := s.bySize
 		switch srt {
 		case ByModified:

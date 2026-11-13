@@ -73,6 +73,9 @@ type Hit struct {
 	Volume *string `json:"volume"`
 	// Content: matched by its contents, not its name (§2.4.2).
 	Content bool `json:"content"`
+	// Opened: when it was last opened from Laserdot (Unix seconds; absent
+	// when never). The open history is this Mac's only.
+	Opened int64 `json:"opened,omitempty"`
 }
 
 // SearchResults is one page of results.
@@ -680,6 +683,7 @@ func (ld *Laserdot) Search(q string, opts SearchOptions) (*SearchResults, error)
 	r, err := ld.search(q, opts)
 	if err == nil && r != nil {
 		ld.dropMissing(r)
+		ld.addOpened(r)
 	}
 	return r, err
 }
@@ -762,6 +766,9 @@ func (ld *Laserdot) search(q string, opts SearchOptions) (*SearchResults, error)
 	if opts.Page.Sort == index.Relevance {
 		opts.Page.Boost = ld.openBoosts(ld.store)
 	}
+	if opts.Page.Sort == index.ByOpened {
+		opts.Page.Opened = ld.openTimes(ld.store)
+	}
 	if len(ld.drives) == 0 {
 		r, _, err := searchStoreKeyed(ld.store, ld.content, q, opts)
 		return r, err
@@ -787,9 +794,9 @@ func (ld *Laserdot) search(q string, opts SearchOptions) (*SearchResults, error)
 			d := ld.drives[n-1]
 			s, content, volume = d.store, nil, &d.name // content search covers this Mac only
 		}
-		sub.Page.Boost = nil // the open history is this Mac's (ids of its store)
+		sub.Page.Boost, sub.Page.Opened = nil, nil // the open history is this Mac's (ids of its store)
 		if n == 0 {
-			sub.Page.Boost = opts.Page.Boost
+			sub.Page.Boost, sub.Page.Opened = opts.Page.Boost, opts.Page.Opened
 		}
 		r, keys, err := searchStoreKeyed(s, content, q, sub)
 		if err != nil {
