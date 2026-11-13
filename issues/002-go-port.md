@@ -313,3 +313,11 @@ Binding unless revisited deliberately; each is also in the spec.
 
 - **0.9.5 (2026-11-12):** columns view like Finder's list (sortable headers; flat list; `kind` order added to the
   engine, `TestSortByKind`).
+
+- **0.9.6 (2026-11-13), the sixth critique:** watcher health (hourly catch-up, restart on missed changes,
+  `TestCatchUpFindsMissedChanges`), the real bundled app signed with a local key and launched in CI
+  (`testSignsTheRealBuiltApp`), releases made by CI from `main` (version from CHANGELOG), a fair bulk-reading
+  comparison in `perf-mac.sh` and a weekly million-file run (`perf-big.yml`), resizable columns and Last Opened
+  (`opened` order, `TestLastOpenedFieldAndOrder`), thumbnail size, What's New for every version since the last
+  (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
+  and an Arabic review.

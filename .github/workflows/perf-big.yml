@@ -1,0 +1,21 @@
+name: perf-big
+# A million files on a real Mac: how fast they become searchable, how fast
+# searches are, and how much memory the daemon uses (the spec's target is
+# 150 MB; this fails only above 1.5 GB). Weekly, and on demand.
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '17 5 * * 1'
+permissions:
+  contents: read
+jobs:
+  million:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: A million files
+        run: FILES=1000000 MAX_MB=1500 app/scripts/perf-mac.sh

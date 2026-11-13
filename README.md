@@ -66,8 +66,9 @@ downloads.
 | Tab / ⌥1–⌥9 | complete a filter / press a suggestion chip |
 | Esc | close actions, the cheat sheet, then the window |
 
-Results can also be shown as **columns** like Finder's list (click Name, Date Modified, Size, Kind or Date Created
-to sort; again to reverse) or as **thumbnails** — the view switch at the top, or ⌘J. A file deleted in Finder disappears from the results right away;
+Results can also be shown as **columns** like Finder's list (Name, Date Modified, Size, Kind, Last Opened, Date
+Created — click one to sort, again to reverse, drag the line before it to resize) or as **thumbnails** (the slider or
+⌘+ ⌘− change their size) — the view switch at the top, or ⌘J. A file deleted in Finder disappears from the results right away;
 **⌘R** (the circular arrow) looks at every indexed folder again.
 
 The preview pane on the right shows a large thumbnail, plays videos and songs, pages through PDFs, and for a
@@ -150,8 +151,10 @@ A speed test on a Mac (`app/scripts/perf-mac.sh`) indexes 100,000 files (and aga
 compare), times searches and measures the daemon's memory. On CI's Mac, 100,000 files are searchable after about
 1.7 s; searches take 2–4 ms.
 
-Releases: run the **Release** workflow with a version (or push a `v*` tag); it builds, launch-tests and publishes
-`Laserdot-<version>.dmg`.
+Releases publish themselves: when CI passes on `main` and the newest version in `CHANGELOG.md` has no release yet,
+the **Release** workflow builds that exact commit, launch-tests it and publishes `Laserdot-<version>.dmg` with that
+version's notes. (A `v*` tag or a run by hand still work.) A version marked `<!-- quiet -->` in CHANGELOG.md is
+released without a What's New message. The **perf-big** workflow measures a million files weekly.
 
 ## Documents
 

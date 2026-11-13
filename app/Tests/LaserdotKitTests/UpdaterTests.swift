@@ -233,6 +233,37 @@ final class UpdaterTests: XCTestCase {
         XCTAssertNil(Updater.notes(in: quiet, since: "0.9.4"))
     }
 
+    /// The real bundled app (CI sets LASERDOT_APP), signed as an update is
+    /// on the user's Mac: every nested part carries the key, the signature
+    /// verifies, and the app launches and keeps running.
+    func testSignsTheRealBuiltApp() throws {
+        guard let path = ProcessInfo.processInfo.environment["LASERDOT_APP"] else {
+            throw XCTSkip("set LASERDOT_APP to the bundled Laserdot.app")
+        }
+        let copy = dir.appendingPathComponent("Laserdot.app")
+        try Updater.run("/usr/bin/ditto", [path, copy.path])
+        let signer = LocalSigner(dir: dir.appendingPathComponent("signing"))
+        defer { signer.forget() }
+        try signer.sign(copy)
+        _ = try Updater.run("/usr/bin/codesign", ["--verify", "--deep", "--strict", copy.path])
+        for part in ["", "Contents/Helpers/Laserdot Updater.app", "Contents/MacOS/laserdotd"] {
+            let info = try Updater.run("/usr/bin/codesign", ["-dvv", copy.appendingPathComponent(part).path])
+            XCTAssertTrue(info.contains("Authority=\(LocalSigner.identityName)"), "\(part): \(info)")
+        }
+        let p = Process()
+        p.executableURL = copy.appendingPathComponent("Contents/MacOS/Laserdot")
+        var env = ProcessInfo.processInfo.environment
+        env["LASERDOT_DB"] = dir.appendingPathComponent("data/index.db").path
+        p.environment = env
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        try p.run()
+        Thread.sleep(forTimeInterval: 6)
+        XCTAssertTrue(p.isRunning, "the signed app quit at launch")
+        p.terminate()
+        _ = try? Updater.run("/usr/bin/pkill", ["-f", copy.appendingPathComponent("Contents/MacOS/laserdotd").path])
+    }
+
     func testStatusRoundTrips() throws {
         let f = dir.appendingPathComponent("update.json")
         let s = UpdateStatus(state: .downloaded, checkedAt: Date(timeIntervalSince1970: 1_800_000_000), latest: "0.3.0", file: "/x/Laserdot-0.3.0.dmg")

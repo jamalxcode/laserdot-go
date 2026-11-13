@@ -1,8 +1,14 @@
 name: Release
-# Push a tag like v0.2.0 (or run this by hand with a version) to build
-# Laserdot.app, pack it as Laserdot-<version>.dmg, check that it launches,
-# and publish it as a GitHub release (where the Laserdot Updater finds it).
+# Releases itself: when CI passes on main and CHANGELOG.md's newest version
+# has no release yet, this builds Laserdot.app from exactly that commit,
+# packs it as Laserdot-<version>.dmg, checks that it launches, and publishes
+# it (where the Laserdot Updater finds it). A tag push or a run by hand with
+# a version still work.
 on:
+  workflow_run:
+    workflows: [ci]
+    types: [completed]
+    branches: [main]
   push:
     tags: ['v*']
   workflow_dispatch:
@@ -12,20 +18,49 @@ on:
         required: true
 permissions:
   contents: write
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
+  decide:
+    # After CI: only a passing run for a push to main.
+    if: github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      sha: ${{ steps.v.outputs.sha }}
+      go: ${{ steps.v.outputs.go }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Version
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          v="${{ github.event.inputs.version }}"
+          if [ "${{ github.event_name }}" = push ]; then v="${GITHUB_REF_NAME#v}"; fi
+          if [ -z "$v" ]; then v=$(awk '/^## [0-9]+\.[0-9]+\.[0-9]+/ {print $2; exit}' CHANGELOG.md); fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          go=true
+          if [ "${{ github.event_name }}" = workflow_run ] && gh release view "v$v" -R "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "v$v is already released: nothing to do"
+            go=false
+          fi
+          echo "go=$go" >> "$GITHUB_OUTPUT"
   release:
+    needs: decide
+    if: needs.decide.outputs.go == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.decide.outputs.sha }}
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - name: Version
-        id: v
-        run: |
-          v="${{ github.event.inputs.version }}"
-          [ -n "$v" ] || v="${GITHUB_REF_NAME#v}"
-          echo "version=$v" >> "$GITHUB_OUTPUT"
       - name: ffmpeg for Tier 2 (LGPL, no network) — cached
         uses: actions/cache@v4
         with:
@@ -35,13 +70,13 @@ jobs:
         run: app/scripts/build-ffmpeg.sh
       - name: Build
         run: |
-          VERSION=${{ steps.v.outputs.version }} app/scripts/build-go.sh
-          VERSION=${{ steps.v.outputs.version }} BUILD=${{ github.run_number }} app/scripts/bundle.sh
-          app/scripts/make-dmg.sh "$PWD/Laserdot-${{ steps.v.outputs.version }}.dmg"
+          VERSION=${{ needs.decide.outputs.version }} app/scripts/build-go.sh
+          VERSION=${{ needs.decide.outputs.version }} BUILD=${{ github.run_number }} app/scripts/bundle.sh
+          app/scripts/make-dmg.sh "$PWD/Laserdot-${{ needs.decide.outputs.version }}.dmg"
       - name: The packaged app launches (from the disk image, as a user would)
         run: |
           d=$(mktemp -d)
-          dmg="Laserdot-${{ steps.v.outputs.version }}.dmg"
+          dmg="Laserdot-${{ needs.decide.outputs.version }}.dmg"
           # hdiutil on CI machines sometimes answers "Resource temporarily
           # unavailable" for minutes: try for a while, then check the image
           # (checksums) and launch the app that went into it.
@@ -69,6 +104,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          v=${{ steps.v.outputs.version }}
-          git tag -f "v$v" && git push -f origin "v$v" 2>/dev/null || true
-          gh release create "v$v" "Laserdot-$v.dmg" --title "Laserdot $v" --notes "Open the disk image and drag Laserdot to Applications. The first time, right-click Laserdot → Open (the app is not notarized yet). Later versions install themselves from Laserdot → Check for Updates…" || gh release upload "v$v" "Laserdot-$v.dmg" --clobber
+          v=${{ needs.decide.outputs.version }}
+          { awk -v h="## $v" '$0 == h {on=1; next} /^## / {on=0} on' CHANGELOG.md | grep -v '<!-- quiet -->'; echo
+            echo "Open the disk image and drag Laserdot to Applications. The first time, right-click Laserdot → Open (the app is not notarized). Later versions install themselves."; } > notes.md
+          gh release create "v$v" "Laserdot-$v.dmg" --target "${{ needs.decide.outputs.sha }}" --title "Laserdot $v" --notes-file notes.md \
+            || gh release upload "v$v" "Laserdot-$v.dmg" --clobber

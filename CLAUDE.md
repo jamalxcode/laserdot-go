@@ -108,7 +108,8 @@ app/scripts/build-go.sh            # app/build/go/{laserdotd,laserdot} + the reg
 (cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
 VERSION=0.2.0 app/scripts/bundle.sh   # → app/build/Laserdot.app (laserdotd, Helpers/Laserdot Updater.app)
 app/scripts/make-dmg.sh out/Laserdot-0.2.0.dmg
-gh workflow run release.yml --ref main -f version=0.2.0   # or push a v* tag: builds and publishes the .dmg
+# Releases: add a "## x.y.z" section to CHANGELOG.md and merge to main; when CI passes there, release.yml
+# publishes that version by itself (a v* tag or `gh workflow run release.yml -f version=x.y.z` also work).
 ```
 
 Run gofmt, vet and the full test suite before committing.

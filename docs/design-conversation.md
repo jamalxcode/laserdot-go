@@ -299,7 +299,25 @@ sorting, just like finder behavior".
 the whole result set, again to reverse. Kind became an engine order. "Date Last Opened" and "Date Added" are left
 out: they are Spotlight's data, which Laserdot does not read (no AI, its own index only).
 
-## 18. Only the owner can change the code
+## 18. The sixth critique (0.9.6)
+
+**Asked:** "critique laserdot again", then "10 and 11 are not important, fix everything else" (10 was VoiceOver
+checks, 11 an Arabic review).
+
+| # | Critique | Decided |
+|---|---|---|
+| 1 | A missed deletion, cause unknown | An hourly catch-up that restarts watching if changes were missed; the menu shows the state |
+| 2 | The local signing never ran on the real app | CI signs the real app the same way and launches it |
+| 3 | Releases are fragile | CI releases by itself from `main` once tests pass, the version taken from CHANGELOG |
+| 4 | Bulk reading's gain unproven | Measured fairly: warm cache, each way twice, alternating |
+| 5 | Memory untested at a million files | A weekly million-file run on a Mac |
+| 6 | Columns can't be resized | Drag the line before a column; remembered |
+| 7 | No "Last Opened" | When you last opened it from Laserdot; sortable |
+| 8 | One thumbnail size | A slider, ⌘+ ⌘− |
+| 9 | Too many update messages | What's New lists everything since your version; fixes-only versions stay quiet |
+| 12 | Big files again | SearchView and the self-test split |
+
+## 19. Only the owner can change the code
 
 **Asked (with the fifth critique):** "ensure i only have access to this repo to modify it". **Decided:** the Repo
 admin workflow's `access-lock` task removed collaborators, invitations and writable deploy keys (there were none),

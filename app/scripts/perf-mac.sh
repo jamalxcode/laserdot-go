@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
-# Speed on a real Mac with real files (spec §12, §15.3): creates 100,000
-# files in nested folders, indexes them with the CLI, and times searches.
+# Speed on a real Mac with real files (spec §12, §15.3): creates FILES
+# files (default 100,000) in nested folders, indexes them with the CLI, and
+# times searches; compares reading folders in bulk with name by name.
 # Then indexes them again through the daemon and samples its memory.
 # Fails only far below the targets (CI disks vary): indexing under 10,000
 # files a second, a search over 50 ms, or the daemon above 400 MB (the
 # target is 150 MB; the number is printed).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
+FILES=${FILES:-100000}
+MAX_MB=${MAX_MB:-400}
 d=$(mktemp -d)
-python3 - "$d/files" <<'PY'
+python3 - "$d/files" "$FILES" <<'PY'
 import os, sys
-root = sys.argv[1]
+root, total = sys.argv[1], int(sys.argv[2])
 names = ["invoice", "report", "holiday", "beach", "notes", "plan", "photo", "clip", "song", "draft"]
 exts = ["pdf", "txt", "jpg", "mp4", "mp3", "docx", "png", "md"]
 n = 0
-for a in range(50):
+for a in range(max(1, total // 2000)):
     for b in range(40):
-        p = os.path.join(root, f"dir{a:02d}", f"sub{b:02d}")
+        p = os.path.join(root, f"dir{a:03d}", f"sub{b:02d}")
         os.makedirs(p)
         for c in range(50):
             open(os.path.join(p, f"{names[(a+b+c) % 10]}-{a}-{b}-{c}.{exts[c % 8]}"), "w").close()
@@ -31,11 +34,23 @@ end=$(python3 -c 'import time; print(time.time())')
 # Finder tags are read after that, in the background (the CLI waits for
 # them before exiting, so the wall time includes them).
 ms=$(grep -oE 'searchable after [0-9]+' "$d/index.out" | grep -oE '[0-9]+$' || echo 0)
-rate=$(python3 -c "print(int(100000 / max(int('${ms:-0}'), 1) * 1000))")
+rate=$(python3 -c "print(int($FILES / max(int('${ms:-0}'), 1) * 1000))")
 echo "with the Finder tags read afterwards: $(python3 -c "print(round($end - $start, 2))") s in all"
-# The same files read name by name (without the bulk call), to compare.
-LASERDOT_NO_BULK=1 "$d/laserdot" --db "$d/nobulk/index.db" index "$d/files" | tail -1 | sed 's/^/without bulk reading: /'
-echo "indexed 100000 files, searchable after ${ms} ms: $rate files/s"
+# Bulk folder reading against name by name, fairly: the files are in the
+# disk cache now (they were just read), and each way runs twice,
+# alternating; the faster scan of each counts.
+scan_ms() { grep -oE 'scan [0-9]+ ms' | grep -oE '[0-9]+'; }
+best_bulk=999999; best_names=999999
+for round in 1 2; do
+  rm -rf "$d/cmp"
+  b=$("$d/laserdot" --db "$d/cmp/bulk.db" index "$d/files" | tail -1 | scan_ms)
+  n=$(LASERDOT_NO_BULK=1 "$d/laserdot" --db "$d/cmp/names.db" index "$d/files" | tail -1 | scan_ms)
+  echo "round $round: scan ${b} ms in bulk, ${n} ms name by name"
+  [ "$b" -lt "$best_bulk" ] && best_bulk=$b
+  [ "$n" -lt "$best_names" ] && best_names=$n
+done
+echo "reading folders: ${best_bulk} ms in bulk, ${best_names} ms name by name ($(python3 -c "print(round($best_names / max($best_bulk, 1), 1))")× faster in bulk)"
+echo "indexed $FILES files, searchable after ${ms} ms: $rate files/s"
 worst=0
 for q in "invoice pdf" "beach jpg" "kind:video" "report*" "notes 12"; do
   out=$("$d/laserdot" --db "$d/data/index.db" --local search "$q" 2>&1 || true)
@@ -67,8 +82,8 @@ idle=$(daemon_rss || echo 0)
 "$d/laserdot" --db "$d/mem/index.db" status | grep -E "laserdotd|index:" || true
 kill "$dpid" 2>/dev/null || true
 peak_mb=$((peak / 1024)); idle_mb=$((${idle:-0} / 1024))
-echo "daemon memory: peak $peak_mb MB while indexing 100000 files, $idle_mb MB after (target 150 MB)"
+echo "daemon memory: peak $peak_mb MB while indexing $FILES files, $idle_mb MB after (target 150 MB)"
 python3 -c "import sys; sys.exit(0 if $rate >= 10000 else 1)" || { echo "::error::indexing too slow: $rate files/s"; exit 1; }
 python3 -c "import sys; sys.exit(0 if $worst < 50 else 1)" || { echo "::error::a search took $worst ms"; exit 1; }
-[ "$peak_mb" -lt 400 ] || { echo "::error::the daemon used $peak_mb MB"; exit 1; }
+[ "$peak_mb" -lt "$MAX_MB" ] || { echo "::error::the daemon used $peak_mb MB"; exit 1; }
 rm -rf "$d"

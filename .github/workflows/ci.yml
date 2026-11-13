@@ -73,6 +73,8 @@ jobs:
           done
           ditto -c -k --keepParent app/build/Laserdot.app Laserdot-unsigned.zip
           app/scripts/make-dmg.sh "$PWD/Laserdot.dmg"
+      - name: The real app signed the way an update is on a user's Mac (its own key), then launched
+        run: (cd app && LASERDOT_APP="$PWD/build/Laserdot.app" swift test --filter testSignsTheRealBuiltApp)
       - name: Launch the bundled app, as a user would (smoke test)
         run: |
           d=$(mktemp -d)

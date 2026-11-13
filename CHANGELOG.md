@@ -3,6 +3,16 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.6
+
+- Columns can be made wider or narrower: drag the line before a column's name. Laserdot remembers the widths.
+- A Last Opened column: when you last opened the file from Laserdot (click it to sort).
+- Thumbnail size: the slider next to the view buttons, or ⌘+ and ⌘−.
+- Laserdot checks every hour that it has not missed a change, and catches up if it has; the menu-bar menu says
+  whether it is watching for changes.
+- What's New after an update lists everything since your last version, and stays quiet for fixes you would not
+  notice.
+
 ## 0.9.5
 
 - Columns, like Finder: the view switch at the top (or ⌘J) adds a list with Name, Date Modified, Size, Kind and Date
