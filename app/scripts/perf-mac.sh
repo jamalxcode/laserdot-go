@@ -64,7 +64,8 @@ echo "slowest search: $worst ms"
 go build -o "$d/laserdotd" ./cmd/laserdotd
 "$d/laserdotd" --db "$d/mem/index.db" > "$d/daemon.log" 2>&1 &
 dpid=$!
-for i in $(seq 1 50); do "$d/laserdot" --db "$d/mem/index.db" status > /dev/null 2>&1 && break; sleep 0.2; done
+# Wait for the daemon itself (status also works without it, from the file).
+for i in $(seq 1 100); do "$d/laserdot" --db "$d/mem/index.db" status 2>/dev/null | grep -q '(pid ' && break; sleep 0.2; done
 "$d/laserdot" --db "$d/mem/index.db" index "$d/files" > /dev/null &
 ipid=$!
 peak=0
@@ -79,7 +80,9 @@ done
 wait "$ipid" || true
 for q in "invoice pdf" "beach jpg" "kind:video"; do "$d/laserdot" --db "$d/mem/index.db" search "$q" > /dev/null 2>&1 || true; done
 idle=$(daemon_rss || echo 0)
-"$d/laserdot" --db "$d/mem/index.db" status | grep -E "laserdotd|index:" || true
+entries=$("$d/laserdot" --db "$d/mem/index.db" status | grep -oE '\(([0-9]+) entries\)' | grep -oE '[0-9]+' || echo 0)
+echo "the daemon indexed $entries entries"
+[ "${entries:-0}" -ge "$FILES" ] || { echo "::error::the daemon did not index the files ($entries entries): the memory number is meaningless"; exit 1; }
 kill "$dpid" 2>/dev/null || true
 peak_mb=$((peak / 1024)); idle_mb=$((${idle:-0} / 1024))
 echo "daemon memory: peak $peak_mb MB while indexing $FILES files, $idle_mb MB after (target 150 MB)"
