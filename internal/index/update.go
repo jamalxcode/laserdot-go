@@ -3,6 +3,7 @@ package index
 import (
 	"errors"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -628,7 +629,15 @@ func diffDir(s *Store, dir uint32, recursive bool, opts scan.Options, out *diff,
 	if !s.IsRoot(dir) && scan.IsMountPoint(path) {
 		return
 	}
-	list, err := scan.ListDir(path, opts)
+	// The folder's own time, read before its entries so a file added in
+	// between makes it differ next time: once its entries match the disk
+	// again the time is recorded (the folder-time check compares it; a root
+	// has no parent to record it).
+	self, err := os.Lstat(path)
+	var list []scan.Entry
+	if err == nil {
+		list, err = scan.ListDir(path, opts)
+	}
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) || isNotDir(err) {
 			if s.IsRoot(dir) {
@@ -640,6 +649,9 @@ func diffDir(s *Store, dir uint32, recursive bool, opts scan.Options, out *diff,
 		return // unreadable: leave as is
 	}
 	out.scanned++
+	if self.ModTime().Unix() != s.Modified(dir) {
+		out.dirMtimes = append(out.dirMtimes, found{dir, scan.Entry{Modified: self.ModTime().Unix()}})
+	}
 	existing := map[string]uint32{}
 	for _, c := range s.Children(dir) {
 		existing[s.Name(c)] = c

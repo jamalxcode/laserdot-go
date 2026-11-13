@@ -31,6 +31,11 @@ type WatchEvents struct {
 // restarted when that happens.
 var CatchUpEvery = time.Hour
 
+// QuickCheckEvery: how often every indexed folder's time is compared with
+// the disk (QuickCheck), so a missed new, deleted or renamed file shows up
+// within minutes rather than at the hourly catch-up.
+var QuickCheckEvery = 5 * time.Minute
+
 // WatcherHealth is what the catch-ups found.
 type WatcherHealth struct {
 	// LastCatchUp: Unix seconds of the last catch-up (0: none yet).
@@ -159,6 +164,7 @@ func (w *Watcher) run(ev WatchEvents) {
 		}
 		lastPending := time.Now()
 		lastCatchUp := time.Now()
+		lastQuick := time.Now()
 		for !w.stopped() && !w.restart.Load() {
 			b, ok := wt.NextBatch(500 * time.Millisecond)
 			if ok && len(b.Changes) > 0 {
@@ -176,9 +182,18 @@ func (w *Watcher) run(ev WatchEvents) {
 				lastPending = time.Now()
 				report(w.ld.CheckPending())
 			}
-			if time.Since(lastCatchUp) > CatchUpEvery && (ev.CanCatchUp == nil || ev.CanCatchUp()) {
-				lastCatchUp = time.Now()
-				u, err := w.ld.Refresh()
+			full := time.Since(lastCatchUp) > CatchUpEvery
+			quick := time.Since(lastQuick) > QuickCheckEvery
+			if (full || quick) && (ev.CanCatchUp == nil || ev.CanCatchUp()) {
+				lastQuick = time.Now()
+				var u UpdateStats
+				var err error
+				if full {
+					lastCatchUp = time.Now()
+					u, err = w.ld.Refresh()
+				} else {
+					u, err = w.ld.QuickCheck()
+				}
 				report(u, err)
 				w.health.last.Store(time.Now().Unix())
 				if n := u.Added + u.Removed + u.Renamed + u.Modified; err == nil && n > 0 {

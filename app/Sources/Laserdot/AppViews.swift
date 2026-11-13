@@ -95,6 +95,7 @@ struct MainWindow: View {
             .padding(.vertical, 6)
         }
         .frame(minWidth: 640, minHeight: 420)
+        .onAppear { LaunchTimer.mark("window") }
         // SwiftUI's way to open Settings, kept for the menu-bar menu, `>`
         // commands and the app menu.
         .onAppear { delegate.openSettingsAction = { openSettings() } }

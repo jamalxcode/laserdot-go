@@ -24,6 +24,14 @@ final class UpdateController: ObservableObject {
     private let updater = Updater()
     private var timer: Timer?
     private var panel: NSPanel?
+    /// The running helper (Cancel stops it), and which check is current: a
+    /// cancelled check's result is ignored.
+    private var helperApp: NSRunningApplication?
+    /// The downloaded update, already signed and copied beside the app, so
+    /// installing it (on quit, or from the prompt) is a rename.
+    private var staged: StagedUpdate?
+    private var staging = false
+    private var generation = 0
     /// Slow work (unpacking, signing, copying) runs here, never on the main
     /// thread, so Laserdot keeps answering while it updates.
     private let work = DispatchQueue(label: "laserdot.update", qos: .userInitiated)
@@ -75,8 +83,24 @@ final class UpdateController: ObservableObject {
         panel?.orderOut(nil)
     }
 
+    /// Cancel: stop the helper while it checks or downloads. Nothing is
+    /// left behind (a download is moved into place only once complete); the
+    /// next check starts over.
+    func cancelCheck() {
+        guard checking else { return }
+        generation += 1
+        helperApp?.forceTerminate()
+        helperApp = nil
+        checking = false
+        try? FileManager.default.removeItem(at: UpdateProgress.defaultURL)
+        setStep(nil)
+    }
+
     /// The self-test: the window at a given step, without a real update.
-    func showStepForTests(_ s: UpdateStep?, version: String? = nil) { setStep(s, version: version, show: true) }
+    func showStepForTests(_ s: UpdateStep?, version: String? = nil) {
+        checking = s?.canHide == true
+        setStep(s, version: version, show: true)
+    }
     var progressPanelForTests: NSWindow? { panel }
 
     func offerGoBack() {
@@ -93,6 +117,8 @@ final class UpdateController: ObservableObject {
             let leaving = updater.currentVersion?.short
             let target = try updater.goBack()
             UserDefaults.standard.set(leaving, forKey: Self.skipKey)
+            updater.discardStaged()
+            staged = nil
             ready = nil
             Updater.relaunch(target)
             NSApp.terminate(nil)
@@ -105,6 +131,10 @@ final class UpdateController: ObservableObject {
     /// look again whether a day has passed.
     func startDailyChecks() {
         if let s = UpdateStatus.load(), s.state == .downloaded { adopt(s) }
+        if ready == nil {
+            // Staged copies of versions now installed (or skipped) go.
+            work.async { [updater] in _ = updater.stagedUpdate() }
+        }
         checkIfDue()
         timer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in self?.checkIfDue() }
     }
@@ -134,24 +164,33 @@ final class UpdateController: ObservableObject {
         cfg.activates = interactive
         cfg.createsNewApplicationInstance = true
         cfg.addsToRecentItems = false
-        NSWorkspace.shared.openApplication(at: helper, configuration: cfg) { [weak self] _, error in
+        generation += 1
+        let gen = generation
+        NSWorkspace.shared.openApplication(at: helper, configuration: cfg) { [weak self] app, error in
             DispatchQueue.main.async {
-                if let error {
-                    self?.checking = false
-                    self?.setStep(nil)
-                    if interactive { self?.alert(L("update.failed"), info: error.localizedDescription) }
+                guard let self, gen == self.generation else {
+                    app?.forceTerminate() // cancelled before it started
                     return
                 }
-                self?.waitForResult(since: started, interactive: interactive)
+                self.helperApp = app
+                if let error {
+                    self.checking = false
+                    self.setStep(nil)
+                    if interactive { self.alert(L("update.failed"), info: error.localizedDescription) }
+                    return
+                }
+                self.waitForResult(since: started, interactive: interactive, generation: gen)
             }
         }
     }
 
     /// The helper writes update-progress.json as it goes and update.json
     /// when it is done; both are read a few times a second.
-    private func waitForResult(since: Date, interactive: Bool, waited: TimeInterval = 0) {
+    private func waitForResult(since: Date, interactive: Bool, generation gen: Int, waited: TimeInterval = 0) {
+        guard gen == generation else { return } // cancelled
         if let s = UpdateStatus.load(), s.checkedAt >= since.addingTimeInterval(-1) {
             checking = false
+            helperApp = nil
             report(s, interactive: interactive)
             return
         }
@@ -167,7 +206,7 @@ final class UpdateController: ObservableObject {
         }
         let tick = 0.25
         DispatchQueue.main.asyncAfter(deadline: .now() + tick) { [weak self] in
-            self?.waitForResult(since: since, interactive: interactive, waited: waited + tick)
+            self?.waitForResult(since: since, interactive: interactive, generation: gen, waited: waited + tick)
         }
     }
 
@@ -204,6 +243,31 @@ final class UpdateController: ObservableObject {
             return
         }
         ready = s
+        stageIfNeeded()
+    }
+
+    /// Get the downloaded update ready to swap in, in the background, so
+    /// quitting installs it at once (with automatic updates on).
+    private func stageIfNeeded() {
+        guard autoCheck, !staging, let s = ready, let file = s.file, staged?.version.short != s.latest else { return }
+        staging = true
+        work.async { [updater] in
+            // One left by an earlier run, else a fresh one.
+            var result = updater.stagedUpdate()
+            if result?.version.short != s.latest {
+                result = (try? updater.prepare(file: URL(fileURLWithPath: file))).flatMap { try? updater.stage($0) }
+            }
+            DispatchQueue.main.async {
+                self.staging = false
+                if self.ready?.latest == s.latest { self.staged = result }
+            }
+        }
+    }
+
+    /// The staged update for the ready version, if there is one.
+    private var stagedForReady: StagedUpdate? {
+        guard let st = staged, st.version.short == ready?.latest else { return nil }
+        return st
     }
 
     /// Quitting with a downloaded update installs it, so the next launch is
@@ -212,12 +276,22 @@ final class UpdateController: ObservableObject {
     /// called on the main thread when it is over. False: nothing to install.
     func installOnQuit(done: @escaping () -> Void) -> Bool {
         guard autoCheck, let s = ready, let file = s.file else { return false }
+        if let st = stagedForReady {
+            // Ready ahead of time: a rename, done before Laserdot closes.
+            ready = nil
+            stopDaemon()
+            _ = try? updater.finishStaged(st)
+            return false
+        }
         ready = nil
         setStep(.verifying, version: s.latest, show: true)
         let stop = stopDaemon
         work.async { [updater] in
             stop()
-            if let c = try? updater.prepare(file: URL(fileURLWithPath: file)) {
+            if let st = updater.stagedUpdate(), st.version.short == s.latest {
+                // Staging finished meanwhile.
+                _ = try? updater.finishStaged(st)
+            } else if let c = try? updater.prepare(file: URL(fileURLWithPath: file)) {
                 _ = try? updater.install(c) { step in
                     DispatchQueue.main.async { self.setStep(step == .signing ? .signing : .installing) }
                 }
@@ -235,11 +309,60 @@ final class UpdateController: ObservableObject {
         // Not while an install is already under way.
         guard step?.canHide != false, let s = ready, let file = s.file else { return }
         NSApp.activate(ignoringOtherApps: true)
+        if let st = stagedForReady {
+            confirmStaged(s, st)
+            return
+        }
         // Unpack and check it first, so the prompt can say what is new.
         setStep(.verifying, version: s.latest, show: true)
         work.async { [updater] in
             let result = Result { try updater.prepare(file: URL(fileURLWithPath: file)) }
             DispatchQueue.main.async { self.confirmInstall(s, result) }
+        }
+    }
+
+    /// The prompt for an update made ready ahead of time; installing it is
+    /// a rename, then Laserdot restarts.
+    private func confirmStaged(_ s: UpdateStatus, _ st: StagedUpdate) {
+        guard askToInstall(s, app: st.app, fallbackNotes: Updater.whatsNew(in: st.app)) else { return }
+        setStep(.installing, version: s.latest, show: true)
+        let stop = stopDaemon
+        work.async { [updater] in
+            stop()
+            let result = Result { try updater.finishStaged(st) }
+            DispatchQueue.main.async { self.relaunchAfter(result) }
+        }
+    }
+
+    /// The install prompt, with what is new since this version.
+    private func askToInstall(_ s: UpdateStatus, app: URL, fallbackNotes: String?) -> Bool {
+        let a = NSAlert()
+        a.messageText = String(format: L("update.available"), s.latest ?? "")
+        var info = String(format: L("update.installText"), currentVersion)
+        // Everything new since this version, not only the last release.
+        if let notes = Updater.notes(in: app, since: updater.currentVersion?.short) ?? fallbackNotes {
+            info = notes + "\n\n" + info
+        }
+        a.informativeText = info
+        a.addButton(withTitle: L("update.install"))
+        a.addButton(withTitle: L("drive.notNow"))
+        return a.runFront() == .alertFirstButtonReturn
+    }
+
+    private func relaunchAfter(_ result: Result<URL, Error>) {
+        switch result {
+        case let .success(target):
+            ready = nil // installed: quitting must not install it again
+            staged = nil
+            setStep(.restarting)
+            // A moment so "Restarting" is seen before the window goes.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                Updater.relaunch(target)
+                NSApp.terminate(nil)
+            }
+        case let .failure(error):
+            setStep(nil)
+            alert(L("update.failed"), info: (error as? LocalizedError)?.errorDescription ?? "\(error)")
         }
     }
 
@@ -253,17 +376,7 @@ final class UpdateController: ObservableObject {
             alert(L("update.failed"), info: (error as? LocalizedError)?.errorDescription ?? "\(error)")
             return
         }
-        let a = NSAlert()
-        a.messageText = String(format: L("update.available"), s.latest ?? "")
-        var info = String(format: L("update.installText"), currentVersion)
-        // Everything new since this version, not only the last release.
-        if let notes = Updater.notes(in: candidate.app, since: updater.currentVersion?.short) ?? candidate.whatsNew {
-            info = notes + "\n\n" + info
-        }
-        a.informativeText = info
-        a.addButton(withTitle: L("update.install"))
-        a.addButton(withTitle: L("drive.notNow"))
-        guard a.runFront() == .alertFirstButtonReturn else {
+        guard askToInstall(s, app: candidate.app, fallbackNotes: candidate.whatsNew) else {
             updater.discard(candidate)
             setStep(nil)
             return
@@ -299,21 +412,7 @@ final class UpdateController: ObservableObject {
                     DispatchQueue.main.async { self.setStep(step == .signing ? .signing : .installing) }
                 }
             }
-            DispatchQueue.main.async {
-                switch result {
-                case let .success(target):
-                    self.ready = nil // installed: quitting must not install it again
-                    self.setStep(.restarting)
-                    // A moment so "Restarting" is seen before the window goes.
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                        Updater.relaunch(target)
-                        NSApp.terminate(nil)
-                    }
-                case let .failure(error):
-                    self.setStep(nil)
-                    self.alert(L("update.failed"), info: (error as? LocalizedError)?.errorDescription ?? "\(error)")
-                }
-            }
+            DispatchQueue.main.async { self.relaunchAfter(result) }
         }
     }
 

@@ -93,7 +93,7 @@ extension AppDelegate {
         panel.nameFieldStringValue = "Laserdot diagnostics.txt"
         panel.message = L("diagnostics.message")
         guard panel.runFront() == .OK, let url = panel.url else { return }
-        let (launch, ready) = (launchMS, readyMS)
+        let (launch, ready, steps) = (launchMS, readyMS, LaunchTimer.summary)
         DispatchQueue.global().async {
             let s = engine.status()
             let info = ProcessInfo.processInfo
@@ -111,6 +111,7 @@ extension AppDelegate {
                 "indexing now: \(s.indexing.map { "\($0.phase) \($0.done)/\($0.total)" } ?? "no")",
                 "drives: \(((try? engine.drives()) ?? []).map(\.state).joined(separator: ", "))",
                 "launch: \(launch) ms to the menu bar, \(ready) ms until the index answered",
+                "launch steps (ms since start): \(steps)",
                 "couldn't read: \((try? engine.unreadable())?.total ?? 0) items",
                 "",
                 "Recent laserdotd log (paths removed):",

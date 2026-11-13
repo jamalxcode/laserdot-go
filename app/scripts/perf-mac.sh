@@ -69,24 +69,50 @@ for i in $(seq 1 100); do "$d/laserdot" --db "$d/mem/index.db" status 2>/dev/nul
 "$d/laserdot" --db "$d/mem/index.db" index "$d/files" > /dev/null &
 ipid=$!
 peak=0
+fpeak=0
 # On macOS laserdotd re-executes itself inside its sandbox, so the
 # process to measure is the largest one started with this --db.
-daemon_rss() { ps -axo rss=,command= | grep "laserdotd --db $d/mem/index.db" | grep -v grep | awk '{print $1}' | sort -n | tail -1; }
+daemon_ps() { ps -axo rss=,pid=,command= | grep "laserdotd --db $d/mem/index.db" | grep -v grep | sort -n | tail -1; }
+daemon_rss() { daemon_ps | awk '{print $1}'; }
+# Resident memory counts file pages macOS can drop for free (the mapped
+# index); the physical footprint is what Activity Monitor's Memory column
+# shows: memory only this process holds. In KB, 0 when it cannot be read.
+footprint_kb() {
+  pid=$(daemon_ps | awk '{print $2}')
+  [ -n "$pid" ] || { echo 0; return; }
+  vmmap --summary "$pid" 2>/dev/null | awk '/^Physical footprint:/ {
+    v=$3; u=substr(v, length(v)); n=substr(v, 1, length(v)-1)+0
+    if (u=="K") n=n; else if (u=="M") n=n*1024; else if (u=="G") n=n*1024*1024; else n=v/1024
+    printf "%d\n", n; exit }' | grep . || echo 0
+}
+n=0
 while kill -0 "$ipid" 2>/dev/null; do
   rss=$(daemon_rss || echo 0)
   [ "${rss:-0}" -gt "$peak" ] && peak=$rss
+  # The footprint is slower to read: once a second.
+  if [ $((n % 5)) -eq 0 ]; then
+    fp=$(footprint_kb)
+    [ "${fp:-0}" -gt "$fpeak" ] && fpeak=$fp
+  fi
+  n=$((n + 1))
   sleep 0.2
 done
 wait "$ipid" || true
 for q in "invoice pdf" "beach jpg" "kind:video"; do "$d/laserdot" --db "$d/mem/index.db" search "$q" > /dev/null 2>&1 || true; done
+sleep 5 # the daemon hands freed memory back a moment after indexing
 idle=$(daemon_rss || echo 0)
+fidle=$(footprint_kb)
 entries=$("$d/laserdot" --db "$d/mem/index.db" status | grep -oE '\(([0-9]+) entries\)' | grep -oE '[0-9]+' || echo 0)
 echo "the daemon indexed $entries entries"
 [ "${entries:-0}" -ge "$FILES" ] || { echo "::error::the daemon did not index the files ($entries entries): the memory number is meaningless"; exit 1; }
 kill "$dpid" 2>/dev/null || true
 peak_mb=$((peak / 1024)); idle_mb=$((${idle:-0} / 1024))
-echo "daemon memory: peak $peak_mb MB while indexing $FILES files, $idle_mb MB after (target 150 MB)"
+fpeak_mb=$((fpeak / 1024)); fidle_mb=$((${fidle:-0} / 1024))
+echo "daemon memory (Activity Monitor's Memory column, physical footprint): peak $fpeak_mb MB while indexing $FILES files, $fidle_mb MB after"
+echo "daemon resident memory (includes index pages macOS can drop): peak $peak_mb MB, $idle_mb MB after"
+# The limit applies to the footprint when it can be read, else to resident memory.
+limit_mb=$fpeak_mb; [ "$fpeak_mb" -gt 0 ] || limit_mb=$peak_mb
 python3 -c "import sys; sys.exit(0 if $rate >= 10000 else 1)" || { echo "::error::indexing too slow: $rate files/s"; exit 1; }
 python3 -c "import sys; sys.exit(0 if $worst < 50 else 1)" || { echo "::error::a search took $worst ms"; exit 1; }
-[ "$peak_mb" -lt "$MAX_MB" ] || { echo "::error::the daemon used $peak_mb MB"; exit 1; }
+[ "$limit_mb" -lt "$MAX_MB" ] || { echo "::error::the daemon used $limit_mb MB"; exit 1; }
 rm -rf "$d"

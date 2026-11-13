@@ -13,6 +13,8 @@ import SwiftUI
 struct LaserdotApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var delegate
 
+    init() { LaunchTimer.mark("app") }
+
     var body: some Scene {
         WindowGroup("Laserdot", id: "main") {
             MainWindow(delegate: delegate, updates: delegate.updates)
@@ -73,6 +75,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     @Published private(set) var hotKeyChoice = HotKeyChoice.saved
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        LaunchTimer.mark("launched")
         let db = Paths.defaultDbPath
         let sockets = Paths.socketDir(forDb: db)
         try? FileManager.default.createDirectory(atPath: sockets, withIntermediateDirectories: true)
@@ -88,9 +91,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         self.engine = engine
         let model = SearchModel(engine: engine)
         self.model = model
+        LaunchTimer.mark("model")
         registerHotKey(prompt: !SelfTest.active)
+        LaunchTimer.mark("hotkey")
         model.onStatus = { [weak self] status in
-            if let self, self.readyMS < 0, status.running { self.readyMS = msSinceProcessStart() }
+            if let self, self.readyMS < 0, status.running {
+                self.readyMS = msSinceProcessStart()
+                LaunchTimer.mark("daemon")
+            }
             self?.show(status)
             if !SelfTest.active { self?.indexDefaultsOnce(status) }
         }
@@ -121,6 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             askPermissionsThenStart()
         }
         launchMS = msSinceProcessStart()
+        LaunchTimer.mark("ready")
         if let out = SelfTest.outDir {
             // CI: drive the real app and report what it shows (SelfTest.swift).
             selfTest = SelfTestRunner(app: self, out: out)

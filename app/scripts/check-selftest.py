@@ -118,6 +118,7 @@ check(srt["sizes"] == sorted(srt["sizes"], reverse=True) and len(srt["sizes"]) >
 # Thumbnails: the grid shows the same results, several to a row.
 g = steps["grid"]
 check(g["grid"] is True and len(g["results"]) >= 3, f"the grid shows the images (got {g['results']})")
+check(len(g["sections"]) == 1 and g["sections"][0]["title"] == "", f"the grid is one plain grid, no Top Hit or kind sections (got {g['sections']})")
 check(g["grid_columns"] >= 2, f"several thumbnails to a row (got {g['grid_columns']})")
 check(steps["multi"]["grid"] is False, "back to the list")
 gb = steps["gridbig"]
@@ -211,6 +212,7 @@ check(any(p.endswith("/Desktop") for p in places) and any(p.endswith("/Documents
 print(f"info ready to search: {report.get('ready_ms')} ms after start")
 launch = report.get("launch_ms", -1)
 print(f"info cold launch to ready: {launch} ms (target < 300 ms on a real Mac)")
+print(f"info launch steps (ms since start): {report.get('launch_phases', '')}")
 check(0 < launch < 5000, f"the app is ready in under 5 s on CI (got {launch} ms)")
 
 # A file deleted behind Laserdot's back leaves the results; Refresh works.
@@ -233,7 +235,8 @@ check("update-progress.png" in report["screenshots"], "screenshot update-progres
 detail = report.get("update_detail", "")
 check(detail.count("MB") == 2 or detail.count("ميغا") == 2 or len(detail) > 6, f"the update window says how much is downloaded (got {detail!r})")
 check("44" in report.get("update_menu", ""), f"the menu shows the download percentage (got {report.get('update_menu')!r})")
-check(report.get("update_window_closes") is True, "the update window closes when the update is over")
+check(report.get("update_cancelled") is True, "Cancel stops a download")
+check(report.get("update_window_closes") is True, "the update window closes when the download is cancelled")
 
 # The empty box shows what was opened.
 home = steps["home"]

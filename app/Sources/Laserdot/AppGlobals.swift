@@ -87,3 +87,14 @@ func msSinceProcessStart() -> Int {
     let started = Double(t.tv_sec) + Double(t.tv_usec) / 1e6
     return Int((Date().timeIntervalSince1970 - started) * 1000)
 }
+
+/// How long each launch step took, in ms since the process started (Save
+/// Diagnostics and the self-test show them; the main thread only).
+enum LaunchTimer {
+    private(set) static var marks: [(name: String, ms: Int)] = []
+    static func mark(_ name: String) {
+        guard !marks.contains(where: { $0.name == name }) else { return }
+        marks.append((name, msSinceProcessStart()))
+    }
+    static var summary: String { marks.map { "\($0.name) \($0.ms)" }.joined(separator: ", ") }
+}

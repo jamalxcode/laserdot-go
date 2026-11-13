@@ -51,9 +51,9 @@ final class SearchModel: ObservableObject {
         return h
     }
     /// Every result of the last answer, before sections were capped.
-    private var allHits: [Hit] = []
+    var allHits: [Hit] = []
     /// Sections whose "Show all" was clicked.
-    private var expanded = Set<String>()
+    var expanded = Set<String>()
     /// The user is working with the results (moved with ↑/↓ or clicked a
     /// row) rather than typing: Space opens Quick Look, as in Finder.
     /// Typing again (the query changes) ends it.
@@ -71,7 +71,7 @@ final class SearchModel: ObservableObject {
     var commandProvider: (() -> [ActionItem])?
     /// "Indexing “Home”… 45%", while a folder is first indexed.
     @Published private(set) var progressText: String?
-    private var progressTimer: Timer?
+    var progressTimer: Timer?
     /// The overlay shrinks to a slim bar when there is nothing to show.
     @Published private(set) var compact = true
     @Published private(set) var problem: Problem?
@@ -88,7 +88,7 @@ final class SearchModel: ObservableObject {
         didSet {
             UserDefaults.standard.set(viewMode.rawValue, forKey: ResultsView.key)
             if viewMode != oldValue {
-                // Columns are one flat list; the others group by kind.
+                // Columns and the grid are one flat list; the list groups by kind.
                 let current = selected?.path
                 (results, sections) = arranged(allHits)
                 selection = results.firstIndex { $0.path == current } ?? 0
@@ -154,12 +154,12 @@ final class SearchModel: ObservableObject {
     }
     /// Every filter, in the app's language: the bundled registry until the
     /// daemon answers.
-    @Published private var allFilters = filters(lang: appLang)
+    @Published var allFilters = filters(lang: appLang)
     /// The cheat-sheet section for the token under the caret (§8.9.6).
     @Published private(set) var currentSection: String?
     /// Guidance calls (hint, section, filters) go to the daemon on a queue of
     /// their own, so they never wait behind a search.
-    private let guideQueue = DispatchQueue(label: "laserdot.guide", qos: .userInitiated)
+    let guideQueue = DispatchQueue(label: "laserdot.guide", qos: .userInitiated)
 
     /// Cheat-sheet entries shown, in order.
     var cheatEntries: [FilterInfo] {
@@ -202,10 +202,10 @@ final class SearchModel: ObservableObject {
     /// Connected, and nothing is indexed yet (first launch).
     var onNothingIndexed: (() -> Void)?
     let engine: Engine
-    private var generation = 0
-    private let queue = DispatchQueue(label: "laserdot.search", qos: .userInitiated)
+    var generation = 0
+    let queue = DispatchQueue(label: "laserdot.search", qos: .userInitiated)
     /// Indexing runs here, one folder after another, never ahead of searches.
-    private let indexQueue = DispatchQueue(label: "laserdot.index", qos: .utility)
+    let indexQueue = DispatchQueue(label: "laserdot.index", qos: .utility)
 
     init(engine: Engine) {
         self.engine = engine
@@ -213,7 +213,7 @@ final class SearchModel: ObservableObject {
     }
 
     /// Offset of the caret in Unicode scalars, as the daemon counts spans.
-    private var cursor: Int { query.unicodeScalars.count }
+    var cursor: Int { query.unicodeScalars.count }
 
     func connect() {
         let engine = self.engine
@@ -295,7 +295,7 @@ final class SearchModel: ObservableObject {
         }
     }
 
-    private func apply(_ outcome: Result<Results, Error>) {
+    func apply(_ outcome: Result<Results, Error>) {
         searching = false
         resultsID &+= 1
         coaching = []
@@ -332,7 +332,7 @@ final class SearchModel: ObservableObject {
         updateCompact()
     }
 
-    private func updateCompact() {
+    func updateCompact() {
         compact = query.isEmpty && results.isEmpty && !showCheatSheet && !showActions
     }
 
@@ -369,7 +369,7 @@ final class SearchModel: ObservableObject {
     // MARK: editing
 
     /// Replace Unicode-scalar range `start..<end` of the query.
-    private func replace(_ start: Int, _ end: Int, with text: String) {
+    func replace(_ start: Int, _ end: Int, with text: String) {
         var scalars = Array(query.unicodeScalars)
         let s = max(0, min(start, scalars.count))
         let e = max(s, min(end, scalars.count))
@@ -406,7 +406,7 @@ final class SearchModel: ObservableObject {
 
     /// More results than were fetched: scrolling to the end loads them.
     var canLoadMore: Bool { !isHome && !isCommandMode && !allHits.isEmpty && UInt64(allHits.count) < total }
-    private var loadingMore = false
+    var loadingMore = false
 
     func loadMore() {
         guard canLoadMore, !loadingMore else { return }
@@ -440,9 +440,13 @@ final class SearchModel: ObservableObject {
         }
     }
 
-    /// Sections by kind when sorted by relevance; one list in the chosen
-    /// order otherwise.
-    private func arranged(_ hits: [Hit]) -> ([Hit], [ResultSection]) {
+    /// Sections by kind in the list sorted by relevance; one list in the
+    /// chosen order otherwise. Columns and the grid are always one list, as
+    /// in Finder (the grid keeps the relevance order, best first, untitled).
+    func arranged(_ hits: [Hit]) -> ([Hit], [ResultSection]) {
+        if viewMode == .grid && sort == .relevance {
+            return (hits, hits.isEmpty ? [] : [ResultSection(id: "grid", title: "", range: 0..<hits.count, filter: nil, total: hits.count, hidden: 0)])
+        }
         guard sort != .relevance || viewMode == .columns else { return Self.grouped(hits, expanded: expanded) }
         let title = L("sort.\(sort.rawValue)")
         return (hits, hits.isEmpty ? [] : [ResultSection(id: "sorted", title: title, range: 0..<hits.count, filter: nil, total: hits.count, hidden: 0)])
@@ -489,178 +493,4 @@ final class SearchModel: ObservableObject {
         }
     }
 
-    // MARK: commands (`>`)
-
-    var isCommandMode: Bool { query.hasPrefix(">") }
-
-    var commandEntries: [ActionItem] {
-        let f = query.dropFirst().trimmingCharacters(in: .whitespaces).lowercased()
-        // Titles are localized; the ids (dupes, index, settings, eject…) also
-        // match, so English command names work in every language.
-        return (commandProvider?() ?? []).filter { f.isEmpty || $0.title.lowercased().contains(f) || $0.id.contains(f) }
-    }
-
-    func runCommand(_ i: Int? = nil) {
-        let list = commandEntries
-        let index = i ?? commandIndex
-        guard list.indices.contains(index) else { return }
-        query = ""
-        list[index].run()
-    }
-
-    /// Tab: take the first completion for the word under the caret (§8.2).
-    func acceptCompletion() {
-        guard let c = engine.completions(query: query, cursor: cursor, lang: appLang).first else { return }
-        replace(Int(c.replaceStart), Int(c.replaceEnd), with: c.insert)
-    }
-
-    /// Replace the word containing the error with the suggested fix.
-    func applySuggestion() {
-        guard let p = problem, let fix = p.suggestion else { return }
-        let scalars = Array(query.unicodeScalars)
-        var s = min(p.start, scalars.count)
-        var e = min(max(p.end, s), scalars.count)
-        while s > 0 && !CharacterSet.whitespaces.contains(scalars[s - 1]) { s -= 1 }
-        while e < scalars.count && !CharacterSet.whitespaces.contains(scalars[e]) { e += 1 }
-        replace(s, e, with: fix)
-    }
-
-    func insertFilter(_ key: String) {
-        let sep = query.isEmpty || query.hasSuffix(" ") ? "" : " "
-        query += sep + key + ":"
-    }
-
-    // MARK: coaching, counts (spec §8.3, §8.9.5)
-
-    private func loadCoaching() {
-        let (engine, q, gen) = (self.engine, self.query, self.generation)
-        queue.async { [weak self] in
-            let list = (try? engine.coach(query: q)) ?? []
-            DispatchQueue.main.async {
-                guard let self, gen == self.generation else { return }
-                self.coaching = list
-            }
-        }
-    }
-
-    func follow(_ c: CoachingInfo) {
-        switch c.kind {
-        case "index_folder":
-            if let p = c.path { index(folder: URL(fileURLWithPath: p)) }
-        case "show_syntax":
-            showCheatSheet = true
-        default:
-            if let q = c.query { query = q }
-        }
-    }
-
-    private func loadCounts() {
-        let engine = self.engine
-        queue.async { [weak self] in
-            let list = (try? engine.valueCounts()) ?? []
-            var map: [String: [String: UInt64]] = [:]
-            for v in list { map[v.key, default: [:]][v.value] = v.count }
-            DispatchQueue.main.async { self?.counts = map }
-        }
-    }
-
-
-    // MARK: history and pins (spec §8.6)
-
-    /// Remember a query that was used (a result opened or revealed).
-    /// Opened results rank higher next time (spec §6.2); kept on this Mac.
-    func noteOpened(_ h: Hit) {
-        guard h.volume == nil else { return } // the history covers this Mac's index
-        let (engine, path) = (self.engine, h.path)
-        queue.async { engine.recordOpen(path: path) }
-    }
-
-    func remember() {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return }
-        history.removeAll { $0 == q }
-        history.insert(q, at: 0)
-        history = Array(history.prefix(50))
-        UserDefaults.standard.set(history, forKey: "laserdot.history")
-        historyIndex = -1
-    }
-
-    /// ↑/↓ with no results to move through: walk the history.
-    func recall(_ delta: Int) {
-        // Only from an empty box, or while already walking the history.
-        guard !history.isEmpty, query.isEmpty || historyIndex >= 0 else { return }
-        historyIndex = max(-1, min(history.count - 1, historyIndex + delta))
-        query = historyIndex < 0 ? "" : history[historyIndex]
-    }
-
-    var isPinned: Bool { pinned.contains(query.trimmingCharacters(in: .whitespaces)) }
-
-    func togglePin(_ q: String? = nil) {
-        let q = (q ?? query).trimmingCharacters(in: .whitespaces)
-        guard !q.isEmpty else { return }
-        if let i = pinned.firstIndex(of: q) { pinned.remove(at: i) } else { pinned.append(q) }
-        UserDefaults.standard.set(pinned, forKey: "laserdot.pinned")
-    }
-
-    func index(folder: URL) {
-        let engine = self.engine
-        let path = folder.path
-        let name = folder.lastPathComponent
-        onIndexing?(name)
-        startProgress(name)
-        indexQueue.async { [weak self] in
-            var failure: String?
-            do {
-                try engine.index(path: path)
-            } catch {
-                failure = Self.describe(error)
-            }
-            let status = engine.status()
-            DispatchQueue.main.async {
-                self?.stopProgress()
-                self?.onStatus?(status)
-                if let failure { self?.onIndexFailed?(name, failure) }
-                self?.queryChanged() // run the query again: the folder is in now
-            }
-        }
-    }
-
-    /// Poll the daemon once a second for how far indexing has got.
-    private func startProgress(_ name: String) {
-        progressText = String(format: L("index.running"), name)
-        progressTimer?.invalidate()
-        progressTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
-            guard let self else { return }
-            let engine = self.engine
-            self.guideQueue.async {
-                let p = engine.status().indexing
-                DispatchQueue.main.async {
-                    guard self.progressTimer != nil, let p else { return }
-                    let folder = p.root == FileManager.default.homeDirectoryForCurrentUser.path
-                        ? L("index.home") : URL(fileURLWithPath: p.root).lastPathComponent
-                    if p.phase == "saving", p.total > 0 {
-                        let pct = Int(Double(p.done) / Double(p.total) * 100)
-                        self.progressText = String(format: L("index.progress"), folder, pct)
-                    } else {
-                        self.progressText = String(format: L("index.scanning"), folder)
-                    }
-                }
-            }
-        }
-    }
-
-    private func stopProgress() {
-        progressTimer?.invalidate()
-        progressTimer = nil
-        progressText = nil
-    }
-
-    /// A readable reason for a failed request.
-    static func describe(_ error: Error) -> String {
-        switch error {
-        case LaserdotError.query(let message, _, _, _): return message
-        case LaserdotError.unavailable(let message): return message
-        default: return (error as? LocalizedError)?.errorDescription ?? String(describing: error)
-        }
-    }
 }

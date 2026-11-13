@@ -46,7 +46,7 @@ extension SearchView {
                             }
                         } else {
                         ForEach(model.sections) { section in
-                            if model.sections.count > 1 || section.id != "top" {
+                            if !model.gridView && (model.sections.count > 1 || section.id != "top") {
                                 Text(section.title)
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)

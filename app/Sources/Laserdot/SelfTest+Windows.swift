@@ -84,6 +84,7 @@ extension SelfTestRunner {
     /// The update window part way through a download: a filled bar and
     /// "x MB of y MB" (no real update is fetched).
     func updateWindow(done: @escaping () -> Void) {
+        extra["launch_phases"] = LaunchTimer.summary
         let u = app.updates
         u.showStepForTests(.downloading(received: 18_400_000, total: 41_000_000), version: "9.9.9")
         after(1) {
@@ -93,7 +94,9 @@ extension SelfTestRunner {
             self.extra["update_step"] = u.step?.title ?? ""
             self.extra["update_detail"] = u.step?.detail ?? ""
             self.extra["update_menu"] = u.statusText
-            u.showStepForTests(nil)
+            // Cancel stops the download and closes the window.
+            u.cancelCheck()
+            self.extra["update_cancelled"] = u.step == nil && !u.checking
             self.extra["update_window_closes"] = !(w?.isVisible ?? false)
             done()
         }

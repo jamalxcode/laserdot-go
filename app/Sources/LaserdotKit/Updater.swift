@@ -24,6 +24,7 @@ public enum UpdateError: Error, LocalizedError, Equatable {
     case differentDeveloper(expected: String, found: String)
     case notNotarized(String)
     case installFailed(String)
+    case noProof(String)
 
     public var errorDescription: String? {
         switch self {
@@ -37,6 +38,7 @@ public enum UpdateError: Error, LocalizedError, Equatable {
         case .differentDeveloper(let e, let f): return "the update is signed by another developer (\(f), expected \(e))"
         case .notNotarized(let m): return "macOS does not accept the update (not notarized): \(m)"
         case .installFailed(let m): return "could not install the update: \(m)"
+        case .noProof(let m): return "the update was not installed: \(m)"
         }
     }
 }
@@ -83,6 +85,14 @@ public struct AppVersion: Comparable, CustomStringConvertible, Sendable {
 }
 
 /// An unpacked, checked update ready to install.
+/// An update made ready ahead of time (signed and copied beside where it
+/// goes): installing it is a rename.
+public struct StagedUpdate: Equatable {
+    public let app: URL
+    public let version: AppVersion
+    public let target: URL
+}
+
 public struct UpdateCandidate {
     public let app: URL
     public let version: AppVersion
@@ -119,11 +129,16 @@ public final class Updater {
     /// release's ad hoc signature).
     public let signer: LocalSigner?
     /// Why the last update could not be signed (it was installed anyway).
-    public private(set) var lastSigningError: String?
+    public internal(set) var lastSigningError: String?
+
+    /// Who must have built an update: its proof (ReleaseProof) is checked
+    /// before it is unpacked (nil: no proof needed — tests only).
+    public let proof: ReleaseProof.Identity?
 
     public init(current: URL = Bundle.main.bundleURL, previousDir: URL = Updater.defaultPreviousDir,
-                signer: LocalSigner? = LocalSigner()) {
+                signer: LocalSigner? = LocalSigner(), proof: ReleaseProof.Identity? = .laserdot) {
         self.signer = signer
+        self.proof = proof
         self.previousDir = previousDir
         self.current = current.standardizedFileURL
         let info = NSDictionary(contentsOf: current.appendingPathComponent("Contents/Info.plist"))
@@ -162,6 +177,13 @@ public final class Updater {
     /// Unpack `file` (.dmg, .zip or .app) into a private folder, find the
     /// app and check it. Nothing is installed yet.
     public func prepare(file: URL) throws -> UpdateCandidate {
+        if let proof {
+            do {
+                try ReleaseProof.verify(file: file, identity: proof)
+            } catch let e as ProofError {
+                throw UpdateError.noProof(e.message)
+            }
+        }
         let fm = FileManager.default
         let work = fm.temporaryDirectory.appendingPathComponent("laserdot-update-\(UUID().uuidString)")
         try fm.createDirectory(at: work, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])

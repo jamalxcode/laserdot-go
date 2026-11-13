@@ -731,6 +731,54 @@ func (ld *Laserdot) Refresh() (UpdateStats, error) {
 	return u, nil
 }
 
+// QuickCheck compares every indexed folder's modification time with the
+// disk and lists again only the folders that differ. Adding, removing or
+// renaming a file changes its folder's time, so this finds what the file
+// events missed for one lstat per folder and none per file (a tenth of a
+// full Refresh, or less); changes inside files wait for the hourly Refresh.
+func (ld *Laserdot) QuickCheck() (UpdateStats, error) {
+	stale := ld.staleFolders()
+	if len(stale) == 0 {
+		return UpdateStats{OfflineRoots: []string{}}, nil
+	}
+	changes := make([]Change, len(stale))
+	for i, p := range stale {
+		changes[i] = Change{Path: p}
+	}
+	return ld.applyLocal(changes)
+}
+
+// staleFolders: indexed folders whose time on disk is not the indexed one.
+// A folder that is gone is left to its parent (whose time changed too); a
+// root that is gone is an offline root, kept as it is.
+func (ld *Laserdot) staleFolders() []string {
+	type folder struct {
+		path string
+		mod  int64
+	}
+	var folders []folder
+	ld.mu.RLock()
+	it := ld.store.Live().Iterator()
+	for it.HasNext() {
+		id := it.Next()
+		if ld.store.IsDir(id) && !ld.store.IsSymlink(id) {
+			folders = append(folders, folder{ld.store.Path(id), ld.store.Modified(id)})
+		}
+	}
+	ld.mu.RUnlock()
+	var stale []string
+	for _, f := range folders {
+		info, err := os.Lstat(f.path)
+		if err != nil || !info.IsDir() {
+			continue
+		}
+		if info.ModTime().Unix() != f.mod {
+			stale = append(stale, f.path)
+		}
+	}
+	return stale
+}
+
 // CheckPending re-examines files that were still being written; any that
 // are now stable get probed (§2.6.3).
 func (ld *Laserdot) CheckPending() (UpdateStats, error) {

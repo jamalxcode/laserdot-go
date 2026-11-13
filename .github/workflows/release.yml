@@ -54,6 +54,12 @@ jobs:
     needs: decide
     if: needs.decide.outputs.go == 'true'
     runs-on: macos-latest
+    permissions:
+      contents: write
+      # GitHub's keyless proof that this workflow built the disk image; the
+      # updater installs nothing without it (spec 7.4, ReleaseProof.swift).
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -100,6 +106,20 @@ jobs:
           kill -0 "$pid" || { cat "$d/app.log"; echo "::error::Laserdot.app exited at launch"; exit 1; }
           kill "$pid"
           pkill -f "$d/Laserdot.app/Contents/MacOS/laserdotd" || true
+      - name: GitHub vouches for the disk image (keyless build proof)
+        id: attest
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: Laserdot-${{ needs.decide.outputs.version }}.dmg
+      - name: Laserdot accepts the proof (else nothing is published)
+        env:
+          LASERDOT_PROOF_FILE: ${{ github.workspace }}/Laserdot-${{ needs.decide.outputs.version }}.dmg
+          LASERDOT_PROOF_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
+          LASERDOT_PROOF_WORKFLOW: .github/workflows/release.yml
+        run: |
+          cp "$LASERDOT_PROOF_BUNDLE" "Laserdot-${{ needs.decide.outputs.version }}.dmg.sigstore.json"
+          (cd app && swift test --filter ReleaseProofTests) 2>&1 | tee proof.log
+          if grep -qE "[1-9][0-9]* tests? skipped" proof.log; then echo "::error::the proof was not checked"; exit 1; fi
       - name: Publish
         env:
           GH_TOKEN: ${{ github.token }}
@@ -107,5 +127,5 @@ jobs:
           v=${{ needs.decide.outputs.version }}
           { awk -v h="## $v" '$0 == h {on=1; next} /^## / {on=0} on' CHANGELOG.md | grep -v '<!-- quiet -->'; echo
             echo "Open the disk image and drag Laserdot to Applications. The first time, right-click Laserdot → Open (the app is not notarized). Later versions install themselves."; } > notes.md
-          gh release create "v$v" "Laserdot-$v.dmg" --target "${{ needs.decide.outputs.sha }}" --title "Laserdot $v" --notes-file notes.md \
-            || gh release upload "v$v" "Laserdot-$v.dmg" --clobber
+          gh release create "v$v" "Laserdot-$v.dmg" "Laserdot-$v.dmg.sigstore.json" --target "${{ needs.decide.outputs.sha }}" --title "Laserdot $v" --notes-file notes.md \
+            || gh release upload "v$v" "Laserdot-$v.dmg" "Laserdot-$v.dmg.sigstore.json" --clobber

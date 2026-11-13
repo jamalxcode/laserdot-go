@@ -79,7 +79,7 @@ func fetch(_ r: URLRequest) throws -> Data {
     return try result.get()
 }
 
-func download(_ r: URLRequest, to dest: URL, version: String) throws {
+func download(_ r: URLRequest, to dest: URL, version: String, report: Bool = true) throws {
     let done = DispatchSemaphore(value: 0)
     var failure: Error?
     let task = session.downloadTask(with: r) { tmp, response, error in
@@ -95,7 +95,7 @@ func download(_ r: URLRequest, to dest: URL, version: String) throws {
     // How far it has got, for the app's update window (a few times a second).
     var last = Date.distantPast
     let watch = task.progress.observe(\.completedUnitCount) { p, _ in
-        guard Date().timeIntervalSince(last) > 0.25 else { return }
+        guard report, Date().timeIntervalSince(last) > 0.25 else { return }
         last = Date()
         UpdateProgress(phase: .downloading, received: p.completedUnitCount, total: max(0, p.totalUnitCount),
                        version: version).save()
@@ -193,6 +193,12 @@ do {
     let folder = UpdateStatus.downloadsFolder
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
     let dest = folder.appendingPathComponent(name)
+    // The proof that the release workflow built it (ReleaseProof), fetched
+    // afresh each time: Laserdot installs nothing without it.
+    let proofName = name + ".sigstore.json"
+    let proofURL = URL(string: "https://github.com/\(repo)/releases/download/v\(latest)/\(proofName)")!
+    try download(request(proofURL, accept: "application/octet-stream"), to: folder.appendingPathComponent(proofName),
+                 version: latest, report: false)
     // A download is moved into place only once complete, so a file that is
     // there is whole; Laserdot checks it again before installing.
     if !FileManager.default.fileExists(atPath: dest.path) {

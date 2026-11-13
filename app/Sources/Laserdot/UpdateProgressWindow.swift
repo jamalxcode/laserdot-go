@@ -40,8 +40,8 @@ enum UpdateStep: Equatable {
         return min(1, Double(received) / Double(total))
     }
 
-    /// Checking and downloading run in the helper; the window can be hidden
-    /// meanwhile. Installing cannot be left half done, so it stays.
+    /// Checking and downloading run in the helper; they can be hidden or
+    /// cancelled. Installing cannot be left half done, so it stays.
     var canHide: Bool {
         switch self {
         case .checking, .downloading: return true
@@ -92,8 +92,11 @@ struct UpdateProgressView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 if step.canHide {
+                    Button(L("action.cancel")) { updates.cancelCheck() }
+                        .controlSize(.small)
                     Button(L("update.window.hide")) { updates.hideProgress() }
                         .controlSize(.small)
+                        .keyboardShortcut(.defaultAction)
                 }
             }
         }

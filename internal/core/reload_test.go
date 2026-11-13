@@ -373,3 +373,44 @@ func TestFilesAreSearchableBeforeTheirHeadersAreRead(t *testing.T) {
 		t.Fatalf("media filter after the headers were read: %+v", r.Hits)
 	}
 }
+
+// A file added, deleted or renamed while no event arrived is found by the
+// folder-time check within minutes, and a folder already caught up is not
+// listed again.
+func TestQuickCheckFindsMissedFilesByFolderTime(t *testing.T) {
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(dir, "home")
+	write(t, root, "keep.txt", "x")
+	write(t, root, "sub/old.txt", "y")
+	ld, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	if s := ld.staleFolders(); len(s) != 0 {
+		t.Fatalf("nothing changed, yet stale: %v", s)
+	}
+	time.Sleep(1100 * time.Millisecond) // folder times are kept in seconds
+	write(t, root, "new.txt", "z")
+	if err := os.Rename(filepath.Join(root, "sub/old.txt"), filepath.Join(root, "sub/renamed.txt")); err != nil {
+		t.Fatal(err)
+	}
+	u, err := ld.QuickCheck()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Added+u.Renamed+u.Removed == 0 {
+		t.Fatalf("nothing found: %+v", u)
+	}
+	for q, want := range map[string]int{"new": 1, "renamed": 1, "old": 0} {
+		if r, _ := ld.search(q, SearchOptions{Page: pageAll()}); len(r.Hits) != want {
+			t.Fatalf("%q: %d hits, want %d", q, len(r.Hits), want)
+		}
+	}
+	if s := ld.staleFolders(); len(s) != 0 {
+		t.Fatalf("caught up, yet stale again: %v", s)
+	}
+}

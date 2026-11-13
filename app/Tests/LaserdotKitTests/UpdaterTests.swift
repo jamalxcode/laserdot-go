@@ -60,7 +60,7 @@ final class UpdaterTests: XCTestCase {
 
     func testPreparesFromZipDmgAndNestedZipAndRejectsOldOrForeign() throws {
         let installed = try fakeApp(dir.appendingPathComponent("Applications"), version: "0.1.0")
-        let up = Updater(current: installed, signer: nil)
+        let up = Updater(current: installed, signer: nil, proof: nil)
         let newer = try fakeApp(dir.appendingPathComponent("new"), version: "0.2.0", build: "7")
 
         let z = dir.appendingPathComponent("Laserdot-0.2.0.zip")
@@ -111,7 +111,7 @@ final class UpdaterTests: XCTestCase {
     func testInstallReplacesTheAppAndMoveToApplicationsCopies() throws {
         let apps = dir.appendingPathComponent("Applications")
         let installed = try fakeApp(apps, version: "0.1.0")
-        let up = Updater(current: installed, previousDir: dir.appendingPathComponent("prev"), signer: nil)
+        let up = Updater(current: installed, previousDir: dir.appendingPathComponent("prev"), signer: nil, proof: nil)
         XCTAssertEqual(up.installTarget, installed.standardizedFileURL)
         let z = dir.appendingPathComponent("u.zip")
         try zip(try fakeApp(dir.appendingPathComponent("new"), version: "0.2.0"), to: z)
@@ -123,9 +123,9 @@ final class UpdaterTests: XCTestCase {
         let elsewhere = try fakeApp(dir.appendingPathComponent("Downloads"), version: "0.4.0")
         let fresh = dir.appendingPathComponent("FreshApplications")
         try FileManager.default.createDirectory(at: fresh, withIntermediateDirectories: true)
-        let moved = try Updater(current: elsewhere, signer: nil).moveToApplications(fresh)
+        let moved = try Updater(current: elsewhere, signer: nil, proof: nil).moveToApplications(fresh)
         XCTAssertEqual(AppVersion(bundle: moved)?.short, "0.4.0")
-        XCTAssertTrue(Updater(current: elsewhere, signer: nil).isOutsideApplications)
+        XCTAssertTrue(Updater(current: elsewhere, signer: nil, proof: nil).isOutsideApplications)
     }
 
     /// An update keeps the version it replaces; "Go back" puts it back.
@@ -133,7 +133,7 @@ final class UpdaterTests: XCTestCase {
         let apps = dir.appendingPathComponent("Applications")
         let prev = dir.appendingPathComponent("prev")
         let installed = try fakeApp(apps, version: "0.7.0")
-        let old = Updater(current: installed, previousDir: prev, signer: nil)
+        let old = Updater(current: installed, previousDir: prev, signer: nil, proof: nil)
         XCTAssertNil(old.previousVersion, "nothing kept before any update")
         let z = dir.appendingPathComponent("u.zip")
         try zip(try fakeApp(dir.appendingPathComponent("new"), version: "0.8.0"), to: z)
@@ -141,14 +141,46 @@ final class UpdaterTests: XCTestCase {
         XCTAssertEqual(AppVersion(bundle: installed)?.short, "0.8.0")
 
         // The relaunched 0.8.0 offers 0.7.0.
-        let new = Updater(current: installed, previousDir: prev, signer: nil)
+        let new = Updater(current: installed, previousDir: prev, signer: nil, proof: nil)
         XCTAssertEqual(new.previousVersion?.short, "0.7.0")
         let back = try new.goBack()
         XCTAssertEqual(AppVersion(bundle: back)?.short, "0.7.0")
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: apps.path), ["Laserdot.app"])
         // 0.8.0 is now the kept one, newer than the running app: not offered.
-        XCTAssertNil(Updater(current: installed, previousDir: prev, signer: nil).previousVersion)
+        XCTAssertNil(Updater(current: installed, previousDir: prev, signer: nil, proof: nil).previousVersion)
         XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: prev.path), ["Laserdot.app"])
+    }
+
+    /// An update made ready ahead of time sits hidden beside the app; the
+    /// install on quit is then a rename. A later run finds it again, and a
+    /// copy that is no longer newer is removed.
+    func testStagedUpdateInstallsByRenameAndIsFoundAgain() throws {
+        let apps = dir.appendingPathComponent("Applications")
+        let prev = dir.appendingPathComponent("prev")
+        let installed = try fakeApp(apps, version: "0.7.0")
+        let u = Updater(current: installed, previousDir: prev, signer: nil, proof: nil)
+        let z = dir.appendingPathComponent("u.zip")
+        try zip(try fakeApp(dir.appendingPathComponent("new"), version: "0.8.0"), to: z)
+        let st = try u.stage(try u.prepare(file: z))
+        XCTAssertEqual(st.version.short, "0.8.0")
+        XCTAssertEqual(AppVersion(bundle: installed)?.short, "0.7.0", "staging installs nothing")
+        XCTAssertEqual(u.previousVersion, nil, "the kept copy is the running version, not older")
+        XCTAssertEqual(AppVersion(bundle: prev.appendingPathComponent("Laserdot.app"))?.short, "0.7.0")
+
+        // Laserdot restarted before quitting: the staged copy is found again.
+        let again = Updater(current: installed, previousDir: prev, signer: nil, proof: nil).stagedUpdate()
+        XCTAssertEqual(again?.app.path, st.app.path)
+        XCTAssertEqual(again?.target.path, installed.path)
+        XCTAssertEqual(again?.version.short, "0.8.0")
+        try u.finishStaged(st)
+        XCTAssertEqual(AppVersion(bundle: installed)?.short, "0.8.0")
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: apps.path), ["Laserdot.app"])
+
+        // A staged copy that is not newer than the running app is removed.
+        let stale = apps.appendingPathComponent(".Laserdot-staged-0.8.0-old.app")
+        try FileManager.default.copyItem(at: installed, to: stale)
+        XCTAssertNil(u.stagedUpdate())
+        XCTAssertFalse(FileManager.default.fileExists(atPath: stale.path))
     }
 
     /// Updates are signed with this Mac's own key, made on first use: two
@@ -161,7 +193,7 @@ final class UpdaterTests: XCTestCase {
         let installed = try realApp(apps, version: "0.9.1")
         var requirements: [String] = []
         for v in ["0.9.2", "0.9.3"] {
-            let up = Updater(current: installed, previousDir: dir.appendingPathComponent("prev"), signer: signer)
+            let up = Updater(current: installed, previousDir: dir.appendingPathComponent("prev"), signer: signer, proof: nil)
             let z = dir.appendingPathComponent("u-\(v).zip")
             try zip(try realApp(dir.appendingPathComponent("new-\(v)"), version: v), to: z)
             let target = try up.install(try up.prepare(file: z))
