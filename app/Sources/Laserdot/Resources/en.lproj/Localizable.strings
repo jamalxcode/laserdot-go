@@ -339,3 +339,10 @@
 "column.kind" = "Kind";
 "column.created" = "Date Created";
 "column.sortHelp" = "Sort by %@ (click again to reverse)";
+"watcher.on" = "Watching for changes";
+"watcher.off" = "Not watching for changes — catching up every hour";
+"watcher.caughtUp" = "caught up on %ld missed";
+"column.opened" = "Last Opened";
+"column.resize" = "Drag to make the column wider or narrower";
+"view.tileSize" = "Thumbnail size";
+"sort.opened" = "Last Opened (in Laserdot)";

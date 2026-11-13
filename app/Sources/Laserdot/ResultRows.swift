@@ -287,14 +287,59 @@ struct UndoBanner: View {
     }
 }
 
+/// The columns after Name, their widths (dragged in the header, remembered).
+final class ColumnLayout: ObservableObject {
+    static let shared = ColumnLayout()
+
+    enum Column: String, CaseIterable {
+        case modified, size, kind, opened, created
+
+        var sort: SortKey {
+            switch self {
+            case .modified: return .modified
+            case .size: return .size
+            case .kind: return .kind
+            case .opened: return .opened
+            case .created: return .created
+            }
+        }
+
+        var defaultWidth: CGFloat {
+            switch self {
+            case .size: return 72
+            case .kind: return 120
+            default: return 128
+            }
+        }
+
+        var trailing: Bool { self == .size }
+    }
+
+    @Published private(set) var widths: [Column: CGFloat] = [:]
+
+    init() {
+        for c in Column.allCases {
+            let saved = UserDefaults.standard.double(forKey: "laserdot.column.\(c.rawValue)")
+            widths[c] = saved >= 40 ? saved : c.defaultWidth
+        }
+    }
+
+    func width(_ c: Column) -> CGFloat { widths[c] ?? c.defaultWidth }
+
+    func setWidth(_ c: Column, _ w: CGFloat) {
+        let w = max(44, min(360, w.rounded()))
+        widths[c] = w
+        UserDefaults.standard.set(Double(w), forKey: "laserdot.column.\(c.rawValue)")
+    }
+}
+
 /// The columns' headers, as in Finder: click one to sort by it, again for
-/// the other way; the arrow shows which and which way.
+/// the other way (the arrow shows which); drag a column's left edge to make
+/// it wider or narrower.
 struct ColumnHeader: View {
     @ObservedObject var model: SearchModel
-
-    static let dateWidth: CGFloat = 132
-    static let sizeWidth: CGFloat = 72
-    static let kindWidth: CGFloat = 120
+    @ObservedObject var layout = ColumnLayout.shared
+    @State private var dragStart: [ColumnLayout.Column: CGFloat] = [:]
 
     /// "JPEG image", "Folder", "Application" — from the type, no disk access.
     static func kindName(_ hit: Hit) -> String {
@@ -305,13 +350,14 @@ struct ColumnHeader: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
-            Color.clear.frame(width: 16, height: 1)
+        HStack(spacing: 0) {
+            Color.clear.frame(width: 24, height: 1)
             header(L("column.name"), .name).frame(maxWidth: .infinity, alignment: .leading)
-            header(L("column.modified"), .modified).frame(width: Self.dateWidth, alignment: .leading)
-            header(L("column.size"), .size).frame(width: Self.sizeWidth, alignment: .trailing)
-            header(L("column.kind"), .kind).frame(width: Self.kindWidth, alignment: .leading)
-            header(L("column.created"), .created).frame(width: Self.dateWidth, alignment: .leading)
+            ForEach(ColumnLayout.Column.allCases, id: \.self) { c in
+                handle(c)
+                header(L("column.\(c.rawValue)"), c.sort)
+                    .frame(width: layout.width(c), alignment: c.trailing ? .trailing : .leading)
+            }
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(.secondary)
@@ -321,13 +367,32 @@ struct ColumnHeader: View {
         .overlay(alignment: .bottom) { Divider() }
     }
 
+    /// A column's left edge: drag to resize.
+    private func handle(_ c: ColumnLayout.Column) -> some View {
+        Rectangle()
+            .fill(Color.secondary.opacity(0.25))
+            .frame(width: 1, height: 14)
+            .padding(.horizontal, 4)
+            .contentShape(Rectangle())
+            .onHover { inside in inside ? NSCursor.resizeLeftRight.push() : NSCursor.pop() }
+            .gesture(DragGesture(minimumDistance: 1)
+                .onChanged { g in
+                    let start = dragStart[c] ?? layout.width(c)
+                    dragStart[c] = start
+                    layout.setWidth(c, start - g.translation.width)
+                }
+                .onEnded { _ in dragStart[c] = nil })
+            .help(L("column.resize"))
+            .accessibilityHidden(true)
+    }
+
     private func header(_ title: String, _ key: SortKey) -> some View {
         let active = model.sort == key
         // Name and kind start A→Z, sizes and dates largest/newest first.
         let ascending = (key == .name || key == .kind) != model.reverse
         return Button { model.sortBy(key) } label: {
             HStack(spacing: 3) {
-                Text(title).foregroundStyle(active ? Color.primary : Color.secondary)
+                Text(title).lineLimit(1).foregroundStyle(active ? Color.primary : Color.secondary)
                 if active {
                     Image(systemName: ascending ? "chevron.up" : "chevron.down").font(.caption2)
                 }
@@ -345,18 +410,27 @@ struct ColumnRow: View {
     let hit: Hit
     let onAccent: Bool
     let highlight: [String]
-
-    private var sizeText: String {
-        hit.isDir ? "--" : ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file)
-    }
+    @ObservedObject var layout = ColumnLayout.shared
 
     private var secondary: Color { onAccent ? Color.white.opacity(0.85) : Color.secondary }
 
+    private func text(_ c: ColumnLayout.Column) -> String {
+        switch c {
+        case .modified: return friendlyDate(hit.modified, long: false)
+        case .size: return hit.isDir ? "--" : ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file)
+        case .kind: return ColumnHeader.kindName(hit)
+        case .opened: return hit.opened > 0 ? friendlyDate(hit.opened, long: false) : "--"
+        case .created: return friendlyDate(hit.created, long: false)
+        }
+    }
+
     var body: some View {
-        HStack(spacing: 8) {
-            FileIcon(path: hit.path, size: 16)
+        HStack(spacing: 0) {
+            FileIcon(path: hit.path, size: 16).frame(width: 24, alignment: .leading)
             name
-            cells
+            ForEach(ColumnLayout.Column.allCases, id: \.self) { c in
+                cell(text(c), c)
+            }
         }
         .font(.callout)
         .foregroundStyle(onAccent ? Color.white : Color.primary)
@@ -371,19 +445,11 @@ struct ColumnRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var cells: some View {
-        HStack(spacing: 8) {
-            cell(friendlyDate(hit.modified, long: false), width: ColumnHeader.dateWidth, alignment: .leading)
-            cell(sizeText, width: ColumnHeader.sizeWidth, alignment: .trailing)
-            cell(ColumnHeader.kindName(hit), width: ColumnHeader.kindWidth, alignment: .leading)
-            cell(friendlyDate(hit.created, long: false), width: ColumnHeader.dateWidth, alignment: .leading)
-        }
-    }
-
-    private func cell(_ text: String, width: CGFloat, alignment: Alignment) -> some View {
-        Text(text)
+    private func cell(_ value: String, _ c: ColumnLayout.Column) -> some View {
+        Text(value)
             .lineLimit(1)
             .foregroundStyle(secondary)
-            .frame(width: width, alignment: alignment)
+            .padding(.leading, 9) // the header's resize handle
+            .frame(width: layout.width(c) + 9, alignment: c.trailing ? .trailing : .leading)
     }
 }

@@ -55,6 +55,8 @@ public struct Hit: Hashable, Sendable {
     public var modified: Int64
     /// Birth time (Unix seconds; the modification time where unknown).
     public var created: Int64
+    /// Last opened from Laserdot (Unix seconds; 0 never).
+    public var opened: Int64
     /// Ready-to-show badges (spec §10.3): dimensions, video codec + HDR,
     /// first audio track, duration.
     public var badges: [String]
@@ -85,6 +87,7 @@ public struct Hit: Hashable, Sendable {
         size = h.size
         modified = h.modified
         created = h.created
+        opened = h.opened
         self.badges = badges
         typo = h.typo
         volume = h.volume
@@ -112,6 +115,8 @@ public struct DaemonStatus: Sendable {
     public var folders: [String]
     /// A folder being indexed now, if the daemon reports it.
     public var indexing: Wire.IndexProgress? = nil
+    /// The watcher's hourly catch-up (newer daemons).
+    public var catchUp: Wire.CatchUp? = nil
 
     static let down = DaemonStatus(
         running: false, version: "", protocolVersion: 0, networkDenied: false, watcher: "", entries: 0, folders: [])
@@ -327,7 +332,8 @@ public final class Engine: @unchecked Sendable {
         let roots = (try? call(.roots, as: [Wire.RootInfo].self)) ?? []
         return DaemonStatus(
             running: true, version: s.version, protocolVersion: s.protocolVersion, networkDenied: s.networkDenied,
-            watcher: s.watcher, entries: s.entries, folders: roots.map(\.path), indexing: s.indexing)
+            watcher: s.watcher, entries: s.entries, folders: roots.map(\.path), indexing: s.indexing,
+            catchUp: s.catchUp)
     }
 
     public func search(query: String, limit: Int = 100, offset: Int = 0, sort: SortKey = .relevance, reverse: Bool = false) throws -> Results {

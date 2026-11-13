@@ -172,7 +172,10 @@ final class UpdateController: ObservableObject {
         let a = NSAlert()
         a.messageText = String(format: L("update.available"), s.latest ?? "")
         var info = String(format: L("update.installText"), currentVersion)
-        if let notes = candidate.whatsNew { info = notes + "\n\n" + info }
+        // Everything new since this version, not only the last release.
+        if let notes = Updater.notes(in: candidate.app, since: updater.currentVersion?.short) ?? candidate.whatsNew {
+            info = notes + "\n\n" + info
+        }
         a.informativeText = info
         a.addButton(withTitle: L("update.install"))
         a.addButton(withTitle: L("drive.notNow"))

@@ -61,13 +61,16 @@ struct FileIcon: View {
             .interpolation(.high)
             .aspectRatio(contentMode: .fit)
             .frame(width: size, height: size)
-            .task(id: path) { load() }
+            // A new thumbnail when the path changes, or the size grows a step
+            // (the grid's size slider); in between it is scaled.
+            .task(id: "\(path)|\(Int(size / 64))") { load() }
     }
 
     private func load() {
         guard thumbnail else { return }
         let p = path
-        ThumbnailCache.shared.image(for: p, size: size, iconFallback: large) { img in
+        let step = (size / 64).rounded(.up) * 64 // one cached size per step
+        ThumbnailCache.shared.image(for: p, size: max(size, step), iconFallback: large) { img in
             image = img
             loadedFor = p
         }

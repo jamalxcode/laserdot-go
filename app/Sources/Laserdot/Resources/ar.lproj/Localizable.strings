@@ -339,3 +339,10 @@
 "column.kind" = "النوع";
 "column.created" = "تاريخ الإنشاء";
 "column.sortHelp" = "الترتيب حسب %@ (اضغط مرة أخرى للعكس)";
+"watcher.on" = "يراقب التغييرات";
+"watcher.off" = "لا يراقب التغييرات — يتحقق كل ساعة";
+"watcher.caughtUp" = "استدرك %ld فائتة";
+"column.opened" = "آخر فتح";
+"column.resize" = "اسحب لتوسيع العمود أو تضييقه";
+"view.tileSize" = "حجم الصور المصغّرة";
+"sort.opened" = "آخر فتح (في Laserdot)";

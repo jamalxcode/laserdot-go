@@ -190,6 +190,49 @@ final class UpdaterTests: XCTestCase {
         return app
     }
 
+    /// What's New after an update: every version since the one the user had,
+    /// newest first; quiet (fixes-only) versions and newer ones left out.
+    func testNotesSinceTheLastVersionSkipQuietOnes() throws {
+        let app = try fakeApp(dir.appendingPathComponent("A"), version: "0.9.6")
+        let res = app.appendingPathComponent("Contents/Resources")
+        try FileManager.default.createDirectory(at: res, withIntermediateDirectories: true)
+        try """
+        # Changelog
+
+        Intro.
+
+        ## 0.9.7
+
+        - Not out yet.
+
+        ## 0.9.6
+
+        - Columns can be resized.
+
+        ## 0.9.5
+
+        <!-- quiet -->
+        - Fixed a typo.
+
+        ## 0.9.4
+
+        - Refresh button.
+
+        ## 0.9.3
+
+        - Thumbnails.
+        """.write(to: res.appendingPathComponent("Changelog.md"), atomically: true, encoding: .utf8)
+        XCTAssertEqual(Updater.notes(in: app, since: "0.9.3"), "0.9.6\n- Columns can be resized.\n\n0.9.4\n- Refresh button.")
+        XCTAssertEqual(Updater.notes(in: app, since: nil), "0.9.6\n- Columns can be resized.")
+        XCTAssertNil(Updater.notes(in: app, since: "0.9.6"))
+        // Only a quiet version since: nothing to show.
+        let quiet = try fakeApp(dir.appendingPathComponent("B"), version: "0.9.5")
+        try FileManager.default.createDirectory(at: quiet.appendingPathComponent("Contents/Resources"), withIntermediateDirectories: true)
+        try FileManager.default.copyItem(at: res.appendingPathComponent("Changelog.md"),
+                                         to: quiet.appendingPathComponent("Contents/Resources/Changelog.md"))
+        XCTAssertNil(Updater.notes(in: quiet, since: "0.9.4"))
+    }
+
     func testStatusRoundTrips() throws {
         let f = dir.appendingPathComponent("update.json")
         let s = UpdateStatus(state: .downloaded, checkedAt: Date(timeIntervalSince1970: 1_800_000_000), latest: "0.3.0", file: "/x/Laserdot-0.3.0.dmg")

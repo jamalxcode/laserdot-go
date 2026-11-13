@@ -40,6 +40,8 @@ done
 
 # What's new in this version, from CHANGELOG.md (shown when Laserdot updates).
 awk -v v="## $VERSION" '$0 == v {on=1; next} /^## / {on=0} on' ../CHANGELOG.md | sed '/^$/d' > "$APP/Contents/Resources/WhatsNew.txt" || true
+# All versions' notes: after skipping updates, What's New shows each one missed.
+cp ../CHANGELOG.md "$APP/Contents/Resources/Changelog.md" || true
 
 # The icon, from the 1024-px PNG.
 ICONSET=build/AppIcon.iconset

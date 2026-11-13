@@ -173,7 +173,7 @@ public enum DaemonRequest: Encodable, Sendable {
 
 /// Result order for `search`.
 public enum SortKey: String, Codable, Sendable, CaseIterable {
-    case relevance, name, size, modified, created, kind
+    case relevance, name, size, modified, created, kind, opened
 }
 
 /// Character range (Unicode scalars) in the query as typed.
@@ -214,9 +214,12 @@ public enum Wire {
         public var entries: UInt64
         /// A folder being indexed now (newer daemons).
         public var indexing: IndexProgress?
+        /// The watcher's hourly comparison with the disk (newer daemons).
+        public var catchUp: CatchUp?
 
         enum CodingKeys: String, CodingKey {
             case protocolVersion = "protocol", version, pid, networkDenied = "network_denied", watcher, db, entries, indexing
+            case catchUp = "catch_up"
         }
 
         public init(from decoder: Decoder) throws {
@@ -229,6 +232,19 @@ public enum Wire {
             db = try c.value(.db, or: "")
             entries = try c.value(.entries, or: 0)
             indexing = try c.decodeIfPresent(IndexProgress.self, forKey: .indexing)
+            catchUp = try c.decodeIfPresent(CatchUp.self, forKey: .catchUp)
+        }
+    }
+
+    /// `status.catch_up`: when the indexed folders were last compared with
+    /// the disk, and what the events had missed.
+    public struct CatchUp: Decodable, Sendable, Equatable {
+        public var lastCatchUp: Int64
+        public var missed: UInt64
+        public var restarts: UInt64
+
+        enum CodingKeys: String, CodingKey {
+            case lastCatchUp = "last_catch_up", missed, restarts
         }
     }
 
@@ -285,9 +301,12 @@ public enum Wire {
         public var volume: String?
         /// Matched by its contents, not its name (spec §2.4.2).
         public var content: Bool
+        /// Last opened from Laserdot (Unix seconds; 0 never).
+        public var opened: Int64
 
         enum CodingKeys: String, CodingKey {
             case path, name, kind, isDir = "is_dir", size, modified, created, width, height, typo, media, volume, content
+            case opened
         }
 
         public init(from decoder: Decoder) throws {
@@ -305,6 +324,7 @@ public enum Wire {
             media = try c.decodeIfPresent(MediaSummary.self, forKey: .media)
             volume = try c.decodeIfPresent(String.self, forKey: .volume)
             content = try c.value(.content, or: false)
+            opened = try c.value(.opened, or: 0)
         }
     }
 

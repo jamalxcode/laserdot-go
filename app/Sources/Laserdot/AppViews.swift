@@ -36,6 +36,9 @@ struct StatusMenu: View {
         Divider()
         Text(delegate.statusLine)
         Text(delegate.networkLine)
+        if !delegate.watcherLine.isEmpty {
+            Text(delegate.watcherLine)
+        }
         Divider()
         Button(L("menu.quit")) { NSApp.terminate(nil) }
             .keyboardShortcut("q")

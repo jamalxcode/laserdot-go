@@ -422,6 +422,31 @@ public final class Updater {
     /// output line.
     @discardableResult
     /// An app's release notes, written by bundle.sh from CHANGELOG.md.
+    /// The release notes of every version after `since` up to this app's
+    /// own, newest first, from the app's copy of CHANGELOG.md. Versions
+    /// marked `<!-- quiet -->` (fixes nobody sees) are left out; nil when
+    /// nothing is left (or the app has no Changelog.md: then WhatsNew.txt).
+    public static func notes(in app: URL, since: String?) -> String? {
+        let f = app.appendingPathComponent("Contents/Resources/Changelog.md")
+        guard let text = try? String(contentsOf: f, encoding: .utf8) else { return whatsNew(in: app) }
+        let mine = AppVersion(bundle: app)
+        let floor = since.map { AppVersion(short: $0, build: "0") }
+        var out: [String] = []
+        for section in text.components(separatedBy: "\n## ").dropFirst() {
+            let lines = section.components(separatedBy: "\n")
+            let version = lines[0].trimmingCharacters(in: .whitespaces)
+            let v = AppVersion(short: version, build: "0")
+            if let mine, AppVersion(short: mine.short, build: "0") < v { continue } // newer than this app
+            if let floor, !(floor < v) { break } // sections are newest first
+            let body = lines.dropFirst().joined(separator: "\n")
+            if body.contains("<!-- quiet -->") { continue }
+            let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty { out.append(version + "\n" + trimmed) }
+            if floor == nil { break } // no starting point: this version only
+        }
+        return out.isEmpty ? nil : out.joined(separator: "\n\n")
+    }
+
     public static func whatsNew(in app: URL) -> String? {
         let f = app.appendingPathComponent("Contents/Resources/WhatsNew.txt")
         guard let s = try? String(contentsOf: f, encoding: .utf8) else { return nil }

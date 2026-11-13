@@ -62,19 +62,24 @@ extension AppDelegate {
         if !UserDefaults.standard.bool(forKey: "laserdot.welcomed") {
             UserDefaults.standard.set(true, forKey: "laserdot.welcomed")
             showTour = true
-        } else if let last, last != current, Updater.whatsNew(in: Bundle.main.bundleURL) != nil {
+        } else if let last, last != current, Updater.notes(in: Bundle.main.bundleURL, since: last) != nil {
+            // Updated, with something people will notice (fixes-only
+            // versions are marked quiet and say nothing).
+            UserDefaults.standard.set(last, forKey: "laserdot.whatsNewSince")
             whatsNewPending = true
         }
         UserDefaults.standard.set(current, forKey: "laserdot.lastVersion")
     }
 
-    /// Help ▸ What's New: this version's notes.
+    /// Help ▸ What's New: after an update, every version since the one the
+    /// user had (not only the last); otherwise this version's notes.
     func showWhatsNew() {
+        let since = whatsNewPending ? UserDefaults.standard.string(forKey: "laserdot.whatsNewSince") : nil
         whatsNewPending = false
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
         let a = NSAlert()
         a.messageText = String(format: L("whatsnew.title"), version)
-        a.informativeText = Updater.whatsNew(in: Bundle.main.bundleURL) ?? L("whatsnew.none")
+        a.informativeText = Updater.notes(in: Bundle.main.bundleURL, since: since) ?? L("whatsnew.none")
         a.runFront()
     }
 

@@ -39,6 +39,8 @@ struct LaserdotApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     @Published var statusLine = L("daemon.starting")
     @Published var networkLine = ""
+    @Published var watcherLine = ""
+    var statusTimer: Timer?
     @Published var drives: DrivesModel?
     @Published var content: ContentModel?
     /// The daemon implements the duplicate finder (older ones answer
@@ -286,6 +288,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         guard !engineStarted, let model else { return }
         engineStarted = true
         model.connect()
+        // The menu-bar menu's status lines (entries, watching) stay current.
+        statusTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            self?.refreshStatus()
+        }
         // After the first frame: nothing here is needed to show a window.
         DispatchQueue.main.async { [weak self] in
             _ = self?.overlay
@@ -316,5 +322,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             statusLine = L("daemon.starting")
         }
         networkLine = status.networkDenied ? L("network.blocked") : L("network.open")
+        watcherLine = Self.watcherText(status)
+    }
+
+    /// "Watching for changes", or that it is not (and what the hourly
+    /// catch-up found).
+    static func watcherText(_ status: DaemonStatus) -> String {
+        guard status.running, !status.folders.isEmpty else { return "" }
+        let watching = !status.watcher.isEmpty && status.watcher != "None"
+        var text = L(watching ? "watcher.on" : "watcher.off")
+        if let c = status.catchUp, c.missed > 0 {
+            text += " — " + String(format: L("watcher.caughtUp"), Int64(c.missed))
+        }
+        return text
+    }
+
+    /// Show the daemon's current state in the menu-bar menu.
+    func refreshStatus() {
+        guard engineStarted, let engine else { return }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let status = engine.status()
+            DispatchQueue.main.async { self?.show(status) }
+        }
     }
 }

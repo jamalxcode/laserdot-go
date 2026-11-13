@@ -110,6 +110,19 @@ final class SearchModel: ObservableObject {
             sort = key
         }
     }
+    /// Thumbnail size in the grid (points), remembered.
+    static let tileSizes: ClosedRange<CGFloat> = 64...256
+    @Published var tileSize: CGFloat = {
+        let v = UserDefaults.standard.double(forKey: "laserdot.tileSize")
+        return v >= 64 ? CGFloat(min(v, 256)) : 104
+    }() {
+        didSet { UserDefaults.standard.set(Double(tileSize), forKey: "laserdot.tileSize") }
+    }
+
+    func resizeTiles(by delta: CGFloat) {
+        tileSize = min(Self.tileSizes.upperBound, max(Self.tileSizes.lowerBound, tileSize + delta))
+    }
+
     /// Tiles per row in the grid (set by the view).
     var gridColumns = 1
     /// Space presses that reached the model (for the self-test's report).

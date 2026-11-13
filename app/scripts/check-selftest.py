@@ -25,7 +25,7 @@ def check(ok, what):
 
 check(report["error"] == "", "the self-test ran: " + report["error"])
 steps = {s["name"]: s for s in report["steps"]}
-for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -120,6 +120,9 @@ g = steps["grid"]
 check(g["grid"] is True and len(g["results"]) >= 3, f"the grid shows the images (got {g['results']})")
 check(g["grid_columns"] >= 2, f"several thumbnails to a row (got {g['grid_columns']})")
 check(steps["multi"]["grid"] is False, "back to the list")
+gb = steps["gridbig"]
+check(gb["tile_size"] == 220 and gb["grid_columns"] < g["grid_columns"], f"bigger thumbnails, fewer to a row ({g['grid_columns']} → {gb['grid_columns']})")
+check(steps["columns"]["kind_width"] == 180, f"a column keeps the width it was given (got {steps['columns']['kind_width']})")
 
 # Columns: a header click sorts by it; a second click reverses.
 c1, c2 = steps["columns"], steps["columnsreversed"]
