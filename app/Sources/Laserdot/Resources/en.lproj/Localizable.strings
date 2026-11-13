@@ -357,3 +357,5 @@
 "update.step.installing" = "Installing…";
 "update.step.restarting" = "Restarting Laserdot…";
 "update.menu.downloading" = "Downloading update… %ld%%";
+"index.found" = "Finding files in %@… %@ so far";
+"index.details" = "Reading photo, video and music details… %@ of %@";

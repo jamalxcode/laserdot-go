@@ -151,14 +151,7 @@ extension SearchModel {
                 let p = engine.status().indexing
                 DispatchQueue.main.async {
                     guard self.progressTimer != nil, let p else { return }
-                    let folder = p.root == FileManager.default.homeDirectoryForCurrentUser.path
-                        ? L("index.home") : URL(fileURLWithPath: p.root).lastPathComponent
-                    if p.phase == "saving", p.total > 0 {
-                        let pct = Int(Double(p.done) / Double(p.total) * 100)
-                        self.progressText = String(format: L("index.progress"), folder, pct)
-                    } else {
-                        self.progressText = String(format: L("index.scanning"), folder)
-                    }
+                    self.progressText = AppDelegate.progressText(p)
                 }
             }
         }

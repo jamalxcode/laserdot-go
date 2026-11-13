@@ -85,6 +85,15 @@ extension SelfTestRunner {
     /// "x MB of y MB" (no real update is fetched).
     func updateWindow(done: @escaping () -> Void) {
         extra["launch_phases"] = LaunchTimer.summary
+        // Indexing says how many files it has found so far (a big folder
+        // takes a while; the count shows it is moving).
+        let found = #"{"root":"/x/Movies","phase":"scanning","done":412000,"total":0}"#
+        let details = #"{"root":"","phase":"details","done":1200,"total":80000}"#
+        for (key, json) in [("progress_found", found), ("progress_details", details)] {
+            if let p = try? JSONDecoder().decode(Wire.IndexProgress.self, from: Data(json.utf8)) {
+                extra[key] = AppDelegate.progressText(p)
+            }
+        }
         let u = app.updates
         u.showStepForTests(.downloading(received: 18_400_000, total: 41_000_000), version: "9.9.9")
         after(1) {

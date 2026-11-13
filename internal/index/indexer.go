@@ -139,7 +139,27 @@ func IndexRoot(db *Db, root string, opts scan.Options, bulk BulkOptions) (IndexS
 	}
 	progress("scanning", 0, 0)
 	t := time.Now()
+	// While walking: how many files were found so far, four times a second
+	// (a big folder takes a while; the count shows it is not stuck).
+	var found atomic.Uint64
+	opts.Found = &found
+	walked, ticked := make(chan struct{}), make(chan struct{})
+	go func() {
+		defer close(ticked)
+		tick := time.NewTicker(250 * time.Millisecond)
+		defer tick.Stop()
+		for {
+			select {
+			case <-walked:
+				return
+			case <-tick.C:
+				progress("scanning", found.Load(), 0)
+			}
+		}
+	}()
 	entries, errs, err := scan.Walk(root, opts)
+	close(walked)
+	<-ticked // no "scanning" report after the next phase's
 	if err != nil {
 		return st, err
 	}

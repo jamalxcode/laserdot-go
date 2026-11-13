@@ -40,6 +40,7 @@ struct LaserdotApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     @Published var statusLine = L("daemon.starting")
+    private var progressPolling = false
     @Published var networkLine = ""
     @Published var watcherLine = ""
     var statusTimer: Timer?
@@ -105,6 +106,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         model.commandProvider = { [weak self] in self?.commands() ?? [] }
         model.onIndexing = { [weak self] name in
             self?.statusLine = String(format: L("index.running"), name)
+            // The daemon's progress follows in the menu (show(_:) polls on).
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { self?.refreshStatus() }
         }
         model.onIndexFailed = { name, reason in
             NSApp.activate(ignoringOtherApps: true)
@@ -330,13 +333,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     func show(_ status: DaemonStatus) {
-        if status.running {
+        if status.running, let p = status.indexing {
+            // Indexing: what it is doing and how far it has got, every 2 s.
+            statusLine = Self.progressText(p)
+            if !progressPolling {
+                progressPolling = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                    self?.progressPolling = false
+                    self?.refreshStatus()
+                }
+            }
+        } else if status.running {
             statusLine = String(format: L("menu.status"), Int64(status.entries))
         } else {
             statusLine = L("daemon.starting")
         }
         networkLine = status.networkDenied ? L("network.blocked") : L("network.open")
         watcherLine = Self.watcherText(status)
+    }
+
+    /// "Finding files in your home folder… 412,000 so far", "Indexing … 45%",
+    /// "Reading photo and video details… 12,000 of 80,000".
+    static func progressText(_ p: Wire.IndexProgress) -> String {
+        let folder = p.root == FileManager.default.homeDirectoryForCurrentUser.path
+            ? L("index.home") : URL(fileURLWithPath: p.root).lastPathComponent
+        let n = NumberFormatter()
+        n.numberStyle = .decimal
+        func num(_ v: UInt64) -> String { n.string(from: NSNumber(value: v)) ?? "\(v)" }
+        switch p.phase {
+        case "scanning" where p.done > 0:
+            return String(format: L("index.found"), folder, num(p.done))
+        case "saving" where p.total > 0:
+            return String(format: L("index.progress"), folder, Int64(Double(p.done) / Double(p.total) * 100))
+        case "details" where p.total > 0:
+            return String(format: L("index.details"), num(p.done), num(p.total))
+        default:
+            return String(format: L("index.scanning"), folder)
+        }
     }
 
     /// "Watching for changes", or that it is not (and what the hourly

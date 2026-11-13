@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -111,5 +112,28 @@ func TestWalksStopAtOtherVolumes(t *testing.T) {
 	}
 	if !listed || entered {
 		t.Errorf("listed %v, entered %v", listed, entered)
+	}
+}
+
+// Indexing shows how many files were found while it walks: the count ends
+// at every entry under the folder.
+func TestWalkCountsWhatItFinds(t *testing.T) {
+	dir := t.TempDir()
+	for _, p := range []string{"a.txt", "sub/b.txt", "sub/deeper/c.txt"} {
+		full := filepath.Join(dir, p)
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var found atomic.Uint64
+	entries, _, err := Walk(dir, Options{Found: &found})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := found.Load(), uint64(len(entries)-1); got != want || got != 5 {
+		t.Fatalf("found %d, want %d (5: three files, two folders)", got, want)
 	}
 }

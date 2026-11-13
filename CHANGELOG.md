@@ -5,6 +5,8 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
 ## 0.9.9
 
+- You can see indexing move: the menu and the window say how many files have been found so far, then how far the
+  saving has got, then how many photo, video and music details have been read.
 - Updates are checked before they are installed: each release now comes with GitHub's proof that Laserdot's own
   release build made it, and Laserdot installs nothing without that proof. No signing key is stored anywhere.
 - A Cancel button while an update downloads.

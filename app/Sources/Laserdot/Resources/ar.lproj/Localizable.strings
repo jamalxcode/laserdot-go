@@ -357,3 +357,5 @@
 "update.step.installing" = "جارٍ التثبيت…";
 "update.step.restarting" = "جارٍ إعادة تشغيل Laserdot…";
 "update.menu.downloading" = "جارٍ تنزيل التحديث… %ld%%";
+"index.found" = "جارٍ البحث عن الملفات في %@… %@ حتى الآن";
+"index.details" = "جارٍ قراءة تفاصيل الصور والفيديو والموسيقى… %@ من %@";

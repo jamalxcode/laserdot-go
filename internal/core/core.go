@@ -129,13 +129,15 @@ type Laserdot struct {
 	opens      openHistory
 	exclusions exclusionList
 	progress   atomic.Pointer[IndexProgress]
-	dbPath     string
-	wmu        sync.Mutex
-	db         *index.Db
-	mu         sync.RWMutex
-	store      *index.Store
-	loadMS     uint64
-	report     OpenReport
+	// details: the background header pass (probeLater), when running.
+	details atomic.Pointer[IndexProgress]
+	dbPath  string
+	wmu     sync.Mutex
+	db      *index.Db
+	mu      sync.RWMutex
+	store   *index.Store
+	loadMS  uint64
+	report  OpenReport
 	// content: file contents (§2.4), in its own file next to the index.
 	content         *index.ContentIndex
 	contentSettings ContentSettings
@@ -457,6 +459,10 @@ func (ld *Laserdot) probeLater() {
 		if len(ids) == 0 {
 			return
 		}
+		defer ld.details.Store(nil)
+		var done atomic.Uint64
+		total := uint64(len(ids))
+		ld.details.Store(&IndexProgress{Phase: "details", Total: total})
 		wrote := false
 		for start := 0; start < len(ids); start += probeChunk {
 			chunk := ids[start:min(len(ids), start+probeChunk)]
@@ -479,6 +485,9 @@ func (ld *Laserdot) probeLater() {
 							return
 						}
 						probes[i] = index.ProbePath(jobs[i].path, jobs[i].size)
+						if n := done.Add(1); n%500 == 0 {
+							ld.details.Store(&IndexProgress{Phase: "details", Done: n, Total: total})
+						}
 					}
 				}()
 			}

@@ -229,6 +229,12 @@ check(report.get("duplicate_groups", -1) >= 1, f"the Duplicates window found the
 for shot in ("storage.png", "duplicates.png", "settings-folders.png", "settings-drives.png", "settings-privacy.png"):
     check(shot in report["screenshots"], f"screenshot {shot}")
 
+# Indexing progress: a count of files found so far, then the details pass.
+digits = re.compile("[0-9٠-٩]")
+pf, pd = report.get("progress_found", ""), report.get("progress_details", "")
+check("Movies" in pf and digits.search(pf), f"indexing shows how many files were found so far (got {pf!r})")
+check(len(digits.findall(pd)) >= 5, f"the details pass shows done of total (got {pd!r})")
+
 # Updates are never silent: a window with the step, a filled bar and the sizes.
 check(report.get("update_window_visible") is True, "the update window shows while an update downloads")
 check("update-progress.png" in report["screenshots"], "screenshot update-progress.png")

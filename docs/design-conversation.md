@@ -357,6 +357,9 @@ could wait an hour. **Asked:** "fix all". **Decided:**
 - The memory test reports the physical footprint (Activity Monitor's Memory column) and judges that.
 - Launch is measured step by step (shown in Save Diagnostics and the self-test) so the slow part can be fixed.
 - The big files are split by topic.
+- **Asked (during this work, from a Mac mini with large drives):** "im not sure if laserdot is still indexing or
+  stuck". **Decided:** indexing reports a live count of files found while walking, then the saving percentage,
+  then the background details pass, in the menu and the window footer.
 
 ---
 

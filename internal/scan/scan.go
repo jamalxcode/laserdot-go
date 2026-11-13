@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // DefaultIgnoredDirs are never indexed (spec §13.6), matched exactly.
@@ -54,6 +55,9 @@ func IsPartialDownload(name string) bool {
 
 // Options control a walk.
 type Options struct {
+	// Found, when set, counts entries as Walk lists them (indexing
+	// progress: how many files were found so far).
+	Found       *atomic.Uint64
 	IgnoredDirs []string
 	OpaqueDirs  []string
 	// OpaqueExts: package folders by extension (lowercase, no dot).
@@ -151,6 +155,9 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 				for i := range next {
 					dir := entries[level[i]]
 					results[i], failures[i] = readDir(dir.Path, level[i], rootEntry.Dev, opts)
+					if opts.Found != nil {
+						opts.Found.Add(uint64(len(results[i])))
+					}
 				}
 			}()
 		}
