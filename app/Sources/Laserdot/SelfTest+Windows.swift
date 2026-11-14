@@ -105,6 +105,13 @@ extension SelfTestRunner {
     /// "x MB of y MB" (no real update is fetched).
     func updateWindow(done: @escaping () -> Void) {
         extra["launch_phases"] = LaunchTimer.summary
+        // The install prompt fits a laptop screen however long the notes are,
+        // and its buttons show.
+        let longNotes = (1...300).map { "- Change number \($0): a line of what is new in this version" }.joined(separator: "\n")
+        let prompt = UpdateController.installAlert(version: "9.9.9", current: "0.9.0", notes: longNotes)
+        prompt.layout()
+        extra["install_prompt_height"] = Double(prompt.window.frame.height)
+        extra["install_prompt_buttons"] = prompt.buttons.count
         // The Duplicates window shows the step, a bar and the count.
         if let dm = app.duplicatesModel {
             dm.showProgressForTests(#"{"phase":"full","done":1200,"total":5000,"current":"/Users/x/Pictures/2019/IMG_1234.HEIC"}"#)

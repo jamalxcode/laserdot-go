@@ -336,17 +336,40 @@ final class UpdateController: ObservableObject {
 
     /// The install prompt, with what is new since this version.
     private func askToInstall(_ s: UpdateStatus, app: URL, fallbackNotes: String?) -> Bool {
-        let a = NSAlert()
-        a.messageText = String(format: L("update.available"), s.latest ?? "")
-        var info = String(format: L("update.installText"), currentVersion)
         // Everything new since this version, not only the last release.
-        if let notes = Updater.notes(in: app, since: updater.currentVersion?.short) ?? fallbackNotes {
-            info = notes + "\n\n" + info
+        let notes = Updater.notes(in: app, since: updater.currentVersion?.short) ?? fallbackNotes
+        let a = Self.installAlert(version: s.latest ?? "", current: currentVersion, notes: notes)
+        return a.runFront() == .alertFirstButtonReturn
+    }
+
+    /// The install prompt. What is new goes in a scrolling box of fixed
+    /// height, so the prompt fits any screen and its buttons always show
+    /// (all the notes since an old version can be very long).
+    static func installAlert(version: String, current: String, notes: String?) -> NSAlert {
+        let a = NSAlert()
+        a.messageText = String(format: L("update.available"), version)
+        a.informativeText = String(format: L("update.installText"), current)
+        if let notes, !notes.isEmpty {
+            let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 440, height: 260))
+            scroll.hasVerticalScroller = true
+            scroll.borderType = .bezelBorder
+            scroll.drawsBackground = false
+            let text = NSTextView(frame: scroll.contentView.bounds)
+            text.isEditable = false
+            text.isSelectable = true
+            text.drawsBackground = false
+            text.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
+            text.textContainerInset = NSSize(width: 6, height: 6)
+            text.isVerticallyResizable = true
+            text.autoresizingMask = [.width]
+            text.textContainer?.widthTracksTextView = true
+            text.string = notes
+            scroll.documentView = text
+            a.accessoryView = scroll
         }
-        a.informativeText = info
         a.addButton(withTitle: L("update.install"))
         a.addButton(withTitle: L("drive.notNow"))
-        return a.runFront() == .alertFirstButtonReturn
+        return a
     }
 
     private func relaunchAfter(_ result: Result<URL, Error>) {

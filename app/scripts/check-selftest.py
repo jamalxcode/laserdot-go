@@ -246,6 +246,10 @@ check(len(digits.findall(dd)) >= 8, f"the duplicate scan shows files done of tot
 check(abs(report.get("dupes_progress_fraction", -1) - 0.24) < 0.001, "the duplicate scan's bar fills with the count")
 check("IMG_1234.HEIC" in report.get("dupes_progress_file", ""), f"the duplicate scan shows the file it is reading (got {report.get('dupes_progress_file')!r})")
 
+# The install prompt fits a laptop screen with very long notes (its buttons were pushed off it).
+h = report.get("install_prompt_height", 9999)
+check(0 < h < 650 and report.get("install_prompt_buttons") == 2, f"the install prompt fits the screen with its buttons (height {h}, buttons {report.get('install_prompt_buttons')})")
+
 # Updates are never silent: a window with the step, a filled bar and the sizes.
 check(report.get("update_window_visible") is True, "the update window shows while an update downloads")
 check("update-progress.png" in report["screenshots"], "screenshot update-progress.png")

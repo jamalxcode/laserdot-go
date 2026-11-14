@@ -396,6 +396,13 @@ the end. Up to eight pictures of up to 200 megapixels were decoded at once (seve
 before it is skipped (marked unreadable, not retried until it changes); fingerprints are saved every 30 seconds;
 the window shows the file being read and its clock no longer depends on the daemon answering.
 
+## 27. The install prompt off the screen (0.9.14)
+
+**Found (screenshot, 16" MacBook):** the "ready to install" prompt listed every version's notes since 0.9.8 and grew
+past the bottom of the screen, hiding Install. **Decided:** the notes scroll in a fixed-height box inside the
+prompt; the self-test builds the prompt with 300 lines of notes and checks it stays under 650 points with both
+buttons.
+
 ---
 
 ## How the work was done

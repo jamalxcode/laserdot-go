@@ -3,6 +3,11 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.14
+
+- Fixed: when several versions' notes were shown, the update prompt grew taller than the screen and hid its
+  Install button. The notes now scroll in a box of their own and the buttons always show.
+
 ## 0.9.13
 
 - Fixed: a duplicate scan of many large pictures could slow the Mac to a crawl, stall and end with nothing to show.

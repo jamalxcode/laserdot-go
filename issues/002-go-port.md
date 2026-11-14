@@ -322,6 +322,7 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.14 (2026-11-14):** `UpdateController.installAlert`: notes in a 440×260 scrolling accessory view.
 - **0.9.13 (2026-11-14):** `compute` takes results as they finish and saves every `saveEvery` (30 s);
   `computeOne` gives a picture 1 min and a video 2 min (`fileLimit`), then marks it failed; `media.gateBig`
   decodes images over 24 MP one at a time; `DupeProgress.Current`. Tests: `TestScanSavesWhatItReadsAsItGoes`,
