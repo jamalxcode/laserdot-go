@@ -256,3 +256,24 @@ func TestBigRequestsAreAnswered(t *testing.T) {
 		t.Fatalf("unexpected answer: %.300s", line)
 	}
 }
+
+// A bug in one request is answered as an error and recorded; the daemon goes
+// on answering.
+func TestABugInARequestDoesNotStopTheDaemon(t *testing.T) {
+	_, c, _ := start(t)
+	panicOnOp = ipc.OpStats
+	defer func() { panicOnOp = "" }()
+	var v any
+	err := c.Call(&ipc.Request{Op: ipc.OpStats}, &v)
+	if err == nil || !strings.Contains(err.Error(), "kept running") {
+		t.Fatalf("a bug was not answered as an error: %v", err)
+	}
+	var pong string
+	if err := c.Call(&ipc.Request{Op: ipc.OpPing}, &pong); err != nil || pong != "pong" {
+		t.Fatalf("the daemon stopped answering after a bug: %q %v", pong, err)
+	}
+	var st map[string]any
+	if err := c.Call(&ipc.Request{Op: ipc.OpStatus}, &st); err != nil || st["bugs_caught"] == nil {
+		t.Fatalf("the bug was not counted: %v %v", st["bugs_caught"], err)
+	}
+}

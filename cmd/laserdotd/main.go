@@ -7,6 +7,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -119,6 +120,10 @@ func run() error {
 		fmt.Fprintln(os.Stderr, "laserdotd: already running on", socket)
 		return nil
 	}
+
+	// A bug is caught, written beside the index (laserdotd-crash.log, never
+	// sent anywhere; Save Diagnostics includes it) and the daemon carries on.
+	crash.SetLog(filepath.Join(filepath.Dir(db), "laserdotd-crash.log"))
 
 	// 3. The index.
 	ld, err := core.Open(db)

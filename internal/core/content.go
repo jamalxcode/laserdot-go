@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"os"
 	"path/filepath"
 	"slices"
@@ -95,6 +96,7 @@ func (j *ContentJob) Run() (ContentStats, error) {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
+				defer crash.Guard("reading a document's text")
 				d := index.Doc{Path: td.path, Stamp: td.stamp}
 				if td.stamp.Size <= j.maxBytes {
 					d.Text, d.Indexed = index.ExtractText(td.path, td.kind)
@@ -217,6 +219,9 @@ func (ld *Laserdot) ContentJob() (*ContentJob, error) {
 
 // UpdateContent brings the content index up to date now.
 func (ld *Laserdot) UpdateContent() (ContentStats, error) {
+	if err := enoughSpace(ld.dbDir()); err != nil {
+		return ContentStats{}, err
+	}
 	j, err := ld.ContentJob()
 	if err != nil {
 		return ContentStats{}, err

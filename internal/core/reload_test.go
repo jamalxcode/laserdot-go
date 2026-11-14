@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/jamalxcode/laserdot-go/internal/watch"
 	"os"
@@ -412,5 +413,30 @@ func TestQuickCheckFindsMissedFilesByFolderTime(t *testing.T) {
 	}
 	if s := ld.staleFolders(); len(s) != 0 {
 		t.Fatalf("caught up, yet stale again: %v", s)
+	}
+}
+
+// A nearly full disk stops indexing before it starts, with a message that
+// says what to do (instead of failing halfway with "disk full").
+func TestANearlyFullDiskStopsIndexingWithAClearMessage(t *testing.T) {
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(dir, "home")
+	write(t, root, "a.txt", "x")
+	ld, err := Open(filepath.Join(dir, "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	old := diskFree
+	diskFree = func(string) (uint64, error) { return 100 << 20, nil }
+	defer func() { diskFree = old }()
+	_, err = ld.Index(root)
+	var low *LowDiskError
+	if !errors.As(err, &low) || !strings.Contains(err.Error(), "free up some space") {
+		t.Fatalf("got %v", err)
+	}
+	diskFree = old
+	if _, err := ld.Index(root); err != nil {
+		t.Fatalf("with space again: %v", err)
 	}
 }

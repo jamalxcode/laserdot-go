@@ -356,6 +356,9 @@ func (ld *Laserdot) CreateDriveIndex(mount string, opts DriveOptions) (IndexStat
 	if err != nil {
 		return IndexStats{}, err
 	}
+	if err := enoughSpace(mount, ld.dbDir()); err != nil {
+		return IndexStats{}, err
+	}
 	v, err := scan.VolumeAt(mount)
 	if err != nil {
 		return IndexStats{}, err
@@ -391,7 +394,15 @@ func (ld *Laserdot) CreateDriveIndex(mount string, opts DriveOptions) (IndexStat
 	if vf.Encrypted {
 		ld.keys[vf.ID] = opts.Passphrase
 	}
-	st, err := index.IndexRoot(db, mount, d.scan, opts.Bulk)
+	// The menu shows how far it has got, as for a folder on this Mac.
+	bulk := opts.Bulk
+	if bulk.Progress == nil {
+		bulk.Progress = func(phase string, done, total uint64) {
+			ld.progress.Store(&IndexProgress{Root: mount, Phase: phase, Done: done, Total: total})
+		}
+		defer ld.progress.Store(nil)
+	}
+	st, err := index.IndexRoot(db, mount, d.scan, bulk)
 	if err != nil {
 		d.close() // an interrupted index keeps its committed prefix (§9.7)
 		return st, err

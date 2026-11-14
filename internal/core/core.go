@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -363,6 +364,9 @@ func (ld *Laserdot) index(root string) (IndexStats, error) {
 	if err != nil {
 		return IndexStats{}, err
 	}
+	if err := enoughSpace(ld.dbDir()); err != nil {
+		return IndexStats{}, err
+	}
 	if fi, err := os.Stat(root); err != nil || !fi.IsDir() {
 		return IndexStats{}, fmt.Errorf("%s is not a folder", root)
 	}
@@ -385,7 +389,10 @@ func (ld *Laserdot) index(root string) (IndexStats, error) {
 		return IndexStats{}, err
 	}
 	for _, r := range roots {
-		if within(root, r.Path) {
+		// A folder whose first index never finished (Laserdot was quit or
+		// crashed meanwhile) is indexed again from the start, not updated:
+		// its files may not be in the index at all.
+		if within(root, r.Path) && r.Complete {
 			u, err := ld.ApplyChanges([]Change{{Path: root, Recursive: true}})
 			return IndexStats{
 				Root: root, Incremental: true, Added: u.Added, Removed: u.Removed, Renamed: u.Renamed,
@@ -446,6 +453,7 @@ func (ld *Laserdot) probeLater() {
 	go func() {
 		defer ld.background.Done()
 		defer ld.probing.Store(false)
+		defer crash.Guard("reading picture and video details")
 		type job struct {
 			db   int64
 			path string
@@ -551,6 +559,7 @@ func (ld *Laserdot) readTagsLater(root string) {
 	ld.background.Add(1)
 	go func() {
 		defer ld.background.Done()
+		defer crash.Guard("reading Finder tags")
 		dirs := map[string]bool{}
 		const chunk = 20_000
 		for start := 0; start < len(ids); start += chunk {
@@ -723,8 +732,20 @@ func (ld *Laserdot) Refresh() (UpdateStats, error) {
 		return UpdateStats{OfflineRoots: []string{}}, err
 	}
 	var changes []Change
+	var unfinished []string
 	for _, r := range roots {
+		if !r.Complete {
+			unfinished = append(unfinished, r.Path)
+			continue
+		}
 		changes = append(changes, Change{Path: r.Path, Recursive: true})
+	}
+	// First indexes that never finished start again (this runs when the
+	// daemon starts, so it heals by itself after a crash).
+	for _, p := range unfinished {
+		if _, err := ld.Index(p); err != nil {
+			return UpdateStats{OfflineRoots: []string{}}, err
+		}
 	}
 	u, err := ld.applyLocal(changes)
 	if err != nil {
@@ -945,6 +966,7 @@ func (ld *Laserdot) dropMissing(r *SearchResults) {
 	ld.background.Add(1)
 	go func() {
 		defer ld.background.Done()
+		defer crash.Guard("removing deleted files")
 		_, _ = ld.ApplyChanges(changes)
 		for _, c := range changes {
 			ld.fixing.Delete(c.Path)

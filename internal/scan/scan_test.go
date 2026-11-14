@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func write(t *testing.T, path, data string) {
@@ -135,5 +136,49 @@ func TestWalkCountsWhatItFinds(t *testing.T) {
 	}
 	if got, want := found.Load(), uint64(len(entries)-1); got != want || got != 5 {
 		t.Fatalf("found %d, want %d (5: three files, two folders)", got, want)
+	}
+}
+
+// A folder that never answers (a stuck drive) is skipped and reported after
+// FolderLimit; the rest of the walk goes on.
+func TestAStuckFolderIsSkippedNotWaitedFor(t *testing.T) {
+	dir := t.TempDir()
+	for _, p := range []string{"ok/a.txt", "stuck/b.txt"} {
+		full := filepath.Join(dir, p)
+		os.MkdirAll(filepath.Dir(full), 0o755)
+		os.WriteFile(full, []byte("x"), 0o644)
+	}
+	old := FolderLimit
+	FolderLimit = 100 * time.Millisecond
+	release := make(chan struct{})
+	readDirHook = func(d string) {
+		if filepath.Base(d) == "stuck" {
+			<-release
+		}
+	}
+	// The stuck reads stay abandoned until the test ends; the hook stays (it
+	// lets everything through once release is closed).
+	defer func() { FolderLimit = old; close(release) }()
+	done := make(chan struct{})
+	var entries []Entry
+	var errs []Error
+	go func() { entries, errs, _ = Walk(dir, Options{}); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the walk waited for a stuck folder")
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, filepath.Base(e.Path))
+	}
+	if !strings.Contains(strings.Join(names, " "), "a.txt") {
+		t.Errorf("the rest was not indexed: %v", names)
+	}
+	if len(errs) != 1 || !strings.Contains(errs[0].Message, "did not answer") {
+		t.Errorf("the stuck folder was not reported: %+v", errs)
+	}
+	if _, err := ListDir(filepath.Join(dir, "stuck"), Options{}); err == nil {
+		t.Error("listing a stuck folder answered as if it were empty")
 	}
 }

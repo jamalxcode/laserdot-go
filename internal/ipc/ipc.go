@@ -190,6 +190,9 @@ type Status struct {
 	// CatchUp: the watcher's hourly comparison with the disk (absent from
 	// older daemons and when not watching).
 	CatchUp *CatchUp `json:"catch_up,omitempty"`
+	// BugsCaught: bugs caught and recorded since the daemon started (the
+	// crash log beside the index has the details).
+	BugsCaught int `json:"bugs_caught,omitempty"`
 	// Dupes: the duplicate scan running now (see core.DupeProgress).
 	Dupes *DupeProgress `json:"dupes,omitempty"`
 }

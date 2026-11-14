@@ -6,6 +6,7 @@
 package scan
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 // DefaultIgnoredDirs are never indexed (spec §13.6), matched exactly.
@@ -154,7 +156,7 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 				defer wg.Done()
 				for i := range next {
 					dir := entries[level[i]]
-					results[i], failures[i] = readDir(dir.Path, level[i], rootEntry.Dev, opts)
+					results[i], failures[i], _ = readDirWithin(dir.Path, level[i], rootEntry.Dev, opts)
 					if opts.Found != nil {
 						opts.Found.Add(uint64(len(results[i])))
 					}
@@ -191,6 +193,9 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 // readDir lists dir's children with the ignore rules applied: in bulk where
 // the system offers it (macOS, readDirBulk), else name by name.
 func readDir(dir string, parent int, rootDev uint64, opts Options) ([]Entry, []Error) {
+	if readDirHook != nil {
+		readDirHook(dir)
+	}
 	if out, errs, ok := readDirBulk(dir, parent, opts); ok {
 		return out, errs
 	}
@@ -235,9 +240,47 @@ func ListDir(dir string, opts Options) ([]Entry, error) {
 	if _, err := os.Stat(dir); err != nil {
 		return nil, err
 	}
-	out, _ := readDir(dir, -1, 0, opts)
+	out, _, stuck := readDirWithin(dir, -1, 0, opts)
+	if stuck {
+		// Not "empty": the folder's entries must stay as they are.
+		return nil, errStuck(dir)
+	}
 	return out, nil
 }
+
+// FolderLimit: how long reading one folder may take. A disconnected or
+// stuck drive (a dead network share) can make it wait forever; the folder is
+// then skipped and reported instead, and indexing goes on.
+var FolderLimit = 30 * time.Second
+
+func errStuck(dir string) error {
+	return fmt.Errorf("%s did not answer within %v (a disconnected or stuck drive?): skipped", dir, FolderLimit)
+}
+
+// readDirWithin is readDir with FolderLimit. stuck: it did not answer in
+// time (the read goes on by itself and its result is dropped).
+func readDirWithin(dir string, parent int, rootDev uint64, opts Options) ([]Entry, []Error, bool) {
+	type listed struct {
+		out  []Entry
+		errs []Error
+	}
+	ch := make(chan listed, 1)
+	go func() {
+		out, errs := readDir(dir, parent, rootDev, opts)
+		ch <- listed{out, errs}
+	}()
+	t := time.NewTimer(FolderLimit)
+	defer t.Stop()
+	select {
+	case l := <-ch:
+		return l.out, l.errs, false
+	case <-t.C:
+		return nil, []Error{{Path: dir, Message: errStuck(dir).Error()}}, true
+	}
+}
+
+// readDirHook: tests make a folder hang.
+var readDirHook func(dir string)
 
 // IsOpaque: a version-control folder or a package (an app…) whose contents
 // are not indexed.

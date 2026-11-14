@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"net"
 	"os"
 	"path/filepath"
@@ -102,7 +103,7 @@ func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
 		log = func(string) {}
 	}
 	s.contentDirty.Store(true)
-	go func() {
+	go crash.Keep("content update", 5*time.Second, func() {
 		for {
 			select {
 			case <-s.done:
@@ -119,9 +120,9 @@ func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
 				log(fmt.Sprintf("content: %d indexed, %d skipped, %d removed in %d ms", st.Indexed, st.Skipped, st.Removed, st.MS))
 			}
 		}
-	}()
+	})
 	// Tier 2 at idle: a few files at a time, never on the indexing path.
-	go func() {
+	go crash.Keep("deep probe", 5*time.Second, func() {
 		for {
 			select {
 			case <-s.done:
@@ -138,11 +139,11 @@ func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
 				log(fmt.Sprintf("deep probe: %d files updated (%d left)", st.Updated, st.Remaining))
 			}
 		}
-	}()
+	})
 	if volumeEvery <= 0 {
 		return
 	}
-	go func() {
+	go crash.Keep("drive watch", 5*time.Second, func() {
 		for {
 			attached, gone := s.ld.SyncDrives()
 			for _, m := range attached {
@@ -167,7 +168,7 @@ func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
 			case <-time.After(volumeEvery):
 			}
 		}
-	}()
+	})
 }
 
 // Paused: background work waits (battery, heat, Low Power Mode).
@@ -279,8 +280,36 @@ func result(v any, err error) ipc.Response {
 	return ok(v)
 }
 
-// Handle answers one request.
-func (s *Server) Handle(req *ipc.Request) ipc.Response {
+// Handle answers one request. A bug in it is caught and recorded (crash
+// log) and answered as an error; the daemon carries on. If the bug left the
+// index locked, the daemon exits so the app starts a fresh one, rather than
+// hanging.
+func (s *Server) Handle(req *ipc.Request) (resp ipc.Response) {
+	defer func() {
+		if v := recover(); v != nil {
+			crash.Record("request "+req.Op, v, debug.Stack())
+			resp = fail(&ipc.RemoteError{
+				Message: fmt.Sprintf("Laserdot hit a bug in %q and kept running (details in Save Diagnostics): %v", req.Op, v),
+				Code:    "internal",
+			})
+			if !s.ld.Healthy(3 * time.Second) {
+				crash.Record("health check", "the index stayed locked after the bug: restarting laserdotd", nil)
+				s.Stop()
+				go func() { time.Sleep(200 * time.Millisecond); os.Exit(3) }()
+			}
+		}
+	}()
+	return s.handle(req)
+}
+
+// panicOnOp: tests make this op hit a bug.
+var panicOnOp string
+
+func (s *Server) handle(req *ipc.Request) ipc.Response {
+	if panicOnOp != "" && req.Op == panicOnOp {
+		var m map[string]int
+		m["bug"]++ // a real runtime panic: assignment to a nil map
+	}
 	switch req.Op {
 	case ipc.OpPing:
 		return ok("pong")
@@ -288,7 +317,7 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 		st := ipc.Status{
 			Protocol: ipc.ProtocolVersion, Version: Version, PID: os.Getpid(),
 			NetworkDenied: sandbox.IsEnforced(), Watcher: s.watcherName(), CatchUp: s.catchUp(),
-			DB: s.ld.DBPath(), Entries: s.ld.Stats().Entries,
+			DB: s.ld.DBPath(), Entries: s.ld.Stats().Entries, BugsCaught: crash.Count(),
 		}
 		if p := s.ld.Progress(); p != nil {
 			st.Indexing = &ipc.IndexProgress{Root: p.Root, Phase: p.Phase, Done: p.Done, Total: p.Total}

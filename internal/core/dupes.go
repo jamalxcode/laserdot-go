@@ -4,9 +4,11 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"math"
 	"math/bits"
 	"path/filepath"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"sync"
@@ -491,13 +493,13 @@ func compute(cands []cand, fps []index.Fingerprint, which []int, rep *DupeReport
 func computeOne(c *cand, fp index.Fingerprint, phase string, limit time.Duration,
 	f func(c *cand, fp *index.Fingerprint) (uint64, bool)) computed {
 	if limit <= 0 {
-		n, ok := f(c, &fp)
+		n, ok := safely(phase, c, &fp, f)
 		return computed{fp, n, ok}
 	}
 	ch := make(chan computed, 1)
 	mine := fp // the read's own copy: fp may be marked failed below meanwhile
 	go func() {
-		n, ok := f(c, &mine)
+		n, ok := safely(phase, c, &mine, f)
 		ch <- computed{mine, n, ok}
 	}()
 	timer := time.NewTimer(limit)
@@ -506,13 +508,32 @@ func computeOne(c *cand, fp index.Fingerprint, phase string, limit time.Duration
 	case r := <-ch:
 		return r
 	case <-timer.C:
-		switch phase {
-		case "images":
-			fp.Flags |= index.FPImageFailed
-		case "videos":
-			fp.Flags |= index.FPVideoFailed
-		}
+		markFailed(phase, &fp)
 		return computed{fp, 0, false}
+	}
+}
+
+// safely runs f; a bug while reading one file (a decoder tripping over it)
+// is recorded and the file counts as unreadable, instead of stopping the
+// daemon.
+func safely(phase string, c *cand, fp *index.Fingerprint, f func(c *cand, fp *index.Fingerprint) (uint64, bool)) (n uint64, ok bool) {
+	defer func() {
+		if v := recover(); v != nil {
+			crash.Record("reading "+c.path, v, debug.Stack())
+			markFailed(phase, fp)
+			n, ok = 0, false
+		}
+	}()
+	return f(c, fp)
+}
+
+// markFailed: later scans skip this picture or video until it changes.
+func markFailed(phase string, fp *index.Fingerprint) {
+	switch phase {
+	case "images":
+		fp.Flags |= index.FPImageFailed
+	case "videos":
+		fp.Flags |= index.FPVideoFailed
 	}
 }
 

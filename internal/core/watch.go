@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"sync/atomic"
 	"time"
 
@@ -75,7 +76,11 @@ func (w *Watcher) Health() WatcherHealth {
 func (ld *Laserdot) Watch(opts watch.Options, ev WatchEvents) *Watcher {
 	w := &Watcher{ld: ld, opts: opts, stop: make(chan struct{}), done: make(chan struct{})}
 	w.backend.Store("None")
-	go w.run(ev)
+	// A bug in watching is caught and watching starts again (crash.Keep).
+	go func() {
+		defer close(w.done)
+		crash.Keep("watching for changes", 5*time.Second, func() { w.run(ev) })
+	}()
 	return w
 }
 
@@ -105,7 +110,6 @@ func (w *Watcher) stopped() bool {
 }
 
 func (w *Watcher) run(ev WatchEvents) {
-	defer close(w.done)
 	// Older versions indexed all of ~/Library; take out what the current
 	// rules leave out (caches, app data) before following changes.
 	if _, err := w.ld.PruneLibrary(); err != nil && ev.Error != nil {
