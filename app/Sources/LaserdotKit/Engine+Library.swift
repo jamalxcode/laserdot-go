@@ -162,6 +162,13 @@ extension Engine {
         (try? call(.status, as: Wire.Status.self))?.dupes
     }
 
+    /// Stop the running duplicate scan early. findDuplicates then returns
+    /// what it found so far; what it read is kept for the next scan.
+    @discardableResult
+    public func stopDuplicates() -> Bool {
+        (try? call(.dupesStop, as: Bool.self)) ?? false
+    }
+
     public func findDuplicates(scope: String, exactOnly: Bool) throws -> DuplicateReport {
         let request = DaemonRequest.dupes(options: Wire.DupeOptions(scope: scope, images: !exactOnly, videos: !exactOnly))
         // A scan can take minutes: use a connection of its own so searches
@@ -196,7 +203,7 @@ extension Engine {
                     reclaimable: g.reclaimable)
             },
             reclaimable: r.reclaimable, filesChecked: r.files, filesRead: r.read, unreadable: r.unreadable,
-            videoDecoder: r.videoDecoder, elapsedMs: r.ms)
+            videoDecoder: r.videoDecoder, elapsedMs: r.ms, stopped: r.stopped)
     }
 
     /// Groups per cleanup request: tens of thousands of duplicates go in

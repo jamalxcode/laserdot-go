@@ -322,6 +322,10 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.12 (2026-11-14):** `StopDuplicates` / op `dupes_stop`: `compute` stops starting reads, unread
+  candidates keep their cached fingerprints, later passes are skipped, `DupeReport.Stopped`; fingerprints read so
+  far are saved as usual (`TestStoppedScanShowsWhatItFoundAndTheNextContinues`). App: Stop button, Continue Scan,
+  stop on window close.
 - **0.9.11 (2026-11-13):** duplicate cleanup. `maxLine` 1 MiB → 64 MiB (`TestBigRequestsAreAnswered`, 30,000
   groups); `Engine.cleanupPreview`/`cleanup` send 500 groups per request on a connection of their own with no time
   limit, never resend, report progress and return the moved paths; the window drops moved files without a rescan.

@@ -24,6 +24,8 @@ final class DuplicatesModel: ObservableObject {
     /// While scanning: the step and how many files it has read, and since when.
     @Published private(set) var progress: Wire.DupeProgress?
     @Published private(set) var started: Date?
+    /// Stop was pressed; the scan is wrapping up with what it found.
+    @Published private(set) var stopping = false
     private var progressTimer: Timer?
     private let progressQueue = DispatchQueue(label: "laserdot.dupes.progress", qos: .utility)
 
@@ -37,6 +39,7 @@ final class DuplicatesModel: ObservableObject {
     func scan() {
         guard !scanning else { return }
         scanning = true
+        stopping = false
         message = nil
         progress = nil
         started = Date()
@@ -47,6 +50,7 @@ final class DuplicatesModel: ObservableObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.scanning = false
+                self.stopping = false
                 self.stopProgress()
                 switch outcome {
                 case .success(let r):
@@ -54,7 +58,9 @@ final class DuplicatesModel: ObservableObject {
                     self.moved = []
                     // The recommendation: everything but the best copy.
                     self.remove = Set(r.groups.flatMap { $0.files.filter { !$0.keep }.map(\.path) })
-                    if r.videoDecoder == nil && !exact {
+                    if r.stopped {
+                        self.message = L("dupes.stoppedNote")
+                    } else if r.videoDecoder == nil && !exact {
                         self.message = L("dupes.noVideoDecoder")
                     }
                 case .failure(let e):
@@ -62,6 +68,20 @@ final class DuplicatesModel: ObservableObject {
                 }
             }
         }
+    }
+
+    /// Stop the scan early: it finishes with the duplicates found so far,
+    /// ready to clean up; the next scan continues where this one stopped.
+    func stopScan() {
+        guard scanning, !stopping else { return }
+        stopping = true
+        let engine = self.engine
+        progressQueue.async { engine.stopDuplicates() }
+    }
+
+    /// "Scan", or "Continue Scan" after a scan was stopped early.
+    var scanTitle: String {
+        report?.stopped == true ? L("dupes.continueScan") : L("dupes.scan")
     }
 
     /// Ask the daemon twice a second how far the scan has got.
@@ -90,6 +110,7 @@ final class DuplicatesModel: ObservableObject {
 
     /// "Comparing files of the same size…"
     var progressTitle: String {
+        if stopping { return L("dupes.stopping") }
         guard let p = progress else { return L("dupes.scanning") }
         let key = "dupes.phase.\(p.phase)"
         let s = L(key)
@@ -291,7 +312,7 @@ struct DuplicatesView: View {
                     .textFieldStyle(.roundedBorder)
                     .onSubmit { model.scan() }
                 Toggle(L("dupes.exactOnly"), isOn: $model.exactOnly)
-                Button(L("dupes.scan")) { model.scan() }
+                Button(model.scanTitle) { model.scan() }
                     .keyboardShortcut(.defaultAction)
                     .disabled(model.scanning)
             }
@@ -310,8 +331,18 @@ struct DuplicatesView: View {
                         .font(.caption)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
+                    // A long scan: deal with what is found so far, then go on.
+                    Button(L("dupes.stopShow")) { model.stopScan() }
+                        .controlSize(.large)
+                        .disabled(model.stopping)
+                        .padding(.top, 6)
+                        .accessibilityIdentifier("dupes-stop")
+                    Text(L("dupes.stopHelp"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
                 }
-                .frame(maxWidth: 380)
+                .frame(maxWidth: 420)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let w = model.work {
                 // Checking or moving: what, a bar and files done of total.
@@ -399,6 +430,8 @@ struct DuplicatesView: View {
             .padding(10)
         }
         .frame(minWidth: 720, minHeight: 460)
+        // Closing the window stops a scan (what it read is kept).
+        .onDisappear { model.stopScan() }
         .alert(
             confirmTitle,
             isPresented: Binding(get: { model.preview != nil }, set: { if !$0 { model.preview = nil } }),

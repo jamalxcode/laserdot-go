@@ -360,3 +360,53 @@ func TestFlatFramesOnlyMatchFlatFrames(t *testing.T) {
 }
 
 func runtimeIsDarwin() bool { return runtime.GOOS == "darwin" }
+
+// A long scan can be stopped early: it shows what it has found so far, keeps
+// what it read, and the next scan continues instead of starting over.
+func TestStoppedScanShowsWhatItFoundAndTheNextContinues(t *testing.T) {
+	l := dupeLibrary(t)
+	dupeProgressSeen = func(p DupeProgress) {
+		if p.Phase == "images" {
+			l.ld.StopDuplicates() // as the window's Stop button does
+		}
+	}
+	first, err := l.ld.FindDuplicates(DefaultDupeOptions())
+	dupeProgressSeen = nil
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !first.Stopped {
+		t.Fatal("not marked as stopped")
+	}
+	if len(groupNames(first, DupeExact)) == 0 {
+		t.Errorf("the identical copies found before stopping are not shown: %+v", first.Groups)
+	}
+	if len(groupNames(first, DupeSimilarImage)) != 0 {
+		t.Errorf("pictures were looked at after stopping: %+v", groupNames(first, DupeSimilarImage))
+	}
+	if l.ld.StopDuplicates() {
+		t.Error("a stop with no scan running claimed to stop one")
+	}
+
+	var mu sync.Mutex
+	total := map[string]uint64{}
+	dupeProgressSeen = func(p DupeProgress) {
+		mu.Lock()
+		defer mu.Unlock()
+		total[p.Phase] = max(total[p.Phase], p.Total)
+	}
+	defer func() { dupeProgressSeen = nil }()
+	again, err := l.ld.FindDuplicates(DefaultDupeOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if again.Stopped || len(groupNames(again, DupeSimilarImage)) == 0 {
+		t.Errorf("the next scan did not finish the pictures: stopped %v, %+v", again.Stopped, again.Groups)
+	}
+	if total["quick"] != 0 || total["full"] != 0 {
+		t.Errorf("files read before stopping were read again: %v", total)
+	}
+	if total["images"] == 0 {
+		t.Errorf("the pictures not looked at yet were skipped: %v", total)
+	}
+}

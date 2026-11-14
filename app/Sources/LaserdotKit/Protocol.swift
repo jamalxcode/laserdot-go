@@ -29,6 +29,8 @@ public enum DaemonRequest: Encodable, Sendable {
     case driveEject(mount: String)
     /// Find duplicates (spec §4).
     case dupes(options: Wire.DupeOptions)
+    /// Stop the running duplicate scan early; it answers with what it found.
+    case dupesStop
     /// Dry run of a cleanup (spec §4.4).
     case cleanupPlan(request: Wire.CleanupRequest)
     case cleanup(request: Wire.CleanupRequest)
@@ -100,6 +102,7 @@ public enum DaemonRequest: Encodable, Sendable {
         case .driveDelete: return "drive_delete"
         case .driveEject: return "drive_eject"
         case .dupes: return "dupes"
+        case .dupesStop: return "dupes_stop"
         case .cleanupPlan: return "cleanup_plan"
         case .cleanup: return "cleanup"
         case .contentStatus: return "content_status"
@@ -165,7 +168,7 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(path, forKey: .path)
             try c.encode(query, forKey: .query)
         case .ping, .status, .refresh, .roots, .stats, .shutdown, .drives, .contentStatus, .updateContent, .valueCounts,
-             .clearOpens, .exclusions, .unreadable:
+             .clearOpens, .exclusions, .unreadable, .dupesStop:
             break
         }
     }

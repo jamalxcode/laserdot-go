@@ -381,3 +381,8 @@
 "dupes.movingTrash" = "Moving duplicates to the Trash…";
 "dupes.movingFolder" = "Moving duplicates…";
 "dupes.notMoved" = "%lld were not moved:";
+"dupes.stopShow" = "Stop and Show What’s Found";
+"dupes.stopHelp" = "Clean up the duplicates found so far, then press Continue Scan: files already looked at are not read again.";
+"dupes.stopping" = "Stopping… keeping what was found";
+"dupes.continueScan" = "Continue Scan";
+"dupes.stoppedNote" = "Stopped early: these are the duplicates found so far. Clean them up, then press Continue Scan to go on where it stopped.";

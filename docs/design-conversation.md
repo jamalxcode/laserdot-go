@@ -379,6 +379,14 @@ one copy of each stays and that nothing is deleted; the app sends cleanups in ba
 connection of its own with progress; the daemon accepts requests up to 64 MB; moved files leave the list without a
 rescan.
 
+## 25. Stopping a long duplicate scan (0.9.12)
+
+**Asked (a scan at 1 h 39 min, "Looking at pictures", 131,312 of 136,896):** "lets have something that allows us
+to interrupt, take care of currently found dups and delete or manage them, then start all over again, to save
+time". **Decided:** "Stop and Show What's Found" stops reading, groups what was found, and saves every
+fingerprint read; the window offers cleanup as usual and the Scan button becomes "Continue Scan", which skips the
+files already read. Closing the window stops a scan the same way.
+
 ---
 
 ## How the work was done

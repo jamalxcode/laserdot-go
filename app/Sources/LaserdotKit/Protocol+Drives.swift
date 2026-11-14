@@ -175,10 +175,12 @@ extension Wire {
         /// `nil`: re-encoded videos are not detected on this machine.
         public var videoDecoder: String?
         public var ms: UInt64
+        /// Stopped early: the groups are what it had found (newer daemons).
+        public var stopped: Bool
 
         enum CodingKeys: String, CodingKey {
             case groups, reclaimable, files, read, bytesRead = "bytes_read", unreadable,
-                 videoDecoder = "video_decoder", ms
+                 videoDecoder = "video_decoder", ms, stopped
         }
 
         public init(from decoder: Decoder) throws {
@@ -191,6 +193,7 @@ extension Wire {
             unreadable = try c.value(.unreadable, or: 0)
             videoDecoder = try c.decodeIfPresent(String.self, forKey: .videoDecoder)
             ms = try c.value(.ms, or: 0)
+            stopped = try c.value(.stopped, or: false)
         }
     }
 

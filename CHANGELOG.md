@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.12
+
+- A long duplicate scan can be stopped: "Stop and Show What's Found" lists the duplicates found so far, ready to
+  clean up. Then "Continue Scan" goes on where it stopped: files already looked at are not read again.
+- Closing the Duplicates window stops a scan too (what it read is kept).
+
 ## 0.9.11
 
 - Cleaning up duplicates is obvious now: one big button, "Move 27,670 Duplicates to Trash (37.31 GB)…", then a

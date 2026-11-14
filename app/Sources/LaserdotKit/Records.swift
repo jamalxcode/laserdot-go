@@ -145,6 +145,8 @@ public struct DuplicateReport: Sendable {
     /// `nil`: re-encoded videos could not be compared here.
     public var videoDecoder: String?
     public var elapsedMs: UInt64
+    /// The scan was stopped early: these are the duplicates found so far.
+    public var stopped: Bool = false
 }
 
 /// A group as the user decided it: what stays, what goes.

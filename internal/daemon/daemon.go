@@ -356,6 +356,8 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 			return fail(ipc.ErrorOf(err))
 		}
 		return ok("ejected")
+	case ipc.OpDupesStop:
+		return ok(s.ld.StopDuplicates())
 	case ipc.OpDupes:
 		opts := core.DefaultDupeOptions()
 		if len(req.Options) > 0 {

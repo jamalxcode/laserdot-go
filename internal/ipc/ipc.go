@@ -45,6 +45,7 @@ const (
 	OpDriveEject   = "drive_eject"
 	// Duplicates (§4).
 	OpDupes       = "dupes"
+	OpDupesStop   = "dupes_stop"
 	OpCleanupPlan = "cleanup_plan"
 	OpCleanup     = "cleanup"
 	// Content search (§2.4).
