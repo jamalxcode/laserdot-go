@@ -203,9 +203,10 @@ type CatchUp struct {
 
 // DupeProgress: see core.DupeProgress.
 type DupeProgress struct {
-	Phase string `json:"phase"`
-	Done  uint64 `json:"done"`
-	Total uint64 `json:"total"`
+	Phase   string `json:"phase"`
+	Done    uint64 `json:"done"`
+	Total   uint64 `json:"total"`
+	Current string `json:"current,omitempty"`
 }
 
 // IndexProgress: see core.IndexProgress.

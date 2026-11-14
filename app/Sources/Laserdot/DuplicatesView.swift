@@ -27,6 +27,7 @@ final class DuplicatesModel: ObservableObject {
     /// Stop was pressed; the scan is wrapping up with what it found.
     @Published private(set) var stopping = false
     private var progressTimer: Timer?
+    private var asking = false
     private let progressQueue = DispatchQueue(label: "laserdot.dupes.progress", qos: .utility)
 
     private let engine: Engine
@@ -89,13 +90,18 @@ final class DuplicatesModel: ObservableObject {
         progressTimer?.invalidate()
         progressTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
             guard let self else { return }
+            // The clock moves on by itself, even when the daemon is slow to
+            // answer (a busy daemon must not look like a frozen window).
+            self.objectWillChange.send()
+            guard !self.asking else { return }
+            self.asking = true
             let engine = self.engine
             self.progressQueue.async {
                 let p = engine.dupeProgress()
                 DispatchQueue.main.async {
+                    self.asking = false
                     guard self.scanning else { return }
                     if let p { self.progress = p }
-                    self.objectWillChange.send() // the elapsed time moves on
                 }
             }
         }
@@ -133,6 +139,13 @@ final class DuplicatesModel: ObservableObject {
             parts.append(String(format: L("dupes.elapsed"), d.string(from: Date().timeIntervalSince(started)) ?? ""))
         }
         return parts.joined(separator: " · ")
+    }
+
+    /// "Pictures › 2019 › IMG_1234.HEIC": the file being read now.
+    var progressFile: String? {
+        guard let c = progress?.current, !c.isEmpty else { return nil }
+        let parts = c.split(separator: "/").suffix(3)
+        return parts.joined(separator: " › ")
     }
 
     /// 0…1 for the reading steps; nil shows a moving bar.
@@ -331,6 +344,13 @@ struct DuplicatesView: View {
                         .font(.caption)
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
+                    if let file = model.progressFile {
+                        Text(file)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                     // A long scan: deal with what is found so far, then go on.
                     Button(L("dupes.stopShow")) { model.stopScan() }
                         .controlSize(.large)

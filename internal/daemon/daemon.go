@@ -294,7 +294,7 @@ func (s *Server) Handle(req *ipc.Request) ipc.Response {
 			st.Indexing = &ipc.IndexProgress{Root: p.Root, Phase: p.Phase, Done: p.Done, Total: p.Total}
 		}
 		if p := s.ld.DupeProgress(); p != nil {
-			st.Dupes = &ipc.DupeProgress{Phase: p.Phase, Done: p.Done, Total: p.Total}
+			st.Dupes = &ipc.DupeProgress{Phase: p.Phase, Done: p.Done, Total: p.Total, Current: p.Current}
 		}
 		return ok(st)
 	case ipc.OpSearch:

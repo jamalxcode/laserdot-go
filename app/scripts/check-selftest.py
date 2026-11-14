@@ -244,6 +244,7 @@ dt, dd = report.get("dupes_progress_title", ""), report.get("dupes_progress_deta
 check(dt and "…" in dt, f"the duplicate scan names its step (got {dt!r})")
 check(len(digits.findall(dd)) >= 8, f"the duplicate scan shows files done of total and the time so far (got {dd!r})")
 check(abs(report.get("dupes_progress_fraction", -1) - 0.24) < 0.001, "the duplicate scan's bar fills with the count")
+check("IMG_1234.HEIC" in report.get("dupes_progress_file", ""), f"the duplicate scan shows the file it is reading (got {report.get('dupes_progress_file')!r})")
 
 # Updates are never silent: a window with the step, a filled bar and the sizes.
 check(report.get("update_window_visible") is True, "the update window shows while an update downloads")

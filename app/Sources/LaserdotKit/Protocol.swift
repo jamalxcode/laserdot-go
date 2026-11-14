@@ -248,6 +248,8 @@ public enum Wire {
         public var phase: String
         public var done: UInt64
         public var total: UInt64
+        /// The file it started reading last (newer daemons).
+        public var current: String?
     }
 
     /// `status.catch_up`: when the indexed folders were last compared with

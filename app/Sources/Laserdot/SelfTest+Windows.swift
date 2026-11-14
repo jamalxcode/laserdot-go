@@ -107,7 +107,8 @@ extension SelfTestRunner {
         extra["launch_phases"] = LaunchTimer.summary
         // The Duplicates window shows the step, a bar and the count.
         if let dm = app.duplicatesModel {
-            dm.showProgressForTests(#"{"phase":"full","done":1200,"total":5000}"#)
+            dm.showProgressForTests(#"{"phase":"full","done":1200,"total":5000,"current":"/Users/x/Pictures/2019/IMG_1234.HEIC"}"#)
+            extra["dupes_progress_file"] = dm.progressFile ?? ""
             extra["dupes_progress_title"] = dm.progressTitle
             extra["dupes_progress_detail"] = dm.progressDetail
             extra["dupes_progress_fraction"] = dm.progressFraction ?? -1

@@ -135,13 +135,15 @@ type Laserdot struct {
 	dupes atomic.Pointer[DupeProgress]
 	// dupeStop: StopDuplicates asked the running scan to stop early.
 	dupeStop atomic.Bool
-	dbPath   string
-	wmu      sync.Mutex
-	db       *index.Db
-	mu       sync.RWMutex
-	store    *index.Store
-	loadMS   uint64
-	report   OpenReport
+	// dupeCurrent: the file the scan started reading last.
+	dupeCurrent atomic.Pointer[string]
+	dbPath      string
+	wmu         sync.Mutex
+	db          *index.Db
+	mu          sync.RWMutex
+	store       *index.Store
+	loadMS      uint64
+	report      OpenReport
 	// content: file contents (§2.4), in its own file next to the index.
 	content         *index.ContentIndex
 	contentSettings ContentSettings

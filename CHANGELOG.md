@@ -3,6 +3,15 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.13
+
+- Fixed: a duplicate scan of many large pictures could slow the Mac to a crawl, stall and end with nothing to show.
+  Very large pictures are now looked at one at a time, and a picture or video that takes over a minute or two is
+  skipped instead of holding the scan up.
+- A duplicate scan saves what it has read every 30 seconds: if it is quit, updated over or stops, the next scan
+  goes on from there instead of starting again.
+- The Duplicates window shows the file being read, and its clock keeps ticking.
+
 ## 0.9.12
 
 - A long duplicate scan can be stopped: "Stop and Show What's Found" lists the duplicates found so far, ready to

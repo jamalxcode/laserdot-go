@@ -387,6 +387,15 @@ time". **Decided:** "Stop and Show What's Found" stops reading, groups what was 
 fingerprint read; the window offers cleanup as usual and the Scan button becomes "Continue Scan", which skips the
 files already read. Closing the window stops a scan the same way.
 
+## 26. A scan that stalled (0.9.13)
+
+**Found (the owner's Mac mini):** a picture pass stopped moving at 131,312 of 136,896 after 1 h 39 min, then the
+window went back to the start with nothing found: everything read was lost, because fingerprints were saved only at
+the end. Up to eight pictures of up to 200 megapixels were decoded at once (several GB), enough to stall the machine.
+**Decided:** pictures over 24 megapixels decode one at a time; a picture may take one minute and a video two
+before it is skipped (marked unreadable, not retried until it changes); fingerprints are saved every 30 seconds;
+the window shows the file being read and its clock no longer depends on the daemon answering.
+
 ---
 
 ## How the work was done

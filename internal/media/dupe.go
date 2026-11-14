@@ -276,9 +276,11 @@ func ImageGray(path, ext string) (Gray, bool) {
 		if _, err := fh.Seek(0, io.SeekStart); err != nil {
 			return none, false
 		}
-		if !decodableSize(fh) {
+		px, decodable := decodablePixels(fh)
+		if !decodable {
 			return none, false
 		}
+		defer gateBig(px)()
 		if _, err := fh.Seek(0, io.SeekStart); err != nil {
 			return none, false
 		}
@@ -299,9 +301,28 @@ func ImageGray(path, ext string) (Gray, bool) {
 // any size).
 const maxPixels = 200 << 20
 
-func decodableSize(r io.Reader) bool {
+// decodablePixels: the image's pixel count, and whether it may be decoded.
+func decodablePixels(r io.Reader) (int64, bool) {
 	cfg, _, err := stdimage.DecodeConfig(r)
-	return err == nil && cfg.Width > 0 && cfg.Height > 0 && int64(cfg.Width)*int64(cfg.Height) <= maxPixels
+	px := int64(cfg.Width) * int64(cfg.Height)
+	return px, err == nil && cfg.Width > 0 && cfg.Height > 0 && px <= maxPixels
+}
+
+// bigPixels: above this, a decode needs hundreds of MB; such images are
+// decoded one at a time, so a folder of huge scans or panoramas cannot fill
+// the memory with eight of them at once (the Mac then crawls).
+const bigPixels = 24 << 20
+
+var bigDecode = make(chan struct{}, 1)
+
+// gateBig waits for the big-image slot when px is large; call the result to
+// release it.
+func gateBig(px int64) func() {
+	if px <= bigPixels {
+		return func() {}
+	}
+	bigDecode <- struct{}{}
+	return func() { <-bigDecode }
 }
 
 // exifOrientationAndThumbnail: EXIF orientation (1 when absent) and the
@@ -353,6 +374,7 @@ func decodeJPEG(data []byte, aw, ah int) (Gray, bool) {
 	if err != nil || cfg.Width < Side || cfg.Height < Side || int64(cfg.Width)*int64(cfg.Height) > maxPixels {
 		return none, false
 	}
+	defer gateBig(int64(cfg.Width) * int64(cfg.Height))()
 	img, err := jpeg.Decode(bytes.NewReader(data))
 	if err != nil {
 		return none, false

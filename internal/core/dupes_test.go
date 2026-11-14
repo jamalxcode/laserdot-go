@@ -3,6 +3,7 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
+	"github.com/jamalxcode/laserdot-go/internal/index"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -408,5 +409,73 @@ func TestStoppedScanShowsWhatItFoundAndTheNextContinues(t *testing.T) {
 	}
 	if total["images"] == 0 {
 		t.Errorf("the pictures not looked at yet were skipped: %v", total)
+	}
+}
+
+// What a scan reads is saved while it runs, so quitting, an update or a
+// crash in the middle keeps it.
+func TestScanSavesWhatItReadsAsItGoes(t *testing.T) {
+	l := dupeLibrary(t)
+	old := saveEvery
+	saveEvery = 0
+	defer func() { saveEvery = old }()
+	cands, err := l.ld.dupeCandidates(DefaultDupeOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys := make([]index.FingerprintKey, len(cands))
+	for i, c := range cands {
+		keys[i] = index.FingerprintKey{Key: c.key, Size: c.size, Modified: c.mtime}
+	}
+	savedImages := -1
+	dupeProgressSeen = func(p DupeProgress) {
+		if p.Phase == "images" && p.Done == 2 && savedImages < 0 {
+			l.ld.wmu.Lock()
+			got, _ := l.ld.db.Fingerprints(keys)
+			l.ld.wmu.Unlock()
+			savedImages = 0
+			for _, f := range got {
+				if f.Image != nil {
+					savedImages++
+				}
+			}
+		}
+	}
+	defer func() { dupeProgressSeen = nil }()
+	if _, err := l.ld.FindDuplicates(DefaultDupeOptions()); err != nil {
+		t.Fatal(err)
+	}
+	if savedImages < 1 {
+		t.Fatalf("pictures read during the scan were not saved before it ended (%d)", savedImages)
+	}
+}
+
+// One picture that takes too long is skipped, not waited for: the scan goes
+// on, counts it as unreadable, and later scans do not try it again.
+func TestASlowFileIsSkippedNotWaitedFor(t *testing.T) {
+	l := dupeLibrary(t)
+	old := fileLimit["images"]
+	fileLimit["images"] = time.Nanosecond // every picture is "too slow"
+	r, err := l.ld.FindDuplicates(DefaultDupeOptions())
+	fileLimit["images"] = old
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r.Unreadable == 0 || len(groupNames(r, DupeSimilarImage)) != 0 {
+		t.Fatalf("slow pictures were not skipped: unreadable %d, %v", r.Unreadable, groupNames(r, DupeSimilarImage))
+	}
+	var mu sync.Mutex
+	total := map[string]uint64{}
+	dupeProgressSeen = func(p DupeProgress) {
+		mu.Lock()
+		defer mu.Unlock()
+		total[p.Phase] = max(total[p.Phase], p.Total)
+	}
+	defer func() { dupeProgressSeen = nil }()
+	if _, err := l.ld.FindDuplicates(DefaultDupeOptions()); err != nil {
+		t.Fatal(err)
+	}
+	if total["images"] != 0 {
+		t.Errorf("skipped pictures were tried again: %v", total)
 	}
 }
