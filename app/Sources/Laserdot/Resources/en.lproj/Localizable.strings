@@ -386,3 +386,7 @@
 "dupes.stopping" = "Stopping… keeping what was found";
 "dupes.continueScan" = "Continue Scan";
 "dupes.stoppedNote" = "Stopped early: these are the duplicates found so far. Clean them up, then press Continue Scan to go on where it stopped.";
+"safe.title" = "Laserdot didn’t start properly the last two times";
+"safe.text" = "You can start with a fresh index: your files are not touched, the old index is kept aside, and Laserdot indexes your folders again. Or start as usual.";
+"safe.fresh" = "Start with a Fresh Index";
+"safe.usual" = "Start as Usual";

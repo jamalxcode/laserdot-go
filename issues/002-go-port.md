@@ -322,6 +322,13 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.15 (2026-11-14):** robustness. `internal/crash` (Guard/Go/Keep, log beside the index,
+  `debug.SetCrashOutput`); `Server.Handle` recovers, `Laserdot.Healthy` (mu TryLock) or exit 3; background loops
+  under `crash.Keep`; dupes reads under `safely`. `scan.FolderLimit` (30 s, `readDirWithin`; `ListDir` errors on a
+  stuck folder). `enoughSpace` (512 MiB) before folder, drive and content indexing. Drive indexing reports progress.
+  Unfinished roots (`complete = 0`) are re-indexed by `Index` and `Refresh` (found by
+  `TestKilledAtAnyMomentTheIndexRecovers`). App: `Watchdog`, `SafeStart`, crash log in diagnostics, long jobs via
+  `longCall`, Tab off the main thread.
 - **0.9.14 (2026-11-14):** `UpdateController.installAlert`: notes in a 440×260 scrolling accessory view.
 - **0.9.13 (2026-11-14):** `compute` takes results as they finish and saves every `saveEvery` (30 s);
   `computeOne` gives a picture 1 min and a video 2 min (`fileLimit`), then marks it failed; `media.gateBig`

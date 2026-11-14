@@ -24,9 +24,17 @@ extension SearchModel {
     }
 
     /// Tab: take the first completion for the word under the caret (§8.2).
+    /// Asked off the main thread, so a busy daemon never freezes typing; the
+    /// answer applies only if the text has not changed meanwhile.
     func acceptCompletion() {
-        guard let c = engine.completions(query: query, cursor: cursor, lang: appLang).first else { return }
-        replace(Int(c.replaceStart), Int(c.replaceEnd), with: c.insert)
+        let (q, caret, engine) = (query, cursor, self.engine)
+        guideQueue.async { [weak self] in
+            let c = engine.completions(query: q, cursor: caret, lang: appLang).first
+            DispatchQueue.main.async {
+                guard let self, let c, self.query == q else { return }
+                self.replace(Int(c.replaceStart), Int(c.replaceEnd), with: c.insert)
+            }
+        }
     }
 
     /// Replace the word containing the error with the suggested fix.

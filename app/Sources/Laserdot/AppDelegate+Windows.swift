@@ -94,6 +94,7 @@ extension AppDelegate {
         panel.message = L("diagnostics.message")
         guard panel.runFront() == .OK, let url = panel.url else { return }
         let (launch, ready, steps) = (launchMS, readyMS, LaunchTimer.summary)
+        let restarts = watchdog?.restarts ?? 0
         DispatchQueue.global().async {
             let s = engine.status()
             let info = ProcessInfo.processInfo
@@ -113,10 +114,16 @@ extension AppDelegate {
                 "launch: \(launch) ms to the menu bar, \(ready) ms until the index answered",
                 "launch steps (ms since start): \(steps)",
                 "couldn't read: \((try? engine.unreadable())?.total ?? 0) items",
+                "laserdotd restarted by the watchdog: \(restarts) times since Laserdot started",
                 "",
                 "Recent laserdotd log (paths removed):",
             ]
             lines += engine.logTail().map(scrub)
+            let crashes = CrashLog.tail(db: engine.dbPath)
+            if !crashes.isEmpty {
+                lines += ["", "Bugs laserdotd caught and kept running (paths removed):"]
+                lines += crashes.map(scrub)
+            }
             try? lines.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
             DispatchQueue.main.async { NSWorkspace.shared.activateFileViewerSelecting([url]) }
         }

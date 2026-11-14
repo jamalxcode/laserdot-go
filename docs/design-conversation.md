@@ -403,6 +403,22 @@ past the bottom of the screen, hiding Install. **Decided:** the notes scroll in 
 prompt; the self-test builds the prompt with 300 lines of notes and checks it stays under 650 points with both
 buttons.
 
+## 28. Robust and stable (0.9.15)
+
+**Asked:** "how can i make laserdot more robust and stable and not crash or freeze and recover gracefully if at an
+edge case or unstable condition?", then "do all". **Decided:** (1) every request and background task catches a
+bug, logs it beside the index (`laserdotd-crash.log`, never sent; fatal runtime errors go there too) and carries on;
+if the bug left the in-memory index locked, the daemon exits so a fresh one starts; (2) Save Diagnostics shows that
+log; (3) long jobs (folder and drive indexes, Refresh, content) get their own connection without a time limit and
+are never resent; drive indexing reports progress; (4) Tab completion no longer asks the daemon from the main
+thread; (5) a folder that does not answer in 30 s is skipped and reported (a listing that times out is an error,
+never "empty"); (6) a watchdog pings the daemon every 30 s and restarts it (at once when gone, after two misses when
+hung); (7) safe start after two failed launches; (8) indexing refuses to start under 512 MB free; (9) a crash test
+kills a real process at random moments while it indexes, refreshes and scans: it found that a first index
+interrupted early left the folder registered but empty, which never healed (fixed: unfinished roots are indexed
+again, also by Refresh at start); (10) tests for a stuck folder, a full disk, a folder pulled away mid-index and a
+bug in a request.
+
 ---
 
 ## How the work was done

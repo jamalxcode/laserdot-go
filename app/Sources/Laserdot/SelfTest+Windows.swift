@@ -143,7 +143,26 @@ extension SelfTestRunner {
             u.cancelCheck()
             self.extra["update_cancelled"] = u.step == nil && !u.checking
             self.extra["update_window_closes"] = !(w?.isVisible ?? false)
+            self.watchdogCheck(done: done)
+        }
+    }
+
+    /// laserdotd killed outright (as a crash would) is started again by the
+    /// watchdog, and answers again.
+    func watchdogCheck(done: @escaping () -> Void) {
+        guard let engine = app.engineForTests, let pid = engine.childPID, let w = app.watchdog else {
+            extra["watchdog_restarted"] = "no daemon started by the app"
             done()
+            return
+        }
+        kill(pid, SIGKILL)
+        after(0.5) {
+            w.check()
+            self.waitFor(25, { engine.isAlive(timeout: 1) }) {
+                self.extra["watchdog_restarted"] = engine.isAlive(timeout: 2)
+                self.extra["watchdog_restarts"] = w.restarts
+                done()
+            }
         }
     }
 

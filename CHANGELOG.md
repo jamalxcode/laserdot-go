@@ -3,6 +3,21 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.15
+
+- Steadier: a bug in Laserdot's background engine is caught, written to a log on your Mac, and the engine keeps
+  running instead of stopping.
+- If the engine stops or stops answering, Laserdot notices within a minute and restarts it by itself.
+- Fixed: if Laserdot was quit or crashed during the first index of a folder, that folder could stay empty. It is now
+  indexed again by itself the next time Laserdot starts.
+- A drive or network share that stops answering no longer freezes indexing: its folder is skipped after 30 seconds
+  and listed.
+- Indexing a drive, Refresh and content search no longer give up after ten minutes or block searching meanwhile;
+  indexing a drive shows how many files it has found.
+- With less than 512 MB free, indexing does not start and says why, instead of failing halfway.
+- If Laserdot fails to start twice in a row, it offers to start with a fresh index (your files are never touched).
+- Save Diagnostics includes any bugs the engine caught and how often it was restarted.
+
 ## 0.9.14
 
 - Fixed: when several versions' notes were shown, the update prompt grew taller than the screen and hid its

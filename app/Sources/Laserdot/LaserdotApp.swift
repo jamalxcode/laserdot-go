@@ -40,6 +40,7 @@ struct LaserdotApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     @Published var statusLine = L("daemon.starting")
+    var watchdog: Watchdog?
     private var progressPolling = false
     @Published var networkLine = ""
     @Published var watcherLine = ""
@@ -78,6 +79,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     func applicationDidFinishLaunching(_ notification: Notification) {
         LaunchTimer.mark("launched")
         let db = Paths.defaultDbPath
+        // Safe start: two launches in a row that did not get going offer a
+        // fresh index on the third (nothing else is touched).
+        let attempts = SafeStart.begin()
+        if attempts >= 3, !SelfTest.active, SafeStart.offer() {
+            SafeStart.moveIndexAside(db: db)
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 20) { SafeStart.succeeded() }
         let sockets = Paths.socketDir(forDb: db)
         try? FileManager.default.createDirectory(atPath: sockets, withIntermediateDirectories: true)
         // The app itself is not OS-sandboxed (owner's decision, spec §7.1):
@@ -120,7 +128,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         folders = FoldersModel(engine: engine)
         content = ContentModel(engine: engine)
         drives = DrivesModel(engine: engine)
-        updates.stopDaemon = { [weak engine] in engine?.shutdown() }
+        // Replacing Laserdot stops its daemon on purpose: the watchdog stops too.
+        updates.stopDaemon = { [weak engine, weak self] in
+            DispatchQueue.main.async { self?.watchdog?.stop() }
+            engine?.shutdown()
+        }
         if SelfTest.active {
             startEngine()
         } else {
@@ -179,6 +191,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     /// Laserdot started laserdotd; it stops it when it quits.
     func applicationWillTerminate(_ notification: Notification) {
+        watchdog?.stop()
+        SafeStart.succeeded()
         engine?.shutdown()
     }
 
@@ -309,6 +323,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         statusTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             self?.refreshStatus()
         }
+        // laserdotd that stops or hangs is started again by itself.
+        if let engine {
+            let w = Watchdog(engine: engine)
+            w.onRestart = { [weak self] in
+                self?.refreshStatus()
+                self?.model?.connect()
+            }
+            w.start()
+            watchdog = w
+        }
         // After the first frame: nothing here is needed to show a window.
         DispatchQueue.main.async { [weak self] in
             _ = self?.overlay
@@ -333,6 +357,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     }
 
     func show(_ status: DaemonStatus) {
+        // The indexed folders are remembered outside the index too, so a fresh
+        // index (safe start) brings them back.
+        if status.running {
+            SafeStart.remember(folders: status.folders)
+            for folder in SafeStart.foldersToReindex(nowIndexed: status.folders) {
+                model?.index(folder: URL(fileURLWithPath: folder))
+            }
+        }
         if status.running, let p = status.indexing {
             // Indexing: what it is doing and how far it has got, every 2 s.
             statusLine = Self.progressText(p)

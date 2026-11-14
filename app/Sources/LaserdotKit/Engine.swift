@@ -183,19 +183,8 @@ public final class Engine: @unchecked Sendable {
     public func index(path: String) throws -> String {
         // Indexing a home folder takes minutes: a connection of its own, so
         // searches on the shared one are not held up meanwhile.
-        let s: Wire.IndexStats
-        if let own = DaemonClient.connectLive(socketPath: socketPath) {
-            own.setTimeout(3600) // a large home folder can take a while
-            do {
-                s = try own.call(.index(path: path), as: Wire.IndexStats.self)
-            } catch DaemonClientError.remote(let e) {
-                throw LaserdotError(e)
-            } catch {
-                throw LaserdotError.unavailable("\(error)")
-            }
-        } else {
-            s = try call(.index(path: path), as: Wire.IndexStats.self)
-        }
+        // No time limit: a very large folder can take longer than an hour.
+        let s = try longCall(longJobConnection(), .index(path: path), as: Wire.IndexStats.self)
         return s.incremental
             ? "\(s.added) added, \(s.removed) removed, \(s.renamed) renamed"
             : "\(s.files) files, \(s.folders) folders"
@@ -304,6 +293,46 @@ public final class Engine: @unchecked Sendable {
         let deadline = Date().addingTimeInterval(5)
         while p.isRunning && Date() < deadline { usleep(20_000) }
         if p.isRunning { p.terminate() }
+    }
+
+    // MARK: watchdog
+
+    /// The daemon answers a ping within `timeout` seconds, on a connection of
+    /// its own (so a slow request on the shared one does not count).
+    public func isAlive(timeout: TimeInterval = 5) -> Bool {
+        guard let c = try? DaemonClient(socketPath: socketPath, timeout: timeout) else { return false }
+        return (try? c.call(.ping, as: String.self)) == "pong"
+    }
+
+    /// Whether the daemon this app started is still running (nil: this app
+    /// did not start it).
+    public var childRunning: Bool? {
+        child.map(\.isRunning)
+    }
+
+    /// The daemon this app started (the self-test kills it to check the
+    /// watchdog).
+    public var childPID: Int32? {
+        child.map(\.processIdentifier)
+    }
+
+    /// The watchdog: stop a daemon that stopped answering and start a fresh
+    /// one. The process is ended first (without the shared lock, which a
+    /// request stuck on the hung daemon may hold): that also breaks the stuck
+    /// request, so the lock frees.
+    public func restartDaemon() {
+        if retired { return }
+        if let p = child, p.isRunning {
+            p.terminate()
+            let deadline = Date().addingTimeInterval(3)
+            while p.isRunning && Date() < deadline { usleep(50_000) }
+            if p.isRunning { kill(p.processIdentifier, SIGKILL) }
+        }
+        lock.lock()
+        child = nil
+        client = nil
+        lock.unlock()
+        _ = status() // starts the bundled daemon again
     }
 
     /// Run one request on the shared connection: reconnect once if it broke,

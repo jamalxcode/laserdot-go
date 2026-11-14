@@ -250,6 +250,9 @@ check("IMG_1234.HEIC" in report.get("dupes_progress_file", ""), f"the duplicate 
 h = report.get("install_prompt_height", 9999)
 check(0 < h < 650 and report.get("install_prompt_buttons") == 2, f"the install prompt fits the screen with its buttons (height {h}, buttons {report.get('install_prompt_buttons')})")
 
+# The watchdog: laserdotd killed outright is started again and answers.
+check(report.get("watchdog_restarted") is True and report.get("watchdog_restarts", 0) >= 1, f"the watchdog restarts a daemon that died (got {report.get('watchdog_restarted')!r}, {report.get('watchdog_restarts')})")
+
 # Updates are never silent: a window with the step, a filled bar and the sizes.
 check(report.get("update_window_visible") is True, "the update window shows while an update downloads")
 check("update-progress.png" in report["screenshots"], "screenshot update-progress.png")

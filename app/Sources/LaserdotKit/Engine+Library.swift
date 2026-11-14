@@ -24,7 +24,9 @@ extension Engine {
     /// Index a drive; a passphrase encrypts the index. Returns a summary.
     @discardableResult
     public func driveIndex(mount: String, passphrase: String?) throws -> String {
-        let s = try call(.driveIndex(mount: mount, passphrase: passphrase), as: Wire.IndexStats.self)
+        // A big drive takes a while: a connection of its own, no time limit,
+        // never sent twice (searches go on meanwhile).
+        let s = try longCall(longJobConnection(), .driveIndex(mount: mount, passphrase: passphrase), as: Wire.IndexStats.self)
         return "\(s.files) files, \(s.folders) folders"
     }
 
@@ -45,7 +47,7 @@ extension Engine {
 
     @discardableResult
     public func driveRebuild(mount: String, passphrase: String?) throws -> String {
-        let s = try call(.driveRebuild(mount: mount, passphrase: passphrase), as: Wire.IndexStats.self)
+        let s = try longCall(longJobConnection(), .driveRebuild(mount: mount, passphrase: passphrase), as: Wire.IndexStats.self)
         return "\(s.files) files, \(s.folders) folders"
     }
 
@@ -102,7 +104,7 @@ extension Engine {
     /// new and changed ones come in. Returns (added, removed).
     @discardableResult
     public func refresh() throws -> (added: UInt64, removed: UInt64) {
-        let u = try call(.refresh, as: Wire.UpdateStats.self)
+        let u = try longCall(longJobConnection(), .refresh, as: Wire.UpdateStats.self)
         return (u.added, u.removed)
     }
 
@@ -130,7 +132,7 @@ extension Engine {
     /// Read the text of new and changed documents now (it also happens in
     /// the background on its own).
     public func updateContent() throws {
-        _ = try call(.updateContent, as: Discard.self)
+        _ = try longCall(longJobConnection(), .updateContent, as: Discard.self)
     }
 
     private struct Discard: Decodable {
