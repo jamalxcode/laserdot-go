@@ -147,22 +147,26 @@ extension SelfTestRunner {
         }
     }
 
-    /// laserdotd killed outright (as a crash would) is started again by the
-    /// watchdog, and answers again.
+    /// laserdotd frozen (stopped, so it neither answers nor exits: only the
+    /// watchdog can tell) is ended and started again by the watchdog, and
+    /// answers again. (A daemon that died outright is started again by the
+    /// next request anyway.)
     func watchdogCheck(done: @escaping () -> Void) {
         guard let engine = app.engineForTests, let pid = engine.childPID, let w = app.watchdog else {
             extra["watchdog_restarted"] = "no daemon started by the app"
             done()
             return
         }
-        kill(pid, SIGKILL)
-        after(0.5) {
+        let before = w.restarts
+        kill(pid, SIGSTOP)
+        // Two missed checks in a row (5 s each) restart it.
+        waitFor(45, {
             w.check()
-            self.waitFor(25, { engine.isAlive(timeout: 1) }) {
-                self.extra["watchdog_restarted"] = engine.isAlive(timeout: 2)
-                self.extra["watchdog_restarts"] = w.restarts
-                done()
-            }
+            return w.restarts > before && engine.isAlive(timeout: 1)
+        }) {
+            self.extra["watchdog_restarted"] = engine.isAlive(timeout: 2)
+            self.extra["watchdog_restarts"] = w.restarts - before
+            done()
         }
     }
 

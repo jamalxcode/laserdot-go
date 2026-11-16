@@ -251,7 +251,7 @@ h = report.get("install_prompt_height", 9999)
 check(0 < h < 650 and report.get("install_prompt_buttons") == 2, f"the install prompt fits the screen with its buttons (height {h}, buttons {report.get('install_prompt_buttons')})")
 
 # The watchdog: laserdotd killed outright is started again and answers.
-check(report.get("watchdog_restarted") is True and report.get("watchdog_restarts", 0) >= 1, f"the watchdog restarts a daemon that died (got {report.get('watchdog_restarted')!r}, {report.get('watchdog_restarts')})")
+check(report.get("watchdog_restarted") is True and report.get("watchdog_restarts", 0) >= 1, f"the watchdog restarts a daemon that froze (got {report.get('watchdog_restarted')!r}, {report.get('watchdog_restarts')})")
 
 # Spotlight's way of typing.
 inl = steps["inline"]
