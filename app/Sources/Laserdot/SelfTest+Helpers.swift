@@ -146,6 +146,7 @@ extension SelfTestRunner {
         r["highlight"] = model.highlightWords
         r["visible_hint"] = model.visibleHint ?? ""
         r["browsing"] = model.browsing
+        r["tip"] = model.tip?.query ?? ""
         let field = queryField(in: window)
         r["field"] = field.text
         r["field_selected"] = field.selected

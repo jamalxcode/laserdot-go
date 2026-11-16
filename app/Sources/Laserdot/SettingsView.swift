@@ -58,6 +58,9 @@ struct GeneralSettings: View {
     @State private var loginNote: String?
     @AppStorage(PowerWatcher.batteryKey) private var pauseOnBattery = true
 
+    @State private var tidyInterval = Reminders.shared.tidy
+    @State private var lowDiskReminder = Reminders.shared.lowDisk
+
     var body: some View {
         Form {
             Section {
@@ -74,6 +77,18 @@ struct GeneralSettings: View {
                 if let loginNote {
                     Text(loginNote).font(.caption).foregroundStyle(.secondary)
                 }
+            }
+            // Optional reminders: off until turned on, never more often than chosen.
+            Section(L("settings.reminders")) {
+                Picker(L("settings.reminders.tidy"), selection: Binding(
+                    get: { tidyInterval }, set: { tidyInterval = $0; Reminders.shared.tidy = $0 })) {
+                    Text(L("settings.reminders.never")).tag(TidyInterval.never)
+                    Text(L("settings.reminders.monthly")).tag(TidyInterval.monthly)
+                    Text(L("settings.reminders.quarterly")).tag(TidyInterval.quarterly)
+                }
+                Toggle(L("settings.reminders.lowDisk"), isOn: Binding(
+                    get: { lowDiskReminder }, set: { lowDiskReminder = $0; Reminders.shared.lowDisk = $0 }))
+                Text(L("settings.reminders.help")).font(.caption).foregroundStyle(.secondary)
             }
             Section(L("settings.updates")) {
                 Toggle(L("settings.autoUpdate"), isOn: $updates.autoCheck)

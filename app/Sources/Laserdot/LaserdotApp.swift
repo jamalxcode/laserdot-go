@@ -235,6 +235,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             w.isReleasedWhenClosed = false
             w.contentMinSize = NSSize(width: 560, height: 380)
             let model = DuplicatesModel(engine: engine)
+            model.showStorage = { [weak self] in self?.showStorage() }
             duplicatesModel = model
             w.contentView = NSHostingView(rootView: DuplicatesView(model: model)
                 .environment(\.layoutDirection, appLayoutDirection))
@@ -323,6 +324,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         statusTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             self?.refreshStatus()
         }
+        // Optional reminders (off unless turned on); a click opens the window.
+        Reminders.shared.openDuplicates = { [weak self] in self?.showDuplicates() }
+        Reminders.shared.openStorage = { [weak self] in self?.showStorage() }
+        if !SelfTest.active { Reminders.shared.start() }
         // laserdotd that stops or hangs is started again by itself.
         if let engine {
             let w = Watchdog(engine: engine)

@@ -3,6 +3,19 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.17
+
+- Optional reminders (Settings ▸ Reminders, off unless you turn them on): check for duplicates every month or
+  every 3 months, and a heads-up when your disk is nearly full. A scan resets the clock, so you are only reminded
+  when you haven't looked. Notifications are made on your Mac; nothing is sent anywhere.
+- After a cleanup Laserdot says what it achieved — the space moved out and the total it has cleared for you — and
+  offers the sensible next step: open the Trash, continue the scan, or see what else takes space.
+- No duplicates found? It suggests looking at what takes the most space instead.
+- The empty search box suggests a search based on your own files ("812 of your videos are 4K: res:4k"), a different
+  one each time; one click runs it.
+- Results stop at a clear point: "Show More (100 of 2,431)" instead of loading endlessly as you scroll.
+- Duplicates remembers what you looked in and whether you chose identical copies only.
+
 ## 0.9.16
 
 - Typing in the ⌥Space window works like Spotlight:

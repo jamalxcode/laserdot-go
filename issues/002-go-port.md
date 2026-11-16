@@ -322,6 +322,9 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.17 (2026-11-16):** `LaserdotKit/Engagement.swift` (`ReminderSchedule`, `Tips`, tested in
+  `EngagementTests`); `Reminders` (UNUserNotificationCenter, hourly check, permission on opt-in); Duplicates
+  follow-ups, `freedTotal`, saved scope/options; home tip from `valueCounts`; "Show More" replaces auto-load.
 - **0.9.16 (2026-11-16):** Spotlight-style field. `SearchField`: `inlineSuffix` (shown selected after the
   caret, typed-through without flicker, suppressed after a deletion), `selectAllToken`, `onJump` (⌘↑/⌘↓ =
   move to beginning/end of document), `onCopy` (⌘C via the key monitor). `SearchModel.inlineSuffix`,

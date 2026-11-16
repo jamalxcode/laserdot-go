@@ -45,6 +45,8 @@ final class SearchModel: ObservableObject {
     @Published var focusRequest = 0
     /// The overlay reopened with a search in the field: select it all.
     @Published var selectAllRequest = 0
+    /// The suggestion shown when the box is empty.
+    @Published private(set) var tip: Tip?
     @Published private(set) var hint: String?
     /// The hint, unless it says nothing about what was typed.
     var visibleHint: String? {
@@ -342,10 +344,24 @@ final class SearchModel: ObservableObject {
 
     /// What the empty box shows: results opened lately and new downloads,
     /// in the same list (↑/↓, ⌘1–9, preview all work).
+    /// A number as the user's language writes it ("4,210").
+    static func number(_ n: UInt64) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+
     func loadHome() {
         let engine = self.engine
         let gen = generation
+        let lastTip = tip?.id ?? UserDefaults.standard.string(forKey: "laserdot.lastTip")
         queue.async { [weak self] in
+            // A tip from this Mac's own files, a different one each time.
+            let tip = Tips.pick(counts: (try? engine.valueCounts()) ?? [], after: lastTip)
+            DispatchQueue.main.async {
+                self?.tip = tip
+                if let id = tip?.id { UserDefaults.standard.set(id, forKey: "laserdot.lastTip") }
+            }
             let recent = engine.recentOpens(limit: 6)
             let downloads = (try? engine.search(query: "in:~/Downloads since:30d -kind:folder", limit: 6).hits) ?? []
             DispatchQueue.main.async {

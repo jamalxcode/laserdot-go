@@ -253,6 +253,9 @@ check(0 < h < 650 and report.get("install_prompt_buttons") == 2, f"the install p
 # The watchdog: laserdotd killed outright is started again and answers.
 check(report.get("watchdog_restarted") is True and report.get("watchdog_restarts", 0) >= 1, f"the watchdog restarts a daemon that froze (got {report.get('watchdog_restarted')!r}, {report.get('watchdog_restarts')})")
 
+# The empty box suggests a search drawn from this Mac's own files.
+check(":" in steps["home"].get("tip", ""), f"the empty box offers a tip from the user's files (got {steps['home'].get('tip')!r})")
+
 # Spotlight's way of typing.
 inl = steps["inline"]
 check(inl["query"] == "beac" and inl["field"].lower().startswith("beac") and len(inl["field"]) > 4

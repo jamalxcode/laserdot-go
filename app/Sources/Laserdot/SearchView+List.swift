@@ -17,6 +17,7 @@ extension SearchView {
                 VStack(spacing: 8) {
                     Text(L("home.empty")).foregroundStyle(.secondary)
                     Text(L("home.tips")).font(.caption).foregroundStyle(.tertiary)
+                    tipLine
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if !model.searching {
@@ -76,9 +77,19 @@ extension SearchView {
                         }
                         }
                         // The end of the list: fetch the next page.
+                        if model.isHome {
+                            tipLine.frame(maxWidth: .infinity).padding(.top, 12)
+                        }
+                        // More only when asked: a clear stopping point, no
+                        // endless scrolling.
                         if model.canLoadMore {
-                            ProgressView().controlSize(.small).frame(maxWidth: .infinity).padding(8)
-                                .onAppear { model.loadMore() }
+                            Button(String(format: L("results.showMore"), Int64(model.results.count), Int64(model.total))) {
+                                model.loadMore()
+                            }
+                            .controlSize(.small)
+                            .frame(maxWidth: .infinity)
+                            .padding(8)
+                            .accessibilityIdentifier("show-more")
                         }
                     }
                     .padding(6)
@@ -218,6 +229,25 @@ extension SearchView {
                 }
             }
             .padding(6)
+        }
+    }
+
+    /// A suggestion drawn from the user's own files (a different one each
+    /// time the box is empty): one click types it.
+    @ViewBuilder var tipLine: some View {
+        if let t = model.tip {
+            Button {
+                model.query = t.query
+                model.focusSearch()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "lightbulb")
+                    Text(String(format: L("tip.\(t.id)"), SearchModel.number(t.count))) + Text("  ") + Text(t.query).font(.caption.monospaced())
+                }
+                .font(.caption)
+            }
+            .buttonStyle(.link)
+            .accessibilityIdentifier("home-tip")
         }
     }
 

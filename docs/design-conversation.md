@@ -429,6 +429,20 @@ browsing); Esc clears, then closes; reopening keeps the last search all selected
 ⌘C with no text selected copies the selected files; a dragged window reopens where it was left. Laserdot's extras
 (filters and hints, Space Quick Look, ⌘K, `>` commands, recent files when empty) stay.
 
+## 30. Engagement principles, applied to a search tool (0.9.17)
+
+**Asked:** apply six engagement principles (relevant triggers, effortless core action, clear next steps, meaningful
+rewards, relevant continuation, accumulating personal value), "prioritize genuine usefulness and voluntary return
+visits — not maximum time spent", no unrelated features. **Decided:** (1) the only recurring need worth a reminder is
+tidying: optional duplicates reminders (monthly / every 3 months, counted from the last scan) and a nearly-full-disk
+warning (at most weekly), local notifications, permission asked only when turned on; (2) the core action (⌥Space,
+type, Return) already is the shortest path and stays first in the menu; (3)/(5) after a scan or cleanup one or two
+follow-ups (open the Trash, continue the scan, see what takes space, the reminder offered once), and zero duplicates
+leads to Storage; results end at "Show More" instead of endless loading; (4) outcomes, not badges: space moved and
+a running total cleared, and a varied tip drawn from the user's own files (counts of 4K, HDR, Atmos… with a query that
+finds them); (6) Duplicates remembers its scope and options; existing history, pins, recents and the reopened last
+search carry on. No streaks, no counters that reset, nothing that keeps the user in the app longer than needed.
+
 ---
 
 ## How the work was done

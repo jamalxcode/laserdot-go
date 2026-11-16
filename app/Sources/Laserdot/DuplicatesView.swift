@@ -5,8 +5,26 @@ import SwiftUI
 /// Duplicate finder (spec §4): scan, review each group, then move the
 /// chosen copies to the Trash or a folder after a dry-run preview (§4.4).
 final class DuplicatesModel: ObservableObject {
-    @Published var scope = ""
-    @Published var exactOnly = false
+    // What to look at is remembered between scans and launches.
+    @Published var scope = UserDefaults.standard.string(forKey: "laserdot.dupes.scope") ?? "" {
+        didSet { UserDefaults.standard.set(scope, forKey: "laserdot.dupes.scope") }
+    }
+    @Published var exactOnly = UserDefaults.standard.bool(forKey: "laserdot.dupes.exactOnly") {
+        didSet { UserDefaults.standard.set(exactOnly, forKey: "laserdot.dupes.exactOnly") }
+    }
+    /// What makes sense next, after a scan or a cleanup (one or two buttons
+    /// under the message, never a chain).
+    enum FollowUp: Hashable { case openTrash, storage, continueScan, remindMonthly }
+    @Published private(set) var followUps: [FollowUp] = []
+    /// Where Storage opens (set by the app).
+    var showStorage: () -> Void = {}
+
+    /// All the space Laserdot's cleanups have moved out (a real total kept on
+    /// this Mac; never reset, never a streak).
+    static var freedTotal: Int64 {
+        get { Int64(UserDefaults.standard.double(forKey: "laserdot.dupes.freedTotal")) }
+        set { UserDefaults.standard.set(Double(newValue), forKey: "laserdot.dupes.freedTotal") }
+    }
     @Published private(set) var report: DuplicateReport?
     /// Files moved since the scan: their groups shrink without a rescan
     /// (a scan of big drives can take hours).
@@ -42,6 +60,8 @@ final class DuplicatesModel: ObservableObject {
         scanning = true
         stopping = false
         message = nil
+        followUps = []
+        Reminders.noteScan()
         progress = nil
         started = Date()
         startProgress()
@@ -61,6 +81,10 @@ final class DuplicatesModel: ObservableObject {
                     self.remove = Set(r.groups.flatMap { $0.files.filter { !$0.keep }.map(\.path) })
                     if r.stopped {
                         self.message = L("dupes.stoppedNote")
+                    } else if r.groups.isEmpty {
+                        // Nothing to clean here: what else takes the space.
+                        self.message = L("dupes.noneNext")
+                        self.followUps = [.storage]
                     } else if r.videoDecoder == nil && !exact {
                         self.message = L("dupes.noVideoDecoder")
                     }
@@ -69,6 +93,22 @@ final class DuplicatesModel: ObservableObject {
                 }
             }
         }
+    }
+
+    func run(_ f: FollowUp) {
+        switch f {
+        case .openTrash:
+            NSWorkspace.shared.open(FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".Trash"))
+        case .storage:
+            showStorage()
+        case .continueScan:
+            scan()
+        case .remindMonthly:
+            Reminders.shared.tidy = .monthly
+            Reminders.shared.offered()
+            message = L("dupes.next.reminded")
+        }
+        if f != .continueScan { followUps.removeAll { $0 == f || $0 == .remindMonthly } }
     }
 
     /// Stop the scan early: it finishes with the duplicates found so far,
@@ -273,9 +313,17 @@ final class DuplicatesModel: ObservableObject {
                 case .success(let o):
                     self.moved.formUnion(o.movedPaths)
                     self.remove.subtract(o.movedPaths)
-                    var text = String(
-                        format: L("dupes.moved"), Int64(o.moved),
-                        ByteCountFormatter.string(fromByteCount: Int64(o.bytes), countStyle: .file))
+                    Self.freedTotal += Int64(o.bytes)
+                    let size = { (n: Int64) in ByteCountFormatter.string(fromByteCount: n, countStyle: .file) }
+                    var text = String(format: L("dupes.moved"), Int64(o.moved), size(Int64(o.bytes)))
+                    if folder == nil { text += " " + L("dupes.emptyTrash") }
+                    text += " " + String(format: L("dupes.freedTotal"), size(Self.freedTotal))
+                    // What makes sense next: empty the Trash, go on scanning,
+                    // see what else takes space; the reminder is offered once.
+                    var next: [FollowUp] = folder == nil ? [.openTrash] : []
+                    next.append(self.report?.stopped == true ? .continueScan : .storage)
+                    if Reminders.shared.shouldOffer { next.append(.remindMonthly) }
+                    self.followUps = next
                     let problems = o.failed + o.skipped
                     if !problems.isEmpty {
                         text += " " + String(format: L("dupes.notMoved"), Int64(problems.count))
@@ -423,6 +471,14 @@ struct DuplicatesView: View {
             if let m = model.message {
                 Text(m).font(.caption).foregroundStyle(.secondary).padding(.horizontal, 10).padding(.top, 6)
             }
+            if !model.followUps.isEmpty {
+                HStack(spacing: 8) {
+                    ForEach(model.followUps, id: \.self) { f in
+                        Button(followUpTitle(f)) { model.run(f) }.controlSize(.small)
+                    }
+                }
+                .padding(.top, 4)
+            }
             Divider()
             HStack {
                 if model.report != nil {
@@ -469,6 +525,15 @@ struct DuplicatesView: View {
         let n = DuplicatesModel.number(model.preview?.files ?? 0)
         if let f = model.folder { return String(format: L("dupes.confirm.titleFolder"), n, f.lastPathComponent) }
         return String(format: L("dupes.confirm.titleTrash"), n)
+    }
+
+    private func followUpTitle(_ f: DuplicatesModel.FollowUp) -> String {
+        switch f {
+        case .openTrash: return L("dupes.next.trash")
+        case .storage: return L("dupes.next.storage")
+        case .continueScan: return L("dupes.continueScan")
+        case .remindMonthly: return L("dupes.next.remind")
+        }
     }
 
     /// The dry run, in words (spec §4.4): what is freed, that one copy of
