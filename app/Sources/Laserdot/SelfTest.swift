@@ -87,6 +87,31 @@ final class SelfTestRunner {
             Step(name: "tool", typed: "tool"),
             Step(name: "pdftoday", typed: "pdf today"),
             Step(name: "commands", typed: ">dup"),
+            // As in Spotlight: the top hit's name completes inline, the rest
+            // selected (typing goes on over it).
+            Step(name: "inline", typed: "beac"),
+            // Reopened: the last search is there, all selected.
+            Step(name: "reopen", typed: "jpg", after: { overlay.hide(); overlay.show() }),
+            // Esc clears the search; Esc again (empty) closes the overlay.
+            Step(name: "escape", typed: "jpg", after: {
+                self.key("\u{1b}", code: 53, into: overlay.panel)
+                self.extra["escape_first_query"] = model.query
+                self.extra["escape_first_visible"] = overlay.panel.isVisible
+                self.key("\u{1b}", code: 53, into: overlay.panel)
+                self.extra["escape_second_visible"] = overlay.panel.isVisible
+                overlay.show()
+            }),
+            // ⌘↓: the first result of the next section.
+            Step(name: "jump", typed: "proj", after: {
+                self.key(String(UnicodeScalar(UInt16(NSDownArrowFunctionKey))!), code: 125, into: overlay.panel, flags: .command)
+            }),
+            // ⌘C: the selected file goes to the clipboard, for Finder.
+            Step(name: "copy", typed: "beach", after: {
+                NSPasteboard.general.clearContents()
+                _ = model.copyFiles()
+                let urls = NSPasteboard.general.readObjects(forClasses: [NSURL.self]) as? [URL] ?? []
+                self.extra["copied_files"] = urls.map(\.lastPathComponent)
+            }),
             Step(name: "actions", typed: "jpg", after: { model.toggleActions() }),
             // ↓ into the results, then Space through the app's event queue
             // (as a real key press arrives): Quick Look opens.

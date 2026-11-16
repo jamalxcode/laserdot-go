@@ -59,18 +59,34 @@ extension SelfTestRunner {
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: f)
     }
 
-    func keyEvent(_ c: String, code: UInt16, kind: NSEvent.EventType, window: NSWindow) -> NSEvent? {
+    func keyEvent(_ c: String, code: UInt16, kind: NSEvent.EventType, window: NSWindow,
+                  flags: NSEvent.ModifierFlags = []) -> NSEvent? {
         NSEvent.keyEvent(
-            with: kind, location: .zero, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+            with: kind, location: .zero, modifierFlags: flags, timestamp: ProcessInfo.processInfo.systemUptime,
             windowNumber: window.windowNumber, context: nil, characters: c, charactersIgnoringModifiers: c,
             isARepeat: false, keyCode: code)
     }
 
     /// A key straight to the window.
-    func key(_ c: String, code: UInt16, into window: NSWindow) {
+    func key(_ c: String, code: UInt16, into window: NSWindow, flags: NSEvent.ModifierFlags = []) {
         for kind in [NSEvent.EventType.keyDown, .keyUp] {
-            if let e = keyEvent(c, code: code, kind: kind, window: window) { window.sendEvent(e) }
+            if let e = keyEvent(c, code: code, kind: kind, window: window, flags: flags) { window.sendEvent(e) }
         }
+    }
+
+    /// The query field as it shows now: its text (with any inline
+    /// completion) and the selected part.
+    func queryField(in window: NSWindow) -> (text: String, selected: String) {
+        func find(_ v: NSView) -> NSTextField? {
+            if let f = v as? NSTextField, f.isEditable { return f }
+            for s in v.subviews { if let f = find(s) { return f } }
+            return nil
+        }
+        guard let root = window.contentView, let f = find(root) else { return ("", "") }
+        let text = f.currentEditor()?.string ?? f.stringValue
+        let r = f.currentEditor()?.selectedRange ?? NSRange(location: 0, length: 0)
+        let selected = r.length > 0 && NSMaxRange(r) <= (text as NSString).length ? (text as NSString).substring(with: r) : ""
+        return (text, selected)
     }
 
     /// A key through the app's event queue, like a real key press (event
@@ -130,6 +146,10 @@ extension SelfTestRunner {
         r["highlight"] = model.highlightWords
         r["visible_hint"] = model.visibleHint ?? ""
         r["browsing"] = model.browsing
+        let field = queryField(in: window)
+        r["field"] = field.text
+        r["field_selected"] = field.selected
+        r["selected_section"] = model.sections.first { $0.range.contains(model.selection) }?.title ?? ""
         r["similar"] = model.similarOnly
         r["quicklook"] = QuickLook.shared.isVisible
         r["space_presses"] = model.spacePresses

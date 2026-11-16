@@ -20,7 +20,11 @@ extension SearchView {
                 onSpace: { model.spaceKey() },
                 onTab: { model.showCheatSheet ? model.nextCheatSection() : model.acceptCompletion() },
                 onSubmit: { model.showCheatSheet ? model.insertSelectedCheat() : model.submit() },
-                onEscape: { model.escape(close: close) }
+                onEscape: { model.escape(close: close) },
+                inlineSuffix: model.inlineSuffix,
+                selectAllToken: model.selectAllRequest,
+                onJump: { d in model.jumpSection(d) },
+                onCopy: { model.copyFiles() }
             )
             .frame(height: 30)
             if !model.query.isEmpty {

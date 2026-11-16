@@ -322,6 +322,11 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.16 (2026-11-16):** Spotlight-style field. `SearchField`: `inlineSuffix` (shown selected after the
+  caret, typed-through without flicker, suppressed after a deletion), `selectAllToken`, `onJump` (⌘↑/⌘↓ =
+  move to beginning/end of document), `onCopy` (⌘C via the key monitor). `SearchModel.inlineSuffix`,
+  `jumpSection`, `copyFiles`; Esc clears then closes; the overlay remembers a dragged position. Self-test steps
+  inline, reopen, escape, jump, copy.
 - **0.9.15 (2026-11-14):** robustness. `internal/crash` (Guard/Go/Keep, log beside the index,
   `debug.SetCrashOutput`); `Server.Handle` recovers, `Laserdot.Healthy` (mu TryLock) or exit 3; background loops
   under `crash.Keep`; dupes reads under `safely`. `scan.FolderLimit` (30 s, `readDirWithin`; `ListDir` errors on a

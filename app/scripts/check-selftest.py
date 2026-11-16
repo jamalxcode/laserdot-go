@@ -253,6 +253,18 @@ check(0 < h < 650 and report.get("install_prompt_buttons") == 2, f"the install p
 # The watchdog: laserdotd killed outright is started again and answers.
 check(report.get("watchdog_restarted") is True and report.get("watchdog_restarts", 0) >= 1, f"the watchdog restarts a daemon that died (got {report.get('watchdog_restarted')!r}, {report.get('watchdog_restarts')})")
 
+# Spotlight's way of typing.
+inl = steps["inline"]
+check(inl["query"] == "beac" and inl["field"].lower().startswith("beac") and len(inl["field"]) > 4
+      and inl["field_selected"] == inl["field"][4:], f"the top hit's name completes inline, the rest selected (field {inl['field']!r}, selected {inl['field_selected']!r})")
+ro = steps["reopen"]
+check(ro["field"] and ro["field_selected"] == ro["field"], f"reopened, the last search is all selected (field {ro['field']!r}, selected {ro['field_selected']!r})")
+check(report.get("escape_first_query") == "" and report.get("escape_first_visible") is True, "Esc clears the search and keeps the window")
+check(report.get("escape_second_visible") is False, "Esc again, with the field empty, closes the window")
+jp = steps["jump"]
+check(jp["browsing"] and jp["selected_section"] and jp["selected_section"] != (jp["sections"][0]["title"] if jp["sections"] else ""), f"⌘↓ goes to the next section (got {jp['selected_section']!r})")
+check("beach.jpg" in report.get("copied_files", []), f"⌘C copies the selected file (got {report.get('copied_files')})")
+
 # Updates are never silent: a window with the step, a filled bar and the sizes.
 check(report.get("update_window_visible") is True, "the update window shows while an update downloads")
 check("update-progress.png" in report["screenshots"], "screenshot update-progress.png")

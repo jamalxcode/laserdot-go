@@ -419,6 +419,16 @@ interrupted early left the folder registered but empty, which never healed (fixe
 again, also by Refresh at start); (10) tests for a stuck folder, a full disk, a folder pulled away mid-index and a
 bug in a request.
 
+## 29. Typing like Spotlight (0.9.16)
+
+**Asked:** "the spotlight text entry interface is very familiar and people are used to it, have the laserdot text
+entry interface behave as close as possible to spotlight, but also taking advantage of new laserdot features".
+**Decided:** inline completion of the top hit's name (typed letters kept as typed, the rest selected; → or Tab
+takes it, Delete drops it until the next letter; not for queries with filters, a trailing space, commands or while
+browsing); Esc clears, then closes; reopening keeps the last search all selected; ⌘↓/⌘↑ move between sections;
+⌘C with no text selected copies the selected files; a dragged window reopens where it was left. Laserdot's extras
+(filters and hints, Space Quick Look, ⌘K, `>` commands, recent files when empty) stay.
+
 ---
 
 ## How the work was done

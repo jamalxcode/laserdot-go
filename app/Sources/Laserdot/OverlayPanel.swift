@@ -64,7 +64,27 @@ final class OverlayController: NSObject, NSWindowDelegate {
         f.origin.y += f.height - height
         f.origin.x += (f.width - size.width) / 2
         f.size = NSSize(width: size.width, height: height)
+        positioning = true
         panel.setFrame(f, display: true, animate: panel.isVisible)
+        positioning = false
+    }
+
+    /// Set while Laserdot moves the panel itself (not the user dragging it).
+    private var positioning = false
+
+    /// The top-left corner the user dragged the overlay to (nil: centred).
+    private var savedTopLeft: NSPoint? {
+        let d = UserDefaults.standard
+        guard d.object(forKey: "laserdot.overlay.x") != nil else { return nil }
+        return NSPoint(x: d.double(forKey: "laserdot.overlay.x"), y: d.double(forKey: "laserdot.overlay.y"))
+    }
+
+    /// The user dragged the overlay: open it there next time.
+    func windowDidMove(_ notification: Notification) {
+        guard !positioning, panel.isVisible, panel.inLiveResize == false, NSEvent.pressedMouseButtons != 0 else { return }
+        let f = panel.frame
+        UserDefaults.standard.set(Double(f.minX), forKey: "laserdot.overlay.x")
+        UserDefaults.standard.set(Double(f.maxY), forKey: "laserdot.overlay.y")
     }
 
     func windowDidEndLiveResize(_ notification: Notification) {
@@ -80,13 +100,23 @@ final class OverlayController: NSObject, NSWindowDelegate {
     func show() {
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
         if let f = screen?.visibleFrame {
-            // The top edge sits at the same place whatever the height.
             let size = panel.frame.size
-            let top = f.minY + f.height * 0.8
-            panel.setFrameOrigin(NSPoint(x: f.midX - size.width / 2, y: max(f.minY, top - size.height)))
+            positioning = true
+            if let top = savedTopLeft, f.contains(top), f.contains(NSPoint(x: top.x + size.width, y: top.y - SearchView.compactHeight)) {
+                // Where the user last dragged it, as Spotlight remembers.
+                panel.setFrameOrigin(NSPoint(x: top.x, y: top.y - size.height))
+            } else {
+                // The top edge sits at the same place whatever the height.
+                let topY = f.minY + f.height * 0.8
+                panel.setFrameOrigin(NSPoint(x: f.midX - size.width / 2, y: max(f.minY, topY - size.height)))
+            }
+            positioning = false
         }
         panel.makeKeyAndOrderFront(nil)
         model.focusSearch() // the query field takes the keyboard each time
+        // As in Spotlight: the last search is still there, all selected, so
+        // typing replaces it and ↓ or Return reuse it.
+        if !model.query.isEmpty { model.selectAllRequest &+= 1 }
         // When Quick Look closes, the overlay takes the keyboard back.
         QuickLook.shared.onClose = { [weak self] in
             guard let self, self.panel.isVisible else { return }

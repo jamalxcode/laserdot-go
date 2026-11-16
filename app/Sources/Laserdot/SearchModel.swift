@@ -43,6 +43,8 @@ final class SearchModel: ObservableObject {
     @Published private(set) var resultsID = 0
     /// Bumped by Edit ▸ Find (⌘F): the search field takes the keyboard.
     @Published var focusRequest = 0
+    /// The overlay reopened with a search in the field: select it all.
+    @Published var selectAllRequest = 0
     @Published private(set) var hint: String?
     /// The hint, unless it says nothing about what was typed.
     var visibleHint: String? {

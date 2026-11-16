@@ -85,17 +85,51 @@ extension SearchModel {
         }
     }
 
-    /// Esc: close what is open (actions, cheat sheet), else the overlay.
+    /// Esc, as in Spotlight: close what is open (actions, cheat sheet), else
+    /// clear the search, else (the field already empty) close the overlay.
     func escape(close: () -> Void) {
         if showActions {
             showActions = false
         } else if showCheatSheet {
             showCheatSheet = false
-        } else if isCommandMode {
+        } else if !query.isEmpty {
             query = ""
+            browsing = false
         } else {
             close()
         }
+    }
+
+    /// As in Spotlight: the rest of the top hit's name after what was typed,
+    /// when the name begins with it (case and accents aside). Not for queries
+    /// with filters, commands, or while browsing the results.
+    var inlineSuffix: String? {
+        guard !query.isEmpty, !isCommandMode, !browsing, !showCheatSheet, !showActions,
+              !query.contains(":"), !query.hasSuffix(" "), let top = results.first,
+              let r = top.name.range(of: query, options: [.anchored, .caseInsensitive, .diacriticInsensitive]),
+              r.upperBound < top.name.endIndex else { return nil }
+        return String(top.name[r.upperBound...])
+    }
+
+    /// ⌘↓/⌘↑, as in Spotlight: the first result of the next or previous
+    /// section.
+    func jumpSection(_ delta: Int) {
+        guard !results.isEmpty, !sections.isEmpty else { return }
+        let current = sections.firstIndex { $0.range.contains(selection) } ?? 0
+        let target = max(0, min(sections.count - 1, current + delta))
+        selection = sections[target].range.lowerBound
+        anchor = selection
+        extraSelection = []
+        browsing = true
+    }
+
+    /// ⌘C with no text selected, as in Spotlight: the selected files go to
+    /// the clipboard (paste them in Finder, Mail…). True when done.
+    func copyFiles() -> Bool {
+        let hits = selectedHits
+        guard !hits.isEmpty, !isCommandMode else { return false }
+        NSPasteboard.general.clearContents()
+        return NSPasteboard.general.writeObjects(hits.map { URL(fileURLWithPath: $0.path) as NSURL })
     }
 
     /// ⌘K: the actions for the selection.

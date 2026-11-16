@@ -3,6 +3,19 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.16
+
+- Typing in the ⌥Space window works like Spotlight:
+  - The top result's name completes as you type, the rest shown selected: keep typing over it, press → or Tab to
+    take it, Delete to drop it, Return to open the top result.
+  - Esc clears the search; Esc again closes the window.
+  - Reopening shows your last search, all selected: type to replace it, or press Return or ↓ to use it again.
+  - ⌘↓ and ⌘↑ jump to the next or previous group of results.
+  - ⌘C copies the selected file, to paste in Finder or Mail.
+  - Drag the window anywhere: it opens there next time.
+- Laserdot's own extras stay: filters such as kind:video, the hint line, Space for Quick Look, ⌘K actions, > commands
+  and recent files when the box is empty.
+
 ## 0.9.15
 
 - Steadier: a bug in Laserdot's background engine is caught, written to a log on your Mac, and the engine keeps
