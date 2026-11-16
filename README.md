@@ -1,18 +1,35 @@
-# Laserdot
+# Laserdot 🔴
 
-Private, media-aware search for your Mac — a Spotlight successor that cannot phone home.
+**Spotlight's speed, Finder's manners, and a search engine that physically cannot phone home.**
 
-- **Finds things the way you say them:** `jpg`, `photos last week`, `big videos`, `pdf yesterday`, `invoice march`,
-  `4k hdr`. Arabic too: `صور الاسبوع الماضي`, `فاتورة ٢٠٢٤`.
-- **Knows your media:** resolution, codecs, HDR, frame rate, audio channels, track languages, subtitles, camera
-  EXIF, music tags — searchable without opening a file (`res:4k codec:hevc`, `lang:ar channels:5.1`).
-- **Fast and live:** its own index; results appear as you type (a few milliseconds even over a million files) and
-  stay current as files change — a deleted file never shows.
-- **Drives that remember:** an external drive keeps its own index, so it is searchable on any Mac with Laserdot.
-- **Duplicates by quality:** finds identical files, similar pictures and re-encoded videos and keeps the best copy.
-  It never deletes: files are moved to the Trash or a folder you choose, after a preview.
-- **Private by construction:** no AI, no telemetry, no accounts. The search engine is blocked from the network by
-  macOS itself; the one exception is the updater, which only talks to GitHub to fetch new versions.
+You press ⌥Space, type `big videos last month`, and before you've lifted your finger the answer is there: a 4K clip
+from March, sorted to the top because you open it a lot. You type `صور الاسبوع الماضي` and it understands that too.
+You ask for `res:4k atmos:true` and it answers from a million files in a few milliseconds, without opening a single
+one. Meanwhile the engine that read all of that is locked out of the network by macOS itself — not by a promise, by
+the operating system.
+
+That's Laserdot: a private, media-aware search for your Mac, built by one owner with a very clear idea of what a
+file search should be, and a robot that types into it on every change to prove it still is.
+
+## What it does
+
+- 🔎 **Finds things the way you say them.** `jpg`, `photos last week`, `big videos`, `pdf yesterday`,
+  `invoice march`, `4k hdr` — and Arabic: `صور الاسبوع الماضي`, `فاتورة ٢٠٢٤`. A hint under the box shows how it read
+  you (*“last week means since:7d”*), so you pick up the precise language for free.
+- 🎬 **Knows your media without opening it.** Resolution, codecs, HDR, frame rate, audio channels, track languages,
+  subtitles, camera EXIF, music tags: `res:4k codec:hevc`, `lang:ar channels:5.1`.
+- ⚡ **Fast and live.** Its own index; a million files are searchable about 10 seconds after a first look, searches
+  take milliseconds, and a file you delete in Finder leaves the results right away.
+- ⌨️ **Types like Spotlight.** The top result's name completes as you type, Esc clears then closes, your last search
+  comes back selected — everything your fingers already know, plus Quick Look on Space and ⌘K actions.
+- 💽 **Drives that remember.** An external drive keeps its own index, so it's searchable on any Mac, and can be
+  encrypted with a passphrase that's never written down.
+- 🧹 **Duplicates by quality.** Identical files, similar pictures and re-encoded videos; it recommends the best copy
+  and **never deletes** — files go to the Trash after a clear confirmation. It tells you what you freed, too.
+- 🛟 **Fixes itself.** Bugs are caught and logged, a stuck engine is restarted, a dead drive is skipped, an
+  interrupted index heals. You shouldn't notice any of it.
+- 🔒 **Private by construction.** No AI, no telemetry, no accounts. The only part allowed online is the updater, and
+  only to fetch new versions from GitHub — each one carrying proof that Laserdot's own build made it.
 
 ## Install
 
@@ -144,6 +161,31 @@ FFmpeg's source under the LGPL, without any network support (license in `Laserdo
   once a day or when asked, sends no data about you or your files, and only downloads a release.
 - No AI, no embeddings, no telemetry, no crash reporter.
 
+## Behind the scenes
+
+A few things that make this project unusual:
+
+- **A robot uses the app on every commit.** In CI, the real Laserdot.app types into its own ⌥Space window with key
+  presses, opens Quick Look, renames and trashes files and undoes it, opens Settings, freezes its own search engine to
+  check the watchdog brings it back, and erases all its data — in English and in Arabic, right to left — then prints
+  screenshots into the job log.
+- **It gets killed on purpose.** A crash test kills a real Laserdot process at random moments while it indexes and
+  scans, then checks the index comes back exactly right. On its very first runs it found a real bug, now fixed.
+- **Every update proves where it came from**, using GitHub's keyless build attestation; there's no signing key
+  anywhere to steal.
+- **Every decision is written down.** What the owner asked for, what was decided and why, and what went wrong along
+  the way — see the documents below. Most features started as a screenshot from the owner's Mac mini.
+
+Some numbers from GitHub's Mac (which is slower than yours):
+
+| | |
+|---|---|
+| 100,000 files searchable after | ~1 s |
+| a million files searchable after | ~10.6 s (94,000 files/s) |
+| slowest search, a million files | 38 ms |
+| memory after indexing a million files | 65 MB (Activity Monitor's measure) |
+| opening the app | ~0.2–0.3 s |
+
 ## For developers
 
 Go core and daemon (pure Go, no cgo) + a SwiftUI shell that talks to the daemon over a Unix socket.
@@ -161,7 +203,7 @@ The app (macOS):
 ```bash
 app/scripts/build-go.sh                  # laserdotd + CLI, and the app's registry (rerun after registry changes)
 (cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
-VERSION=0.9.4 app/scripts/bundle.sh      # → app/build/Laserdot.app
+VERSION=0.9.17 app/scripts/bundle.sh     # → app/build/Laserdot.app
 ```
 
 CI builds and tests on Linux and macOS, bundles the app, launches it, runs the updater against GitHub, and runs
@@ -173,7 +215,7 @@ launch time, and saves screenshots
 
 A speed test on a Mac (`app/scripts/perf-mac.sh`) indexes 100,000 files (and again without bulk folder reading, to
 compare), times searches and measures the daemon's memory. On CI's Mac, 100,000 files are searchable after about
-0.6 s and a million after about 10 s (the weekly **perf-big** run); searches take a few milliseconds.
+1 s and a million after about 10.6 s (the weekly **perf-big** run); searches take a few milliseconds.
 
 Releases publish themselves: when CI passes on `main` and the newest version in `CHANGELOG.md` has no release yet,
 the **Release** workflow builds that exact commit, launch-tests it and publishes `Laserdot-<version>.dmg` with that
@@ -182,10 +224,18 @@ released without a What's New message. The **perf-big** workflow measures a mill
 
 ## Documents
 
+Start with whichever sounds most interesting:
+
+- [`docs/design-conversation.md`](docs/design-conversation.md) — the story: what the owner asked for, release by
+  release, and what was decided and why.
+- [`docs/lessons-learned.md`](docs/lessons-learned.md) — twenty-one things building it taught us, mostly the hard way.
+- [`docs/business-rules.md`](docs/business-rules.md) — what Laserdot promises and will never do (privacy, files,
+  duplicates, updates, reminders).
+- [`docs/interface-rules.md`](docs/interface-rules.md) — how it looks and behaves, and how it copies Spotlight.
+- [`docs/design-ideas.md`](docs/design-ideas.md) — the ideas behind it, and the ones still waiting their turn.
 - [`docs/spotlight-successor-spec.md`](docs/spotlight-successor-spec.md) — the spec, the source of truth for behavior.
-- [`docs/design-conversation.md`](docs/design-conversation.md) — what the owner asked for in the app's first weeks,
-  and what was decided and why.
 - [`issues/001-spotlight-successor.md`](issues/001-spotlight-successor.md) — the epic and the Design Decision Log.
 - [`issues/002-go-port.md`](issues/002-go-port.md) — the Go port: mapping from Rust, progress, as-built notes.
+- [`CHANGELOG.md`](CHANGELOG.md) — what's new in each version, in plain words.
 
 The original Rust implementation is `jamalxcode/laserdot`.

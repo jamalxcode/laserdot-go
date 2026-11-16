@@ -1,0 +1,85 @@
+# Interface rules
+
+How Laserdot looks and behaves. Each rule came from using the app (see
+[`design-conversation.md`](design-conversation.md)); the self-test checks most of them on the real screen, in
+English and Arabic, on every commit.
+
+## 1. Behave like Spotlight, then add
+
+People already know Spotlight. Laserdot matches it wherever it can, and adds its extras where Spotlight has nothing.
+
+| Spotlight does | Laserdot does |
+|---|---|
+| ⌥Space-style shortcut opens a floating box | ⌥Space (changeable), a slim bar that grows when there are results |
+| completes the top hit's name as you type | the same: the rest shown selected; → or Tab takes it, Delete drops it |
+| Return opens the top hit, ⌘Return shows it in Finder | the same |
+| Esc clears, Esc again closes | the same |
+| reopens with the last search selected | the same |
+| ⌘↑ / ⌘↓ jump between categories | the same |
+| ⌘C copies the selected file | the same |
+| remembers where you dragged it | the same |
+| Top Hit, then categories | the same, five per category with *Show all* |
+| — | filters (`kind:video res:4k`), a hint line explaining clever words, Space for Quick Look, ⌘K actions, `>` commands, recent files when the box is empty |
+
+The inline completion stays out of the way of Laserdot's own language: it is not offered for queries with filters,
+for `>` commands, after a trailing space, or while moving through the results.
+
+## 2. Never silent
+
+1. **Anything that can take more than a couple of seconds shows what it is doing**: its step, a bar (moving when
+   the total is unknown, filling when it is known), a count ("131,312 of 136,896 files") and the time so far.
+2. Updates, indexing (folders and drives), duplicate scans and cleanups all follow this.
+3. A clock that depends on the engine answering is a bug: elapsed time ticks by itself.
+4. Show the item being worked on (the file a scan is reading) so a stall can be diagnosed from a screenshot.
+
+## 3. Long work can be left
+
+1. Long jobs never freeze the window: they run off the main thread, on their own connection to the engine, with
+   no time limit.
+2. A long job can be **stopped**, keeping what it found, and **continued** later without starting over.
+3. Closing a window stops its job the same way.
+
+## 4. One primary action per screen
+
+1. Each screen has one obvious main button (the Duplicates window: *Move N Duplicates to Trash (size)…*, red,
+   large, with the count and size in its title).
+2. Secondary choices are smaller (Select All Extras / Select None, the destination).
+3. After a job ends, offer **one or two** sensible next steps (open the Trash, continue the scan, see what takes
+   space) — never a chain of prompts.
+4. Empty results and errors always say what to try next (suggested searches, *see what takes space*).
+
+## 5. Confirmations
+
+1. Anything that moves files is confirmed, in plain words: how many, how much space, where to, and that nothing is
+   deleted.
+2. The safe choice (Cancel) answers Escape.
+3. **A dialog always fits the screen** with its buttons visible: long text (such as release notes) scrolls in a box
+   of fixed height. (A 16-inch MacBook once lost the Install button.)
+
+## 6. Words
+
+1. Plain language. Say what happens and what to do, not internal terms.
+2. Every string exists in **English and Arabic**; Arabic windows are laid out right to left.
+3. Numbers are formatted for the language ("27,670"), sizes with the system's formatter ("37.31 GB").
+4. Errors name the problem and the fix ("only 400 MB free on the disk… free up some space, then try again").
+
+## 7. Keyboard first
+
+1. Everything in the search window works without the mouse: ↑↓, Return, ⌘1–⌘9, Space, ⌘K, Tab, ⌘↑/⌘↓, ⌘C, Esc,
+   ⌥⌘Z, ⌘J, ⌘R, ⌘D, ⌘/.
+2. Typing never waits for the engine: completions and searches are asked for in the background, and a stale answer
+   never replaces a newer one.
+
+## 8. Respect the user's time
+
+1. No onboarding walls: apps and the home folder are indexed without asking; macOS's permission prompts come
+   together, once.
+2. Reminders are optional and rare (see [`business-rules.md`](business-rules.md) §6).
+3. Results stop at *Show More*; nothing scrolls forever.
+4. The window remembers the user's choices: size, position, view, sort, tile size, Duplicates' scope and options.
+
+## 9. Proving it
+
+Every visible change extends the self-test (`app/Sources/Laserdot/SelfTest.swift`, judged by
+`app/scripts/check-selftest.py`), which drives the real bundled app with key events in CI and prints screenshots
+into the job log.
