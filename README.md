@@ -48,6 +48,10 @@ Press **⌥Space** anywhere (change it in **Settings**), or use the Laserdot win
 
 The hint under the box says what a clever word stands for, e.g. *“last week means since:7d”*.
 
+Typing works like Spotlight: the top result's name completes as you type (the rest shown selected; → or Tab takes
+it, Return opens it), and when you reopen the window your last search is there, all selected. With the box empty,
+Laserdot suggests a search from your own files (e.g. *“812 of your videos are 4K: res:4k”*) — click it to run it.
+
 **Results** come like Spotlight's: a **Top Hit**, then Applications, Documents, Images, Videos, Folders… (five each,
 **Show all** for more). Files you open often rise to the top. The empty box shows what you opened recently and new
 downloads.
@@ -64,8 +68,10 @@ downloads.
 | ⌘D | pin the search (pins show on the empty box) |
 | ⌘J | the next view: rows, columns (click a header to sort, like Finder), thumbnails |
 | ⌘R | refresh: look at every indexed folder again (deleted files leave the index) |
-| Tab / ⌥1–⌥9 | complete a filter / press a suggestion chip |
-| Esc | close actions, the cheat sheet, then the window |
+| ⌘↓ / ⌘↑ | the next / previous group of results |
+| ⌘C | copy the selected file (paste it in Finder or Mail) |
+| → or Tab | take the completed name; Tab also completes a filter / ⌥1–⌥9 press a suggestion chip |
+| Esc | close actions or the cheat sheet, then clear the search, then close the window |
 
 Results can also be shown as **columns** like Finder's list (Name, Date Modified, Size, Kind, Last Opened, Date
 Created — click one to sort, again to reverse, drag the line before it to resize) or as **thumbnails** (the slider or
@@ -75,16 +81,32 @@ Created — click one to sort, again to reverse, drag the line before it to resi
 The preview pane on the right shows a large thumbnail, plays videos and songs, pages through PDFs, and for a
 document found by its words, the passage where they are. Drop a folder on the window to search inside it.
 
+Long result lists stop at **Show More** rather than loading forever. Drag the window anywhere: it opens there next
+time.
+
+**Find Duplicates** (File menu, or `> dup`) finds identical copies, similar pictures and re-encoded videos and
+recommends the best copy to keep. It shows each step with a bar, how many files are done and the time so far; it can
+be stopped at any point (**Stop and Show What's Found**) and picks up where it left off (**Continue Scan**), saving
+what it has read every 30 seconds. Cleaning up is one button — **Move N Duplicates to Trash (size)…** — then a
+confirmation; nothing is ever deleted, and Laserdot keeps a running total of the space it has helped clear.
+
 **Library ▸ Storage** (⇧⌘S) shows what fills your disk, folder by folder, and the largest files. The sort menu
 (arrows next to the pin) orders results by name, size or date. `laserdot://search?q=…` links open a search (use them
 in Shortcuts with **Open URL**).
 
-**Settings** (⌘,): the search shortcut, open at login, pausing background work on battery, automatic updates (and
+**Settings** (⌘,): the search shortcut, open at login, pausing background work on battery, optional **Reminders**
+(check for duplicates every month or 3 months, a warning when the disk is nearly full — off unless you turn them on;
+they are notifications made on your Mac), automatic updates (and
 **Go Back** to the version before the last update), **Folders** (what is indexed, folders that are never
 indexed, and what Laserdot couldn't read, with how to fix it), **Content Search**, **Drives**, and **Privacy** (what is kept and its size, Clear History, **Erase All
 Laserdot Data**). **Help** has the search syntax, the
 welcome tour, What's New, and **Save Diagnostics** (a file for a bug report, with every path removed; it also shows
-how long Laserdot took to start).
+how long Laserdot took to start, any bugs the engine caught and how often it was restarted).
+
+**If something goes wrong** Laserdot recovers by itself: a bug in the search engine is caught and logged and the
+engine keeps running; if the engine stops or hangs it is restarted within a minute; a drive that stops answering is
+skipped after 30 seconds; indexing waits for free space instead of failing halfway; and if Laserdot fails to start
+twice in a row it offers to start with a fresh index (your files are never touched).
 
 ## Where things are kept
 
@@ -92,6 +114,7 @@ Everything stays on your Mac, in `~/Library/Application Support/laserdot/` (**Se
 Finder**):
 
 - `index.db` — names, sizes, dates, media details; `index.db.snapshot` — a copy for a fast start.
+- `laserdotd-crash.log` — bugs the engine caught and kept running through (never sent; Save Diagnostics includes it).
 - `content.db` — the words inside documents (your whole home folder unless you change **Settings → Content Search**).
 - Opened-results history and settings live in the same index; nothing is ever sent anywhere.
 - **Settings → Privacy** shows each of these with its size; **Erase All Laserdot Data** deletes them all (and the

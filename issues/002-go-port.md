@@ -88,6 +88,25 @@ Binding unless revisited deliberately; each is also in the spec.
   themselves; ⌘R refreshes every folder. Offline folders are kept 30 days, as before.
 - **Measure before optimizing (0.9.3):** search is already fast; work goes to memory and the Mac walk, each change
   checked by the race detector, the lifecycle test and the Mac speed test.
+- **Updates prove where they come from (0.9.9):** each release carries GitHub's keyless build proof (Sigstore);
+  Laserdot checks it offline against the embedded Sigstore root and installs nothing without it. No signing key
+  exists anywhere. A downloaded update is prepared in the background, so installing on quit is a rename.
+- **A commit is tested once (0.9.10, owner's hard rule):** branch CI, then `main` fast-forwarded to the same commit;
+  `main`'s CI reuses the passing run and the release starts at once.
+- **Nothing silent, nothing endless (0.9.8–0.9.13):** updates, indexing and duplicate scans show their step, a bar,
+  counts and elapsed time; long jobs have their own connection with no time limit, are never resent, can be stopped
+  (duplicates: Stop and Show What's Found, then Continue Scan) and save as they go (every 30 s).
+- **Duplicate cleanup is one obvious action (0.9.11):** a prominent "Move N Duplicates to Trash (size)…", Select
+  All Extras / None, a confirmation stating what is freed and that one copy of each stays; batches of 500 groups.
+- **Robust by default (0.9.15):** bugs are caught per request and per task and logged locally; a watchdog restarts
+  a daemon that is gone or hung; stuck folders are skipped after 30 s; indexing refuses to start under 512 MB free;
+  unfinished first indexes heal on their own; safe start after two failed launches.
+- **The field types like Spotlight (0.9.16):** inline completion of the top hit, Esc clears then closes, the last
+  search reopens selected, ⌘↑/⌘↓ sections, ⌘C copies files, a dragged window stays put; Laserdot's extras (filters,
+  hints, Space Quick Look, ⌘K, `>`) are kept.
+- **Useful return, not time spent (0.9.17):** reminders only for tidying, off by default and counted from the last
+  scan; outcomes (space cleared, lifetime total) instead of badges; tips drawn from the user's own files; "Show
+  More" instead of endless loading; no streaks or resets.
 - **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account), and more
   languages than English and Arabic for now.
 

@@ -443,6 +443,32 @@ a running total cleared, and a varied tip drawn from the user's own files (count
 finds them); (6) Duplicates remembers its scope and options; existing history, pins, recents and the reopened last
 search carry on. No streaks, no counters that reset, nothing that keeps the user in the app longer than needed.
 
+## 31. Releasing faster: a commit is tested once
+
+**Asked:** "can we do this faster by running locally?", then, when told the release could reuse the branch's test
+run, "yes, do it, always, hard rule". **Found:** a Mac can't be reached from the developer's Linux machine, and a
+release built anywhere but GitHub would lack the build proof; the real delay was CI testing the same commit twice
+(branch, then `main`) while Mac runners were queued. **Decided (hard rule, in CLAUDE.md):** test on the branch,
+fast-forward `main` to that exact commit, and `main`'s CI skips straight to the release when that commit already
+passed. Never merge before the branch is green. `main`'s check now takes under a minute instead of ~25.
+
+## 32. Speed review (waiting for the owner's choice)
+
+**Asked:** "review laserdot, how can it be made faster and more efficient". **Measured (CI's Mac, 1M files):**
+searchable after 10.6 s (94,000 files/s: walking 6.4 s, then writing 3.0 s), slowest search 37.8 ms (23 ms before),
+physical footprint 834 MB at the peak of a first index and 65 MB after; 100,000 files: searches ≤ 3 ms.
+**Proposed, in order:** (1) duplicate pictures through macOS's ImageIO (HEIC, RAW and AVIF are not compared at all
+today; others are decoded at full size in pure Go), likely several times faster; (2) walk and write a first index
+at the same time and stream entries (sooner searchable, lower peak); (3) skip stale searches while typing and fold
+the four requests per keystroke into fewer; (4) find the 37.8 ms query; (5) the 5-minute folder check could ask
+FSEvents which folders changed; (6) launch (~170–280 ms before Laserdot's own code); (7) video frames through
+AVFoundation. Not started: the owner moved on to the engagement work (section 30).
+
+## Chat conventions
+
+- Answers in plain words and numbered steps; times in Kuwait time.
+- Every visible change is extended into the self-test; releases are announced with their link once published.
+
 ---
 
 ## How the work was done
@@ -454,5 +480,7 @@ search carry on. No streaks, no counters that reset, nothing that keeps the user
 - The spec and Issue 002 were updated with every behavior change.
 - Measurements before changes: profiles and the Mac speed test (`app/scripts/perf-mac.sh`) decide what to optimize;
   numbers in these notes come from CI's Macs, which are slower than the owner's.
+- Crash-safety is tested by killing a real process at random moments (`internal/core/crash_test.go`); it found a
+  real bug on its first runs (an interrupted first index left a folder empty), fixed in 0.9.15.
 - Mistakes made along the way, and caught: a release started before `main` had the new commit (cancelled before
   publishing; the release step now checks), and a commit pushed while a test failed (fixed in the next commit).
