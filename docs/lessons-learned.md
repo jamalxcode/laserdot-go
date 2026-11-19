@@ -37,6 +37,12 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 5e. **Stopping must not wait for the slowest reader.** A stuck folder can take 30 seconds to give up; ejecting
     stops the index between batches and leaves such reads behind instead of waiting for them.
 
+5f. **Background work must act like it.** A fast indexer at normal priority made the whole Mac beachball and an
+    update crawl. Indexing now asks macOS for throttled disk access and a lower priority, and pauses for an install:
+    the user's own work always comes first.
+5g. **Every outside tool needs a time limit and a clock.** The update waited on `codesign`, `hdiutil` and `ditto` with
+    no limit and no elapsed time, so "slow" and "stuck" looked the same.
+
 ## Crashes and recovery
 
 8. **Kill it on purpose.** A test that kills a real Laserdot process at random moments found, on its first runs, a

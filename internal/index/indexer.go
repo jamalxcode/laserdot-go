@@ -70,16 +70,22 @@ func wantsProbe(e *scan.Entry) bool {
 	return media.WantsProbe(media.Classify(ext, false, e.Size), ext)
 }
 
+// probeWanted: probeEntry would open this entry (a media file to read).
+func probeWanted(e *scan.Entry) bool {
+	if e.IsDir || e.Dataless || e.IsSymlink || e.Parent < 0 || ShouldDefer(e) {
+		return false
+	}
+	ext := media.Extension(fold.Fold(filepath.Base(e.Path)))
+	return media.WantsProbe(media.Classify(ext, false, e.Size), ext)
+}
+
 // probeEntry reads one entry's header unless it must not be read.
 func probeEntry(e *scan.Entry) Probe {
-	if e.IsDir || e.Dataless || e.IsSymlink || e.Parent < 0 || ShouldDefer(e) {
+	if !probeWanted(e) {
 		return Probe{}
 	}
 	ext := media.Extension(fold.Fold(filepath.Base(e.Path)))
 	kind := media.Classify(ext, false, e.Size)
-	if !media.WantsProbe(kind, ext) {
-		return Probe{}
-	}
 	st, rec := media.Probe(e.Path, kind, ext, e.Size)
 	return Probe{Status: st, Record: rec}
 }

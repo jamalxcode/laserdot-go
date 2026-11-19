@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/scan"
 )
@@ -171,5 +173,65 @@ func TestStreamingStopsWhenTheDriveGoesAway(t *testing.T) {
 	want, _ := paths(t, bulk)
 	if !slices.Equal(got, want) || rows != len(want) {
 		t.Fatalf("after the drive came back: %d entries in %d rows, want %d", len(got), rows, len(want))
+	}
+}
+
+// However many readers there are, no more than ProbeSlots files are open
+// for their headers at once (a big drive full of videos must not open
+// hundreds of files together and slow the whole Mac).
+func TestStreamingOpensFewFilesAtOnce(t *testing.T) {
+	root, _ := filepath.EvalSymlinks(t.TempDir())
+	for d := 0; d < 12; d++ {
+		for f := 0; f < 60; f++ {
+			p := filepath.Join(root, fmt.Sprintf("d%d/clip %d.mp4", d, f))
+			os.MkdirAll(filepath.Dir(p), 0o755)
+			os.WriteFile(p, []byte("not really a video"), 0o644)
+			old := time.Now().Add(-time.Hour)
+			os.Chtimes(p, old, old)
+		}
+	}
+	var open, most atomic.Int64
+	old := streamProbe
+	streamProbe = func(e *scan.Entry) Probe {
+		n := open.Add(1)
+		for m := most.Load(); n > m && !most.CompareAndSwap(m, n); m = most.Load() {
+		}
+		time.Sleep(time.Millisecond)
+		open.Add(-1)
+		return Probe{}
+	}
+	defer func() { streamProbe = old }()
+	db := openTemp(t, "stream")
+	if _, err := IndexStreaming(db, root, scan.Options{}, StreamOptions{MaxWorkers: 16}); err != nil {
+		t.Fatal(err)
+	}
+	if most.Load() == 0 || most.Load() > int64(ProbeSlots()) {
+		t.Fatalf("%d files open at once (limit %d)", most.Load(), ProbeSlots())
+	}
+}
+
+// Paused (an update being installed), it reads nothing new; resumed, it
+// finishes normally.
+func TestStreamingWaitsWhilePaused(t *testing.T) {
+	root := streamTree(t)
+	db := openTemp(t, "stream")
+	start := time.Now()
+	var first time.Duration
+	_, err := IndexStreaming(db, root, scan.Options{}, StreamOptions{
+		Pause: func() bool { return time.Since(start) < 300*time.Millisecond },
+		OnBatch: func([]StreamRow) {
+			if first == 0 {
+				first = time.Since(start)
+			}
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first < 300*time.Millisecond {
+		t.Errorf("read while paused (first batch after %v)", first)
+	}
+	if db.HasUnlisted(root) {
+		t.Error("finished after resuming")
 	}
 }

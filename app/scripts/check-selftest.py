@@ -274,6 +274,8 @@ check("update-progress.png" in report["screenshots"], "screenshot update-progres
 detail = report.get("update_detail", "")
 check(detail.count("MB") == 2 or detail.count("ميغا") == 2 or len(detail) > 6, f"the update window says how much is downloaded (got {detail!r})")
 check("44" in report.get("update_menu", ""), f"the menu shows the download percentage (got {report.get('update_menu')!r})")
+el = report.get("update_elapsed", "")
+check(bool(re.fullmatch(r"\d+:\d\d", el)) and el != "0:00", f"the update window has a ticking clock for the step (got {el!r})")
 check(report.get("update_cancelled") is True, "Cancel stops a download")
 check(report.get("update_window_closes") is True, "the update window closes when the download is cancelled")
 

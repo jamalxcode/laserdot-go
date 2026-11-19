@@ -1,6 +1,7 @@
 package core
 
 import (
+	"database/sql"
 	"errors"
 	"os"
 	"path/filepath"
@@ -208,4 +209,37 @@ func TestStagedRankingMatchesRankingAllAtOnce(t *testing.T) {
 			}
 		}
 	}
+}
+
+// A drive whose first index was cut short by a version before 0.9.19 (no
+// folder checkpoints, half its files saved) starts over with the streaming
+// indexer in the background, instead of a whole-drive pass held in memory,
+// and ends equal to a fresh index.
+func TestAnOldCutShortDriveIndexStartsOverByStreaming(t *testing.T) {
+	m := newMac(t)
+	drive := makeDrive(t, m.vols, "Old")
+	if _, err := m.ld.CreateDriveIndex(drive, DriveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	full := dnames(t, m.ld, "re:.")
+	m.ld.DetachDrive(drive)
+	// What 0.9.18 left: incomplete, part of the files, no marks.
+	c, err := sql.Open("sqlite", filepath.Join(drive, ".laserdot/index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{"UPDATE roots SET complete = 0", "DELETE FROM entries WHERE name LIKE 'file-1%'"} {
+		if _, err := c.Exec(q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	c.Close()
+	if _, err := m.ld.AttachDrive(drive, ""); err != nil {
+		t.Fatal(err)
+	}
+	m.ld.streams.Wait()
+	if !m.ld.Drives()[0].Complete {
+		t.Fatal("finished")
+	}
+	expect(t, dnames(t, m.ld, "re:."), full...)
 }

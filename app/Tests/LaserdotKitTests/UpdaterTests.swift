@@ -323,4 +323,24 @@ final class UpdateProgressTests: XCTestCase {
         XCTAssertNil(UpdateProgress(phase: .downloading, received: 5).fraction, "size not known yet")
         XCTAssertEqual(UpdateProgress.defaultURL.deletingLastPathComponent(), UpdateStatus.defaultURL.deletingLastPathComponent())
     }
+
+    /// A tool that stops answering is ended at its time limit, so an update
+    /// never hangs on it (the owner waited over 3 minutes for one).
+    func testAStuckToolIsEndedAtItsLimit() {
+        let start = Date()
+        XCTAssertThrowsError(try Updater.run("/bin/sleep", ["30"], limit: 0.5))
+        XCTAssertLessThan(Date().timeIntervalSince(start), 5)
+        XCTAssertEqual(try? Updater.run("/bin/echo", ["hi"], limit: 5).trimmingCharacters(in: .whitespacesAndNewlines), "hi")
+        XCTAssertEqual(Updater.timeLimit("ditto"), 600)
+    }
+
+    /// Each step and tool is logged with how long it took, for Save
+    /// Diagnostics; the log keeps its last 300 lines.
+    func testTheUpdateLogKeepsItsTail() {
+        let url = dir.appendingPathComponent("update-log.txt")
+        for i in 0..<310 { UpdateLog.note("line \(i)", at: url) }
+        let all = UpdateLog.tail(1000, at: url)
+        XCTAssertEqual(all.count, 300)
+        XCTAssertTrue(all.last?.hasSuffix("line 309") == true)
+    }
 }

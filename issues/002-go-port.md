@@ -341,6 +341,19 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.20 (2026-11-19):** the owner's 0.9.19 install took over 3 minutes and the Mac showed the beachball while an
+  8 TB drive was being indexed; with the drive unplugged the update went through. Four fixes: (1) `daemon.StepBack`
+  (nice 10; macOS throttled disk I/O through purego) before the index opens; (2) `AttachDrive`/`CatchUpDrive`
+  restart any incomplete drive root with `streamDrive` (an old root without marks starts over: `IndexStreaming`
+  calls `BeginRoot`), no more whole-drive `RefreshDrive` in memory; (3) `streamRun.slots` (`ProbeSlots`) bounds
+  concurrent header reads across readers (was up to 16 readers × 4×CPUs); `StreamOptions.Pause` and
+  `core.SetBackgroundPaused` (the `background` op) pause drive indexing; (4) app: `Updater.run` ends a tool at its
+  limit (`timeLimit`: ditto 600 s, codesign/hdiutil 300 s, others 120 s) reading output on its own thread;
+  `UpdateLog` (update-log.txt, tool + subcommand + seconds, never paths) in Save Diagnostics; the update window's
+  step clock (`stepStarted`, `TimelineView`); the engine's background work paused from verifying to restarting and
+  resumed only if the install paused it. Tests: `TestStreamingOpensFewFilesAtOnce`, `TestStreamingWaitsWhilePaused`,
+  `TestAnOldCutShortDriveIndexStartsOverByStreaming`, `testAStuckToolIsEndedAtItsLimit`,
+  `testTheUpdateLogKeepsItsTail`; self-test `update_elapsed`.
 - **0.9.19 (2026-11-19):** the owner's adaptive, resumable indexing algorithm, phases A and B, for drives (privacy
   kept: everything stays in the drive's own index or in memory). `internal/index/stream.go`: `IndexStreaming`
   (folder-unit transactions with the *unlisted* mark `codeUnlisted = 4` as checkpoint, bounded queue `MaxQueue`

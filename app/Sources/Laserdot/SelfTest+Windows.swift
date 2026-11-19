@@ -139,6 +139,8 @@ extension SelfTestRunner {
             self.extra["update_step"] = u.step?.title ?? ""
             self.extra["update_detail"] = u.step?.detail ?? ""
             self.extra["update_menu"] = u.statusText
+            // The step's own clock ticks (a slow step never looks frozen).
+            self.extra["update_elapsed"] = u.stepStarted.map { UpdateStep.elapsed(since: $0) } ?? ""
             // Cancel stops the download and closes the window.
             u.cancelCheck()
             self.extra["update_cancelled"] = u.step == nil && !u.checking

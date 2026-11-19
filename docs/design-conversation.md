@@ -494,6 +494,17 @@ aging so none starves, and broad searches ranked in stages with a memory budget.
 indexed; unplugging, ejecting or quitting stops at once and the next attach resumes; a folder that does not answer is
 not saved as empty. Nothing leaves the drive or the Mac's memory; search demand is kept in memory for 10 minutes.
 
+## 35. Updating while a drive is indexed (0.9.20)
+
+**Reported:** "install is taking more than 3 minutes to install for 0.9.19", "the computer is also slow and shows a
+rotating beachball", then, with the 8 TB drive unmounted, "now the update worked, it seems update and scan dont work
+well together". **Found:** the engine read the drive at full speed with normal priority, so the disk (and, for a
+drive cut short by 0.9.18, memory) was taken from everything else, the install included; the install's tools had no
+time limit and its window no clock. **Decided ("fix all 4"):** the engine is a background process (lower priority,
+throttled disk, like Spotlight's); old cut-short drive indexes restart with the streaming indexer; few files are open
+at once; the install pauses indexing, every tool has a time limit, the window shows the step's elapsed time, and
+Save Diagnostics shows each update step's duration.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

@@ -12,6 +12,24 @@ enum UpdateStep: Equatable {
     case installing
     case restarting
 
+    /// The step without its numbers (a new download figure is the same step).
+    var kind: String {
+        switch self {
+        case .checking: return "checking"
+        case .downloading: return "downloading"
+        case .verifying: return "verifying"
+        case .signing: return "signing"
+        case .installing: return "installing"
+        case .restarting: return "restarting"
+        }
+    }
+
+    /// "0:42": how long the step has taken so far.
+    static func elapsed(since start: Date, now: Date = Date()) -> String {
+        let s = max(0, Int(now.timeIntervalSince(start)))
+        return String(format: "%d:%02d", s / 60, s % 60)
+    }
+
     var title: String {
         switch self {
         case .checking: return L("update.step.checking")
@@ -91,6 +109,16 @@ struct UpdateProgressView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
                 Spacer()
+                // Ticks by itself, so a slow step never looks frozen.
+                if let start = updates.stepStarted {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(UpdateStep.elapsed(since: start, now: context.date))
+                            .font(.caption)
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier("update-elapsed")
+                    }
+                }
                 if step.canHide {
                     Button(L("action.cancel")) { updates.cancelCheck() }
                         .controlSize(.small)

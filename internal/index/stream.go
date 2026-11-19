@@ -37,6 +37,13 @@ import (
 //     changed ones and those the user is searching in before the rest, and
 //     the longer a folder waits the higher it rises, so none is starved.
 
+// streamProbe reads a header (tests count how many are read at once).
+var streamProbe = probeEntry
+
+// ProbeSlots: how many files a streaming index opens at once for their
+// headers, all readers together (the CPUs, at least 2, at most 8).
+func ProbeSlots() int { return max(2, min(8, numCPU())) }
+
 // codeUnlisted marks a folder saved but not read yet (its contents are not
 // in the index). Only folders carry it; files' probe codes are unchanged.
 const codeUnlisted = 4
@@ -66,6 +73,9 @@ type StreamOptions struct {
 	StopAfterBatches int
 	// Stop, when it answers true, ends the run early (resumable).
 	Stop func() bool
+	// Pause, while it answers true, hands out no new folders (an update
+	// being installed, battery, heat); folders being read are saved.
+	Pause func() bool
 	// Errors receives what could not be read.
 	Errors *[]scan.Error
 	// OnStart runs once the root's row is saved (or an earlier run is found)
@@ -115,7 +125,8 @@ func IndexStreaming(db *Db, root string, opts scan.Options, so StreamOptions) (S
 	}
 	st := StreamStats{}
 	st.Root = root
-	r := &streamRun{db: db, root: root, opts: opts, so: so, st: &st, inFlight: map[int64]bool{}, failed: map[int64]bool{}}
+	r := &streamRun{db: db, root: root, opts: opts, so: so, st: &st, inFlight: map[int64]bool{}, failed: map[int64]bool{},
+		slots: make(chan struct{}, ProbeSlots())}
 	if err := r.start(); err != nil {
 		return st, err
 	}
@@ -145,7 +156,8 @@ type streamRun struct {
 	failed   map[int64]bool // folders that did not answer this run (left unlisted)
 	more     bool           // unlisted folders may wait in the index beyond the queue
 	links    map[[2]uint64]bool
-	target   atomic.Int64 // workers wanted now
+	target   atomic.Int64  // workers wanted now
+	slots    chan struct{} // files open for their headers at once, all readers together
 	saved    atomic.Uint64
 }
 
@@ -383,13 +395,21 @@ func (r *streamRun) run() error {
 			}
 		}
 		var next *streamDir
-		if r.queue.Len() > 0 {
+		paused := r.so.Pause != nil && r.so.Pause()
+		if r.queue.Len() > 0 && !paused {
 			d := heap.Pop(&r.queue).(streamDir)
 			next = &d
 		}
 		r.mu.Unlock()
 		if writeErr != nil {
 			break
+		}
+		if paused && next == nil && pending == 0 && len(results) == 0 {
+			if !flush() {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+			continue
 		}
 		if next == nil && pending == 0 && len(results) == 0 {
 			if !flush() {
@@ -534,13 +554,32 @@ func (r *streamRun) read(d streamDir) listed {
 	}
 	out.entries = entries
 	out.probes = make([]Probe, len(entries))
+	// Files are opened for their headers through one limit shared by all
+	// readers (probeSlots), so a big drive never has hundreds of files open
+	// at once; a folder full of videos uses the free slots in parallel.
 	probe := func(i int) {
 		e := entries[i]
 		e.Parent = 0 // inside a folder: probed like any listed file
-		out.probes[i] = probeEntry(&e)
+		if !probeWanted(&e) {
+			return
+		}
+		r.slots <- struct{}{}
+		out.probes[i] = streamProbe(&e)
+		<-r.slots
 	}
-	if len(entries) > 64 {
-		parallelChunks(len(entries), 64, probe) // a folder full of videos
+	if n := min(len(entries)/16, cap(r.slots)); n > 1 {
+		var next atomic.Int64
+		var wg sync.WaitGroup
+		for w := 0; w < n; w++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				for i := int(next.Add(1) - 1); i < len(entries); i = int(next.Add(1) - 1) {
+					probe(i)
+				}
+			}()
+		}
+		wg.Wait()
 	} else {
 		for i := range entries {
 			probe(i)

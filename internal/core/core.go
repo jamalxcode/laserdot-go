@@ -128,6 +128,9 @@ type Laserdot struct {
 	streams sync.WaitGroup
 	// demand: folders recent searches were about (drive indexing order).
 	demand demand
+	// paused: background work waits (an update being installed, battery,
+	// heat); drive indexing hands out no new folders meanwhile.
+	paused atomic.Bool
 	// fixing: folders being listed again because a result there was gone.
 	fixing sync.Map
 	// probing: the background header pass is running.

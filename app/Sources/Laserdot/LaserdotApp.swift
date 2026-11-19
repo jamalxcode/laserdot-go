@@ -129,6 +129,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         content = ContentModel(engine: engine)
         drives = DrivesModel(engine: engine)
         // Replacing Laserdot stops its daemon on purpose: the watchdog stops too.
+        updates.pauseEngine = { [weak engine] paused in
+            DispatchQueue.global(qos: .userInitiated).async { _ = engine?.setBackground(paused: paused) }
+        }
         updates.stopDaemon = { [weak engine, weak self] in
             DispatchQueue.main.async { self?.watchdog?.stop() }
             engine?.shutdown()

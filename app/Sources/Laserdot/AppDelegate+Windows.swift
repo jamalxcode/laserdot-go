@@ -119,6 +119,11 @@ extension AppDelegate {
                 "Recent laserdotd log (paths removed):",
             ]
             lines += engine.logTail().map(scrub)
+            let updateLog = UpdateLog.tail()
+            if !updateLog.isEmpty {
+                lines += ["", "Recent updates (steps and how long each took):"]
+                lines += updateLog
+            }
             let crashes = CrashLog.tail(db: engine.dbPath)
             if !crashes.isEmpty {
                 lines += ["", "Bugs laserdotd caught and kept running (paths removed):"]

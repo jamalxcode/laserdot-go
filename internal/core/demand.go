@@ -77,6 +77,10 @@ func (d *demand) currentVersion() uint64 {
 
 func (ld *Laserdot) searchPriority(path string) float64 { return ld.demand.priority(path) }
 
+// SetBackgroundPaused pauses or resumes background work that core runs
+// (drive indexing); the daemon pauses its own passes too.
+func (ld *Laserdot) SetBackgroundPaused(p bool) { ld.paused.Store(p) }
+
 // noteDemand records what a search was about, when a drive is being indexed.
 func (ld *Laserdot) noteDemand(q string, r *SearchResults) {
 	ld.mu.RLock()

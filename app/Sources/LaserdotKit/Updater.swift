@@ -446,9 +446,16 @@ public final class Updater {
 
     // MARK: helpers
 
-    /// Run a local tool; a non-zero exit is `extractFailed` with its last
-    /// output line.
-    @discardableResult
+    /// How long a tool may take before it is ended. Copying the app gets the
+    /// most (a slow or busy disk); the rest finish in seconds normally.
+    static func timeLimit(_ tool: String) -> TimeInterval {
+        switch tool {
+        case "ditto": return 600
+        case "codesign", "hdiutil": return 300
+        default: return 120
+        }
+    }
+
     /// An app's release notes, written by bundle.sh from CHANGELOG.md.
     /// The release notes of every version after `since` up to this app's
     /// own, newest first, from the app's copy of CHANGELOG.md. Versions
@@ -482,7 +489,18 @@ public final class Updater {
         return t.isEmpty ? nil : t
     }
 
+    /// Run a local tool; a non-zero exit is `extractFailed` with its last
+    /// output line. A tool that does not finish within its time limit is
+    /// ended (`timeLimit`).
+    @discardableResult
     static func run(_ exe: String, _ args: [String]) throws -> String {
+        try run(exe, args, limit: timeLimit(URL(fileURLWithPath: exe).lastPathComponent))
+    }
+
+    @discardableResult
+    static func run(_ exe: String, _ args: [String], limit: TimeInterval) throws -> String {
+        let name = URL(fileURLWithPath: exe).lastPathComponent
+        let started = Date()
         let p = Process()
         p.executableURL = URL(fileURLWithPath: exe)
         p.arguments = args
@@ -491,8 +509,33 @@ public final class Updater {
         p.standardError = pipe
         p.standardInput = FileHandle.nullDevice
         do { try p.run() } catch { throw UpdateError.extractFailed("\(exe): \(error.localizedDescription)") }
-        let out = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        // The output is read on its own thread, so a tool that stops
+        // answering can be ended at its time limit instead of holding the
+        // update window up forever.
+        let output = ToolOutput()
+        let reading = DispatchGroup()
+        reading.enter()
+        DispatchQueue.global(qos: .utility).async {
+            output.set(pipe.fileHandleForReading.readDataToEndOfFile())
+            reading.leave()
+        }
+        let deadline = started.addingTimeInterval(limit)
+        while p.isRunning && Date() < deadline { usleep(20_000) }
+        if p.isRunning {
+            p.terminate()
+            let grace = Date().addingTimeInterval(2)
+            while p.isRunning && Date() < grace { usleep(20_000) }
+            if p.isRunning { kill(p.processIdentifier, SIGKILL) }
+            _ = reading.wait(timeout: .now() + 2)
+            UpdateLog.note("\(name) stopped: no answer after \(Int(limit)) s")
+            throw UpdateError.extractFailed("\(name) did not finish within \(Int(limit)) seconds")
+        }
+        _ = reading.wait(timeout: .now() + 5)
         p.waitUntilExit()
+        let out = String(decoding: output.get(), as: UTF8.self)
+        // The tool and its subcommand (attach, unlock-keychain…), never a path.
+        let sub = args.first.flatMap { $0.contains("/") || $0.hasPrefix("-") ? nil : $0 } ?? ""
+        UpdateLog.note(String(format: "%@ %@ %.1f s", name, sub, Date().timeIntervalSince(started)))
         guard p.terminationStatus == 0 else {
             let last = out.split(separator: "\n").last.map(String.init) ?? "exit \(p.terminationStatus)"
             throw UpdateError.extractFailed(last.trimmingCharacters(in: .whitespaces))

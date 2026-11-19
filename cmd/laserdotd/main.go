@@ -125,7 +125,9 @@ func run() error {
 	// sent anywhere; Save Diagnostics includes it) and the daemon carries on.
 	crash.SetLog(filepath.Join(filepath.Dir(db), "laserdotd-crash.log"))
 
-	// 3. The index.
+	// 3. The index (read as a background process: never at the expense of
+	// the user's apps).
+	background := daemon.StepBack()
 	ld, err := core.Open(db)
 	if err != nil {
 		return err
@@ -147,6 +149,7 @@ func run() error {
 	}
 	fmt.Fprintf(os.Stderr, "laserdotd: index %s\n", how)
 	fmt.Fprintf(os.Stderr, "laserdotd: soft memory limit %d MB\n", daemon.SetMemoryLimit()>>20)
+	fmt.Fprintf(os.Stderr, "laserdotd: running in the background (%s)\n", background)
 	// Serve from the snapshot: file-backed columns, not dirty memory.
 	if err := ld.Remap(); err != nil {
 		fmt.Fprintln(os.Stderr, "laserdotd: could not write the snapshot:", err)

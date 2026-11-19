@@ -475,6 +475,9 @@ func (ld *Laserdot) streamDrive(d *drive, so index.StreamOptions) (IndexStats, e
 		}
 		defer ld.progress.Store(nil)
 	}
+	if so.Pause == nil {
+		so.Pause = ld.paused.Load
+	}
 	userStop := so.Stop
 	so.Stop = func() bool { return d.stop.Load() || (userStop != nil && userStop()) }
 	if so.Priority == nil {
@@ -614,7 +617,6 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 	}
 	roots, _ := db.Roots()
 	incomplete := slices.ContainsFunc(roots, func(r index.RootInfo) bool { return !r.Complete })
-	resume := incomplete && db.HasUnlisted(mount)
 	ld.mu.Lock()
 	if vf.Encrypted {
 		ld.keys[vf.ID] = pass
@@ -623,19 +625,17 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 	ld.mu.Unlock()
 	ld.wmu.Unlock()
 	switch {
-	case resume:
+	case incomplete:
 		// A first index that was cut short goes on where it stopped, in
-		// the background: the drive is searchable meanwhile.
+		// the background: the drive is searchable meanwhile. One cut short
+		// by a version before 0.9.19 has no folder checkpoints: it starts
+		// over with the streaming indexer (bounded memory) rather than
+		// being diffed whole, which held the whole drive in memory.
 		ld.streams.Add(1)
 		go func() {
 			defer ld.streams.Done()
 			ld.streamDrive(d, index.StreamOptions{})
 		}()
-	case incomplete:
-		// Cut short by an older version (no checkpoints): caught up whole.
-		if _, err := ld.RefreshDrive(mount); err != nil {
-			return DriveInfo{}, err
-		}
 	default:
 		// A drive coming back: what changed while it was away is found in
 		// the background (cheaply where folder times can be trusted).
@@ -692,8 +692,9 @@ func (ld *Laserdot) CatchUpDrive(mount string) (UpdateStats, error) {
 	if d.indexing.Load() {
 		return UpdateStats{OfflineRoots: []string{}}, nil
 	}
-	if d.db.HasUnlisted(mount) {
-		// Folders a first index could not read (a stuck folder): tried again.
+	if roots, _ := d.db.Roots(); slices.ContainsFunc(roots, func(r index.RootInfo) bool { return !r.Complete }) {
+		// A first index not finished (a stuck folder, or cut short): it
+		// goes on with the streaming indexer.
 		st, err := ld.streamDrive(d, index.StreamOptions{})
 		return UpdateStats{Added: st.Files + st.Folders, OfflineRoots: []string{}}, err
 	}

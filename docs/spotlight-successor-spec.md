@@ -56,6 +56,12 @@ A private, media-aware **file, media, and disk** search tool for macOS. It match
     from the start and each batch joins its in-memory index, so it is searchable while it is indexed. A folder that
     does not answer (timeout, I/O error) stays unlisted, not empty; a vanished drive stops the run; detach, eject
     and quit stop it between batches without waiting for a slow read
+  - *Go port (0.9.20):* laserdotd runs as a background process from its start: nice 10 and, on macOS, throttled disk
+    I/O (`setiopolicy_np(IOPOL_TYPE_DISK, IOPOL_SCOPE_PROCESS, IOPOL_THROTTLE)`, as Spotlight's indexer), so
+    indexing yields the disk to the user's apps. Media headers are read through one limit for the whole run
+    (`ProbeSlots`: the CPUs, 2–8). The engine's background pause (battery, heat, an update being installed) also
+    stops drive indexing from handing out new folders. A drive index cut short by a version before 0.9.19 (no folder
+    marks) restarts with the streaming indexer instead of a whole-drive diff
 - **2.1.4** Index excluded from Time Machine (rebuildable artifact)
 - **2.1.5** Performance targets: time-to-first-result under 50 ms over millions of indexed files (trigram-prefilterable queries are expected to be well under this; full-scan regexes must still meet it). Pure media-filter queries (e.g. `res:4k hdr:true lang:ar`) under 5 ms over 1M media files
 

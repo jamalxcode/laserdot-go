@@ -3,6 +3,19 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.20
+
+- Indexing never slows your Mac down any more. Laserdot's engine now runs as a background task, like Spotlight's: your
+  apps use the disk first, and indexing waits while they are busy. (Indexing an 8 TB drive could make the whole Mac
+  slow and show the spinning beachball.)
+- Updating while a drive is being indexed works smoothly: indexing pauses during the install and carries on
+  afterwards.
+- The update window shows how long the current step has taken, and no step can hang: a tool that stops answering is
+  stopped after a few minutes. Save Diagnostics now lists each update step and how long it took.
+- A drive whose first index was cut short by an older version now starts over with the new, low-memory indexer,
+  instead of being checked all at once with the whole drive held in memory.
+- Indexing opens only a few files at a time, whatever the size of the drive.
+
 ## 0.9.19
 
 - A big external drive is searchable from its first seconds of indexing, not after hours: results appear as its

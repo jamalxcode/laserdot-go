@@ -28,9 +28,12 @@ for `>` commands, after a trailing space, or while moving through the results.
 
 1. **Anything that can take more than a couple of seconds shows what it is doing**: its step, a bar (moving when
    the total is unknown, filling when it is known), a count ("131,312 of 136,896 files") and the time so far.
-2. Updates, indexing (folders and drives), duplicate scans and cleanups all follow this.
-3. A clock that depends on the engine answering is a bug: elapsed time ticks by itself.
-4. Show the item being worked on (the file a scan is reading) so a stall can be diagnosed from a screenshot.
+2. Updates, indexing (folders and drives), duplicate scans and cleanups all follow this; the update window shows
+   each step's elapsed time.
+3. Background work never makes the Mac slow: the engine runs at low priority with throttled disk access, and pauses
+   while an update installs.
+4. A clock that depends on the engine answering is a bug: elapsed time ticks by itself.
+5. Show the item being worked on (the file a scan is reading) so a stall can be diagnosed from a screenshot.
 
 ## 3. Long work can be left
 

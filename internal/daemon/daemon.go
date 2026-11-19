@@ -438,6 +438,7 @@ func (s *Server) handle(req *ipc.Request) ipc.Response {
 	case ipc.OpBackground:
 		if req.Paused != nil {
 			s.paused.Store(*req.Paused)
+			s.ld.SetBackgroundPaused(*req.Paused)
 			if !*req.Paused {
 				s.contentDirty.Store(true) // catch up what waited
 			}

@@ -12,6 +12,12 @@ final class UpdateController: ObservableObject {
     /// in the menu while a background check downloads).
     @Published private(set) var step: UpdateStep?
     @Published private(set) var stepVersion: String?
+    /// When the current step began (the window's clock).
+    @Published private(set) var stepStarted: Date?
+    /// Pause or resume the engine's background work (indexing a drive
+    /// competes with an install for the disk).
+    var pauseEngine: (Bool) -> Void = { _ in }
+    private var pausedForInstall = false
     /// Settings ▸ General ▸ Check for updates automatically (on by default).
     @Published var autoCheck = UserDefaults.standard.object(forKey: UpdateController.autoKey) as? Bool ?? true {
         didSet { UserDefaults.standard.set(autoCheck, forKey: Self.autoKey) }
@@ -62,6 +68,22 @@ final class UpdateController: ObservableObject {
     }
 
     private func setStep(_ s: UpdateStep?, version: String? = nil, show: Bool = false) {
+        if s?.kind != step?.kind {
+            // Each step and how long the one before took, for Save Diagnostics.
+            let took = stepStarted.map { String(format: " (%@ took %.0f s)", step?.kind ?? "", Date().timeIntervalSince($0)) } ?? ""
+            UpdateLog.note("step \(s?.kind ?? "done")\(took)")
+            stepStarted = s == nil ? nil : Date()
+            // Installing: the engine stops reading drives meanwhile; if the
+            // install fails or is cancelled it carries on.
+            switch s {
+            case .verifying, .signing, .installing, .restarting:
+                if !pausedForInstall { pausedForInstall = true; pauseEngine(true) }
+            default:
+                // Only what the install paused is resumed (not a pause for
+                // battery or heat).
+                if pausedForInstall { pausedForInstall = false; pauseEngine(false) }
+            }
+        }
         step = s
         if let version { stepVersion = version }
         if s == nil {
