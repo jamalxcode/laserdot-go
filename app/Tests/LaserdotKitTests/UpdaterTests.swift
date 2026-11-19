@@ -337,7 +337,9 @@ final class UpdateProgressTests: XCTestCase {
     /// Each step and tool is logged with how long it took, for Save
     /// Diagnostics; the log keeps its last 300 lines.
     func testTheUpdateLogKeepsItsTail() {
-        let url = dir.appendingPathComponent("update-log.txt")
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("update-log-\(UUID().uuidString).txt")
+        defer { try? FileManager.default.removeItem(at: url) }
         for i in 0..<310 { UpdateLog.note("line \(i)", at: url) }
         let all = UpdateLog.tail(1000, at: url)
         XCTAssertEqual(all.count, 300)
