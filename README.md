@@ -144,8 +144,10 @@ Finder**):
 **External drives** keep their own index on the drive, in a hidden `/Volumes/<drive>/.laserdot/` folder
 (`index.db`, `volume.json`), with paths relative to the drive — so it works on any Mac. Laserdot asks before indexing
 a drive and can encrypt the index with a passphrase that is never written down (unless you tick **Remember in my
-Keychain**: then macOS's Keychain keeps it and the drive unlocks by itself). When the drive comes back, only
-new or changed files are read again. A **read-only** drive cannot hold its index, so it is kept on this Mac in
+Keychain**: then macOS's Keychain keeps it and the drive unlocks by itself). A big drive is searchable while it is
+being indexed (top folders, recently changed ones and the folders you search in come first), uses little memory
+whatever its size, and if you unplug or eject it halfway, it picks up where it stopped next time. When the drive
+comes back, only new or changed files are read again (on Mac-formatted drives, just the folders that changed). A **read-only** drive cannot hold its index, so it is kept on this Mac in
 `…/laserdot/drives/` — and deleted as soon as that drive is no longer connected (checked at start, every minute,
 when a drive leaves, and on quit).
 

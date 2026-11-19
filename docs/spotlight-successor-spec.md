@@ -2,7 +2,7 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.28 (draft)
+**Version:** 1.29 (draft)
 **Date:** 2026-11-11 — v1.18–v1.22 record the owner's decisions while using the app; the conversation behind them is
 in `docs/design-conversation.md`
 **Target platform:** macOS 14+, Apple Silicon
@@ -46,6 +46,16 @@ A private, media-aware **file, media, and disk** search tool for macOS. It match
   - *As built (M2):* macOS uses a directory-level FSEvents stream over all indexed folders (300 ms coalescing). The last applied event id is stored per folder, so on start the stream replays everything since (`sinceWhen`); the `MustScanSubDirs`, `UserDropped`, `KernelDropped`, `RootChanged` and `EventIdsWrapped` flags become recursive rescans. Linux uses inotify (one watch per folder; queue overflow → recursive rescan) and, having no replay, reconciles with a full diff on start. Every backend only says "something under this folder changed"; the update engine rescans and diffs, so no backend is trusted for details
   - The in-memory store is updated in place: new and changed entries are appended, removed ones tombstoned, renames and moves applied to the parent pointer; it is rebuilt from SQLite once the overlay exceeds max(50k, 10 %) of entries
 - **2.1.3** Batch indexing queue with priority (user folders first), resumable across restarts via checkpoint
+  - *Go port (0.9.19), drives:* a drive's first index is streamed (`index.IndexStreaming`). Folders are the unit of
+    work: a folder's entries and the folder's own change from *unlisted* (probe code 4, folders only; no new table, so
+    the drive-index schema whitelist is unchanged and older versions still open it) to listed are one transaction, so
+    the drive's own index is the checkpoint. At most 20,000 folders wait in memory, the rest wait in the index;
+    rows are written in batches of 5,000. Workers share one priority queue (shallow first, +3 if changed in the last
+    30 days, +20 inside a folder recently searched in and +10 on the way to it, +1 per minute waited so nothing
+    starves); their number starts at 2 and adapts every 2 s to the measured rate (up to 16). The drive is attached
+    from the start and each batch joins its in-memory index, so it is searchable while it is indexed. A folder that
+    does not answer (timeout, I/O error) stays unlisted, not empty; a vanished drive stops the run; detach, eject
+    and quit stop it between batches without waiting for a slow read
 - **2.1.4** Index excluded from Time Machine (rebuildable artifact)
 - **2.1.5** Performance targets: time-to-first-result under 50 ms over millions of indexed files (trigram-prefilterable queries are expected to be well under this; full-scan regexes must still meet it). Pure media-filter queries (e.g. `res:4k hdr:true lang:ar`) under 5 ms over 1M media files
 
@@ -401,6 +411,7 @@ white       = " " | "\t" | "\n" ;
   - *As built (M5):* the menu bar's Drives submenu lists mounted drives with their state (not indexed, N items, not searched, locked, unreadable) and per state: Index, Unlock, Search This Drive, Stop Searching (detach), Rebuild, Delete Index, Show in Finder and Eject (`diskutil eject`). The same actions are `laserdot drives [list|plan|index|unlock|detach|rebuild|delete|eject]` and daemon requests (protocol v2). Results from a drive carry its name, shown as a badge
 - **9.7** Stale detection: unplugged mid-index → resume from queue checkpoint on next mount
   - *As built (M5):* the first index is written in chunks of 20,000 entries, each committed with its probes; the root stays marked incomplete until the last chunk. On the next mount an incomplete index is finished by diff, reusing every probe already written, and ends equal to a fresh index
+  - *Go port (0.9.19):* the streamed first index (§2.1.3) resumes from its unlisted folders in the background on the next attach (nothing read twice; indexes cut short by older versions are still finished by diff). Folders that did not answer are retried by the hourly catch-up. A returning drive whose index is complete is caught up in the background by `CatchUpDrive`: on APFS and HFS+, with a whole-tree read in the last 7 days (`full_check` in the drive index's `meta`), only folders whose modification time differs are listed again (adding, removing or renaming an entry changes its folder's time there); on FAT, exFAT, NTFS, unknown file systems, or once a week, the whole tree is read. The hourly catch-up uses the same rule instead of reading every drive whole
 - **9.8** Encrypted index option per drive (SQLCipher); plaintext exposure documented in audit page
   - *Go port (v1.15, replaces SQLCipher):* the core is pure Go (no cgo), so SQLCipher is not available. An encrypted drive index is a sealed container in place of `index.db`: AES-256-GCM in 1 MiB chunks, key from the passphrase with scrypt (N=2^15, r=8, p=1, random salt), each chunk's nonce and authenticated data binding its position and whether it is the last, so reordering, dropping or truncating chunks fails the open. On attach the container is decrypted into an owner-only working copy in this Mac's data folder (`drives/work-<id>.db`), which SQLite uses; it is sealed back to the drive after every write and on detach, and deleted on detach. A wrong passphrase fails authentication of the first chunk and never touches the file. Exposure is the same as before on the drive (only `volume.json` is plaintext); on this Mac the working copy exists while the drive is attached (inside the user's own data folder, mode 0600).
   - *As built (M5, Rust):* SQLCipher is compiled in (rusqlite `bundled-sqlcipher`; CommonCrypto on macOS, the system libcrypto on Linux — no networking or OpenSSL crate). The passphrase is never written to disk; the daemon holds it in memory for the session, so a drive unplugged and plugged back in reattaches without asking. After a restart the drive shows as locked until unlocked. A wrong passphrase leaves the index untouched. Unencrypted: the drive's `index.db` and `volume.json` (the drive's name and a random id) are plaintext; encrypted: only `volume.json` is

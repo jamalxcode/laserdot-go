@@ -11,7 +11,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
@@ -98,7 +100,9 @@ type DriveOptions struct {
 	// ForceOffDrive keeps the index on this Mac even if the drive is
 	// writable.
 	ForceOffDrive bool
-	Bulk          index.BulkOptions
+	// Stream tunes the streaming index (tests: small batches, a simulated
+	// unplug).
+	Stream index.StreamOptions
 }
 
 // DriveLockedError: the drive's index is encrypted and the passphrase is
@@ -135,6 +139,12 @@ type drive struct {
 	wmu sync.Mutex
 	// closed: detached; a writer that waited for wmu stops.
 	closed bool
+	// stop: asked to let go (detach, eject, quit). A first index running
+	// for hours checks it between batches and stops within moments,
+	// keeping what it saved.
+	stop atomic.Bool
+	// indexing: a first index (or its resumption) is running.
+	indexing atomic.Bool
 }
 
 func (d *drive) indexPath() string { return filepath.Join(d.dir, "index.db") }
@@ -432,31 +442,120 @@ func (ld *Laserdot) CreateDriveIndex(mount string, opts DriveOptions) (IndexStat
 		ld.keys[vf.ID] = opts.Passphrase
 		ld.mu.Unlock()
 	}
-	// The menu shows how far it has got, as for a folder on this Mac.
-	bulk := opts.Bulk
-	if bulk.Progress == nil {
-		bulk.Progress = func(phase string, done, total uint64) {
-			ld.progress.Store(&IndexProgress{Root: mount, Phase: phase, Done: done, Total: total})
-		}
-		defer ld.progress.Store(nil)
-	}
-	st, err := index.IndexRoot(db, mount, d.scan, bulk)
-	if err != nil {
-		d.close() // an interrupted index keeps its committed prefix (§9.7)
-		return st, err
-	}
-	if err := d.sealBack(); err != nil {
-		d.close()
-		return st, err
-	}
-	if err := d.reload(); err != nil {
-		d.close()
-		return st, err
-	}
+	// Attached at once (empty until its first folders are saved), so
+	// searches include it as it fills.
+	d.store = index.Build(nil)
+	d.store.SetVolumeName(d.name)
 	ld.mu.Lock()
 	ld.drives = append(ld.drives, d)
 	ld.mu.Unlock()
-	return st, nil
+	return ld.streamDrive(d, opts.Stream)
+}
+
+// streamDrive indexes a drive with the streaming indexer, or resumes an
+// earlier run (index.IndexStreaming). The drive is attached throughout and
+// its results appear as folders are saved: a big drive is searchable from
+// its first seconds, shallow and recently changed folders first. Only the
+// drive's writer lock is held; searches wait only for the moment each batch
+// joins the in-memory index. Detaching, ejecting or quitting stops it
+// within moments; unplugging stops it too. Either way what was saved stays,
+// and the next attach goes on from there.
+func (ld *Laserdot) streamDrive(d *drive, so index.StreamOptions) (IndexStats, error) {
+	d.wmu.Lock()
+	defer d.wmu.Unlock()
+	if d.closed {
+		return IndexStats{}, errors.New("drive not attached")
+	}
+	d.indexing.Store(true)
+	defer d.indexing.Store(false)
+	mount := d.mount
+	if so.Progress == nil {
+		so.Progress = func(saved uint64) {
+			ld.progress.Store(&IndexProgress{Root: mount, Phase: "scanning", Done: saved})
+		}
+		defer ld.progress.Store(nil)
+	}
+	userStop := so.Stop
+	so.Stop = func() bool { return d.stop.Load() || (userStop != nil && userStop()) }
+	if so.Priority == nil {
+		so.Priority = ld.searchPriority
+		so.PriorityVersion = ld.demand.currentVersion
+	}
+	// folders: database id → in-memory id, so each saved row finds its
+	// parent (folders only: files need no lookup).
+	var folders map[int64]uint32
+	so.OnStart = func() error {
+		s, err := d.load()
+		if err != nil {
+			return err
+		}
+		folders = map[int64]uint32{}
+		it := s.Live().Iterator()
+		for it.HasNext() {
+			if id := it.Next(); s.IsDir(id) {
+				folders[s.DBID(id)] = id
+			}
+		}
+		ld.mu.Lock()
+		d.store = s
+		ld.mu.Unlock()
+		return nil
+	}
+	lastSeal := time.Now()
+	so.OnBatch = func(rows []index.StreamRow) {
+		ld.mu.Lock()
+		touched := map[uint32]bool{}
+		for _, r := range rows {
+			parent, ok := folders[r.Parent]
+			if !ok {
+				continue
+			}
+			id := d.store.Append(parent, r.Raw)
+			if r.Raw.IsDir {
+				folders[r.ID] = id
+			}
+			touched[parent] = true
+		}
+		for p := range touched {
+			d.store.RepairSiblings(p)
+		}
+		ld.mu.Unlock()
+		// An encrypted drive's index is worked on in a copy on this Mac:
+		// written back now and then, so an unplug loses little.
+		if d.encrypted && time.Since(lastSeal) > 10*time.Minute {
+			d.sealBack()
+			lastSeal = time.Now()
+		}
+	}
+	start := time.Now().Unix()
+	st, err := index.IndexStreaming(d.db, mount, d.scan, so)
+	if err == nil && st.Unfinished == 0 {
+		err = d.db.SetSetting(fullCheckKey, strconv.FormatInt(start, 10))
+	}
+	if err == nil {
+		err = d.sealBack()
+	}
+	if err == nil {
+		// Laid out afresh (compact and fast to search), with no lock held.
+		var s *index.Store
+		if s, err = d.load(); err == nil {
+			ld.mu.Lock()
+			d.store = s
+			ld.mu.Unlock()
+		}
+	}
+	if err != nil {
+		// Stopped or failed: what was saved stays on the drive (§9.7); the
+		// drive is let go and the next attach resumes.
+		ld.mu.Lock()
+		if i := slices.Index(ld.drives, d); i >= 0 {
+			d.closed = true
+			d.close()
+			ld.drives = slices.Delete(ld.drives, i, i+1)
+		}
+		ld.mu.Unlock()
+	}
+	return st.IndexStats, err
 }
 
 // AttachDrive opens an existing drive index (pass: for encrypted ones; ""
@@ -515,6 +614,7 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 	}
 	roots, _ := db.Roots()
 	incomplete := slices.ContainsFunc(roots, func(r index.RootInfo) bool { return !r.Complete })
+	resume := incomplete && db.HasUnlisted(mount)
 	ld.mu.Lock()
 	if vf.Encrypted {
 		ld.keys[vf.ID] = pass
@@ -522,10 +622,28 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 	ld.drives = append(ld.drives, d)
 	ld.mu.Unlock()
 	ld.wmu.Unlock()
-	if incomplete {
+	switch {
+	case resume:
+		// A first index that was cut short goes on where it stopped, in
+		// the background: the drive is searchable meanwhile.
+		ld.streams.Add(1)
+		go func() {
+			defer ld.streams.Done()
+			ld.streamDrive(d, index.StreamOptions{})
+		}()
+	case incomplete:
+		// Cut short by an older version (no checkpoints): caught up whole.
 		if _, err := ld.RefreshDrive(mount); err != nil {
 			return DriveInfo{}, err
 		}
+	default:
+		// A drive coming back: what changed while it was away is found in
+		// the background (cheaply where folder times can be trusted).
+		ld.streams.Add(1)
+		go func() {
+			defer ld.streams.Done()
+			ld.CatchUpDrive(mount)
+		}()
 	}
 	ld.mu.RLock()
 	defer ld.mu.RUnlock()
@@ -536,6 +654,65 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 func (ld *Laserdot) RefreshDrive(mount string) (UpdateStats, error) {
 	if c, err := canonical(mount); err == nil {
 		mount = c
+	}
+	return ld.applyDrive(mount, []Change{{Path: mount, Recursive: true}}, true)
+}
+
+// FullCheckEvery: how long a drive's folder times are trusted before its
+// whole tree is read again (CatchUpDrive).
+var FullCheckEvery = 7 * 24 * time.Hour
+
+// trustsFolderTimes: on these file systems adding, removing or renaming an
+// entry always changes its folder's time. FAT, exFAT and NTFS (as macOS
+// mounts them) do not promise it, and neither does an unknown one.
+var trustsFolderTimes = func(fsType string) bool { return fsType == "apfs" || fsType == "hfs" }
+
+// fullCheckKey: when the drive's tree was last read whole (its own index's
+// settings, so it travels with the drive).
+const fullCheckKey = "full_check"
+
+// CatchUpDrive brings an attached drive's index up to date as cheaply as it
+// safely can (a returning drive, the hourly catch-up). On APFS and HFS+,
+// with a full read in the last FullCheckEvery, only folders whose time
+// changed are listed again: one lstat per folder instead of a listing of
+// every file, minutes saved on a big drive. Elsewhere, or when it is time,
+// the whole tree is read (RefreshDrive). Changes inside files that keep the
+// folder's time wait for that weekly full read. A first index still running
+// is left alone; one with folders left unread goes on.
+func (ld *Laserdot) CatchUpDrive(mount string) (UpdateStats, error) {
+	if c, err := canonical(mount); err == nil {
+		mount = c
+	}
+	ld.mu.RLock()
+	d := ld.driveAt(mount)
+	ld.mu.RUnlock()
+	if d == nil {
+		return UpdateStats{OfflineRoots: []string{}}, errors.New("drive not attached")
+	}
+	if d.indexing.Load() {
+		return UpdateStats{OfflineRoots: []string{}}, nil
+	}
+	if d.db.HasUnlisted(mount) {
+		// Folders a first index could not read (a stuck folder): tried again.
+		st, err := ld.streamDrive(d, index.StreamOptions{})
+		return UpdateStats{Added: st.Files + st.Folders, OfflineRoots: []string{}}, err
+	}
+	v, err := scan.VolumeAt(mount)
+	if err != nil {
+		return UpdateStats{OfflineRoots: []string{}}, err
+	}
+	last, _ := d.db.Setting(fullCheckKey)
+	at, _ := strconv.ParseInt(last, 10, 64)
+	if trustsFolderTimes(v.FSType) && at > 0 && time.Since(time.Unix(at, 0)) < FullCheckEvery {
+		stale := ld.staleIn(func() *index.Store { return d.store })
+		changes := make([]Change, len(stale))
+		for i, p := range stale {
+			changes[i] = Change{Path: p}
+		}
+		if len(changes) == 0 {
+			return UpdateStats{OfflineRoots: []string{}}, nil
+		}
+		return ld.applyDrive(mount, changes, false)
 	}
 	return ld.applyDrive(mount, []Change{{Path: mount, Recursive: true}}, true)
 }
@@ -556,9 +733,15 @@ func (ld *Laserdot) applyDrive(mount string, changes []Change, complete bool) (U
 	if d.closed {
 		return UpdateStats{OfflineRoots: []string{}}, errors.New("drive not attached")
 	}
+	start := time.Now().Unix()
 	u, err := index.Apply(d.db, d.store, changes, d.scan, &ld.mu)
 	if err == nil && complete {
+		// The whole tree was read: complete, and the time of this full
+		// read noted for CatchUpDrive.
 		err = d.db.FinishRoot(mount)
+		if err == nil {
+			err = d.db.SetSetting(fullCheckKey, strconv.FormatInt(start, 10))
+		}
 	}
 	if err == nil && d.store.NeedsCompaction() {
 		var s *index.Store
@@ -594,7 +777,9 @@ func (ld *Laserdot) detach(mount string) bool {
 	if d == nil {
 		return false
 	}
-	// After the drive's writer (lock order: drive, then the index).
+	// A first index running stops between batches; then the drive's
+	// writer lock (lock order: drive, then the index).
+	d.stop.Store(true)
 	d.wmu.Lock()
 	defer d.wmu.Unlock()
 	ld.mu.Lock()
@@ -607,7 +792,8 @@ func (ld *Laserdot) detach(mount string) bool {
 			return true
 		}
 	}
-	return false
+	// A first index it stopped let the drive go already.
+	return d.closed
 }
 
 // DeleteDriveIndex detaches and deletes a drive's index.
@@ -706,12 +892,25 @@ func (ld *Laserdot) unindexedVolume(path string) (scan.Volume, bool) {
 }
 
 func (ld *Laserdot) closeDrives() {
-	ld.mu.Lock()
-	defer ld.mu.Unlock()
-	for _, d := range ld.drives {
-		d.close()
+	ld.mu.RLock()
+	drives := slices.Clone(ld.drives)
+	ld.mu.RUnlock()
+	for _, d := range drives {
+		d.stop.Store(true)
 	}
+	for _, d := range drives {
+		d.wmu.Lock()
+		ld.mu.Lock()
+		if !d.closed {
+			d.closed = true
+			d.close()
+		}
+		ld.mu.Unlock()
+		d.wmu.Unlock()
+	}
+	ld.mu.Lock()
 	ld.drives = nil
+	ld.mu.Unlock()
 }
 
 // PurgeOffDriveIndexes deletes the indexes kept on this Mac (drives that

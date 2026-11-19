@@ -30,6 +30,13 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 5c. **One slow request must not queue the rest behind it.** Searches shared a line with slow writes; now they have
     their own, and quitting never waits on a stuck request.
 
+5d. **Make the index its own checkpoint.** A drive's first index used to be resumable only by walking the whole
+    drive again and diffing. Now each folder and its "done" mark are saved together, so what is left after an unplug
+    or a crash is exactly the folders not marked: nothing lost, nothing twice, and no separate state to get out of
+    step.
+5e. **Stopping must not wait for the slowest reader.** A stuck folder can take 30 seconds to give up; ejecting
+    stops the index between batches and leaves such reads behind instead of waiting for them.
+
 ## Crashes and recovery
 
 8. **Kill it on purpose.** A test that kills a real Laserdot process at random moments found, on its first runs, a

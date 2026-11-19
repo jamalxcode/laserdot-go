@@ -341,6 +341,25 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.19 (2026-11-19):** the owner's adaptive, resumable indexing algorithm, phases A and B, for drives (privacy
+  kept: everything stays in the drive's own index or in memory). `internal/index/stream.go`: `IndexStreaming`
+  (folder-unit transactions with the *unlisted* mark `codeUnlisted = 4` as checkpoint, bounded queue `MaxQueue`
+  refilled from the index, batches of `BatchRows`, adaptive workers, priority heap with aging, `PriorityVersion`
+  re-ordering, `keep`/`gone` for folders that did not answer or a vanished drive, never waits for readers when
+  stopping). `core.streamDrive`: drive attached from the start with an empty store, `OnStart` loads the index so
+  far and maps folder db ids, `OnBatch` appends under `mu` (+ `RepairSiblings`), `d.stop` set by detach/close,
+  encrypted drives sealed back every 10 minutes and at the end, final compact reload. `AttachDrive` resumes in the
+  background (`ld.streams`), or catches a complete drive up in the background. `CatchUpDrive` (folder times on
+  apfs/hfs within `FullCheckEvery` = 7 days, else whole; `full_check` meta key written with each whole read) replaces
+  the whole-drive walk in `Refresh`. `core/demand.go`: searches record `in:` folders and drive result folders while a
+  drive is indexing (10 minutes, 32 folders). Search: `stagedTopK` ranks hits in stages of `RankStage` = 262,144
+  with a running top-K (no array or map of every hit; the kind order no longer builds a map of all names).
+  `scan.SlowFoldersForTests` is atomic (abandoned reads may still call it). Tests: `TestStreaming*` (matches bulk,
+  resumes without duplicates, priority first, drive pulled away), `TestABigDriveIsSearchableWhileItIsIndexed`,
+  `TestDetachingMidIndexStopsAtOnceAndResumes` (detach < 2 s with 400 ms folders), `TestAReturningDriveIsCaughtUpByItsFolderTimes`
+  (quick path misses only an in-place edit; the full path finds it), `TestSearchDemandRaisesFolders`,
+  `TestStagedRankingMatchesRankingAllAtOnce`. Left for later: the same streaming for this Mac's own folders
+  (they keep the bulk path, which 0.9.7–0.9.17 tuned), and asking FSEvents for changed folders instead of comparing times.
 - **0.9.18 (2026-11-19):** big drives never freeze the app. `index.Apply(…, lock)` takes the store lock only for
   step 6 (in-memory changes); `applyLocal` and `applyDrive` no longer hold `mu` while walking; drives have their own
   `wmu` (lock order drive → `mu`; `detach` follows it and marks `closed`); `CreateDriveIndex` reserves the mount in

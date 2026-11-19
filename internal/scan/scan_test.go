@@ -151,11 +151,11 @@ func TestAStuckFolderIsSkippedNotWaitedFor(t *testing.T) {
 	old := FolderLimit
 	FolderLimit = 100 * time.Millisecond
 	release := make(chan struct{})
-	readDirHook = func(d string) {
+	SlowFoldersForTests(func(d string) {
 		if filepath.Base(d) == "stuck" {
 			<-release
 		}
-	}
+	})
 	// The stuck reads stay abandoned until the test ends; the hook stays (it
 	// lets everything through once release is closed).
 	defer func() { FolderLimit = old; close(release) }()

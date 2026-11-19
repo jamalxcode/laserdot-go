@@ -203,8 +203,8 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 // readDir lists dir's children with the ignore rules applied: in bulk where
 // the system offers it (macOS, readDirBulk), else name by name.
 func readDir(dir string, parent int, rootDev uint64, opts Options) ([]Entry, []Error) {
-	if readDirHook != nil {
-		readDirHook(dir)
+	if hook := readDirHook.Load(); hook != nil {
+		(*hook)(dir)
 	}
 	if out, errs, ok := readDirBulk(dir, parent, opts); ok {
 		return out, errs
@@ -290,7 +290,7 @@ func readDirWithin(dir string, parent int, rootDev uint64, opts Options) ([]Entr
 }
 
 // readDirHook: tests make a folder hang.
-var readDirHook func(dir string)
+var readDirHook atomic.Pointer[func(dir string)]
 
 // IsOpaque: a version-control folder or a package (an app…) whose contents
 // are not indexed.
@@ -388,4 +388,19 @@ func entryOf(path string, parent int, info os.FileInfo, opts Options) Entry {
 
 // SlowFoldersForTests makes reading each folder call f first (tests slow a
 // drive down to check that searching stays responsive); nil turns it off.
-func SlowFoldersForTests(f func(dir string)) { readDirHook = f }
+func SlowFoldersForTests(f func(dir string)) {
+	if f == nil {
+		readDirHook.Store(nil)
+	} else {
+		readDirHook.Store(&f)
+	}
+}
+
+// Stat describes one path as Walk would (the root of a walk).
+func Stat(path string) (Entry, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return Entry{}, err
+	}
+	return entryOf(path, -1, info, Options{StableInodes: true}), nil
+}

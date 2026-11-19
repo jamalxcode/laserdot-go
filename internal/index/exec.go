@@ -608,38 +608,39 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 		return window(ids)
 	}
 
-	ids := hits.ToArray()
+	// Everything else: ranked in stages (see stagedTopK), so a search that
+	// matches everything on a huge drive needs memory for one stage and
+	// one page, not for every hit.
 	if srt == ByName || srt == ByKind {
-		text := make(map[uint32]string, len(ids))
-		if srt == ByKind {
-			for _, id := range ids {
-				text[id] = s.sortText(srt, id)
-			}
+		type tk struct {
+			t  string
+			id uint32
 		}
-		get := func(id uint32) string {
+		best := stagedTopK(hits, want, func(id uint32) tk {
 			if srt == ByKind {
-				return text[id]
+				return tk{s.sortText(srt, id), id}
 			}
-			return s.FoldedName(id)
-		}
-		slices.SortFunc(ids, func(a, b uint32) int {
-			if c := strings.Compare(get(a), get(b)); c != 0 {
+			return tk{s.FoldedName(id), id}
+		}, func(a, b tk) int {
+			if c := strings.Compare(a.t, b.t); c != 0 {
 				if page.Reverse {
 					return -c
 				}
 				return c
 			}
-			return int(a) - int(b)
+			return int(a.id) - int(b.id)
 		})
+		ids := make([]uint32, len(best))
+		for i := range best {
+			ids[i] = best[i].id
+		}
 		return window(ids)
 	}
 	type kv struct {
 		k  uint64
 		id uint32
 	}
-	keyed := make([]kv, len(ids))
-	parallel(len(ids), func(i int) { keyed[i] = kv{key(ids[i]).Num, ids[i]} })
-	cmp := func(a, b kv) int {
+	best := stagedTopK(hits, want, func(id uint32) kv { return kv{key(id).Num, id} }, func(a, b kv) int {
 		switch {
 		case a.k < b.k:
 			return -1
@@ -647,16 +648,40 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 			return 1
 		}
 		return int(a.id) - int(b.id)
-	}
-	if len(keyed) > want {
-		keyed = topK(keyed, want, cmp)
-	}
-	slices.SortFunc(keyed, cmp)
-	ids = ids[:len(keyed)]
-	for i := range keyed {
-		ids[i] = keyed[i].id
+	})
+	ids := make([]uint32, len(best))
+	for i := range best {
+		ids[i] = best[i].id
 	}
 	return window(ids)
+}
+
+// RankStage: hits ranked per stage (a memory budget: about 4 MB of keys).
+var RankStage = 1 << 18
+
+// stagedTopK: the want smallest hits by cmp, in order. Hits are keyed one
+// stage at a time (in parallel) and merged into the best so far, so memory
+// stays at one stage plus want, whatever the number of hits.
+func stagedTopK[T any](hits *roaring.Bitmap, want int, mk func(id uint32) T, cmp func(a, b T) int) []T {
+	stage := max(RankStage, 1)
+	buf := make([]uint32, min(stage, int(hits.GetCardinality())))
+	var best []T
+	it := hits.ManyIterator()
+	for {
+		n := it.NextMany(buf)
+		if n == 0 {
+			break
+		}
+		start := len(best)
+		best = slices.Grow(best, n)[:start+n]
+		chunk := buf[:n]
+		parallel(n, func(i int) { best[start+i] = mk(chunk[i]) })
+		if len(best) > want {
+			best = topK(best, want, cmp)
+		}
+	}
+	slices.SortFunc(best, cmp)
+	return best
 }
 
 // topK returns the k smallest items of v (unordered), with a bounded

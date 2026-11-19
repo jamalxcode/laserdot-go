@@ -123,6 +123,11 @@ type Laserdot struct {
 	// background: work a call starts and leaves running (the tag pass
 	// after a first index); WaitBackground waits for it.
 	background sync.WaitGroup
+	// streams: drive indexes resuming in the background (stopped, not
+	// waited for, on Close).
+	streams sync.WaitGroup
+	// demand: folders recent searches were about (drive indexing order).
+	demand demand
 	// fixing: folders being listed again because a result there was gone.
 	fixing sync.Map
 	// probing: the background header pass is running.
@@ -218,6 +223,7 @@ func OpenAt(dbPath string, now time.Time) (*Laserdot, error) {
 func (ld *Laserdot) Close() error {
 	ld.background.Wait()
 	ld.closeDrives()
+	ld.streams.Wait()
 	ld.content.Close()
 	return ld.db.Close()
 }
@@ -726,7 +732,8 @@ func (ld *Laserdot) PruneLibrary() (UpdateStats, error) {
 }
 
 // Refresh catches up on changes made while not watching: every indexed
-// folder and every attached drive is rescanned and diffed in place.
+// folder is rescanned and diffed in place, and every attached drive caught
+// up (CatchUpDrive: by its folders' times where they can be trusted).
 func (ld *Laserdot) Refresh() (UpdateStats, error) {
 	ld.wmu.Lock()
 	roots, err := ld.db.Roots()
@@ -761,7 +768,7 @@ func (ld *Laserdot) Refresh() (UpdateStats, error) {
 	}
 	ld.mu.RUnlock()
 	for _, m := range mounts {
-		du, err := ld.RefreshDrive(m)
+		du, err := ld.CatchUpDrive(m)
 		if err != nil {
 			return u, err
 		}
@@ -791,17 +798,24 @@ func (ld *Laserdot) QuickCheck() (UpdateStats, error) {
 // A folder that is gone is left to its parent (whose time changed too); a
 // root that is gone is an offline root, kept as it is.
 func (ld *Laserdot) staleFolders() []string {
+	return ld.staleIn(func() *index.Store { return ld.store })
+}
+
+// staleIn: staleFolders for a store (this Mac's or a drive's), read under
+// the index lock; the disk is looked at with no lock held.
+func (ld *Laserdot) staleIn(store func() *index.Store) []string {
 	type folder struct {
 		path string
 		mod  int64
 	}
 	var folders []folder
 	ld.mu.RLock()
-	it := ld.store.Live().Iterator()
+	s := store()
+	it := s.Live().Iterator()
 	for it.HasNext() {
 		id := it.Next()
-		if ld.store.IsDir(id) && !ld.store.IsSymlink(id) {
-			folders = append(folders, folder{ld.store.Path(id), ld.store.Modified(id)})
+		if s.IsDir(id) && !s.IsSymlink(id) {
+			folders = append(folders, folder{s.Path(id), s.Modified(id)})
 		}
 	}
 	ld.mu.RUnlock()
@@ -900,6 +914,7 @@ func (ld *Laserdot) Search(q string, opts SearchOptions) (*SearchResults, error)
 	if err == nil && r != nil {
 		ld.dropMissing(r)
 		ld.addOpened(r)
+		ld.noteDemand(q, r)
 	}
 	return r, err
 }

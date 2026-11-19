@@ -480,6 +480,20 @@ opens off the search queue, plans drives on their own connection, and quits with
 (asked to stop, then ended, then killed). Tests: a slowed drive refresh must not delay a search, an open or a local
 change by more than 300 ms (it delayed a search 1.45 s before the fix); the prompt must answer in seconds.
 
+## 34. Indexing that scales to any drive (0.9.19)
+
+**Asked:** after the 8 TB freeze, the owner proposed "an Adaptive, Resumable Divide-and-Conquer Indexing Algorithm"
+(adaptive partitioning, work stealing, persistent checkpoints, bounded memory, incremental reconciliation, adaptive
+scheduling, staged queries), "keeping in mind privacy and having the index only on the actual drive", then: "do
+phase A and B". **Decided:** Phase A — a streaming first index for drives with bounded memory; per-folder
+checkpoints kept *inside the drive's own index* (a mark on folder rows, no new table, so drive indexes stay
+whitelisted and readable by older versions); one shared queue with a number of readers that adapts to the measured
+speed (fewer suit spinning disks); a returning APFS/HFS+ drive caught up by its folders' times, with a full read on
+other file systems and once a week. Phase B — priority for shallow, recently changed and searched-in folders, with
+aging so none starves, and broad searches ranked in stages with a memory budget. The drive is searchable while it is
+indexed; unplugging, ejecting or quitting stops at once and the next attach resumes; a folder that does not answer is
+not saved as empty. Nothing leaves the drive or the Mac's memory; search demand is kept in memory for 10 minutes.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

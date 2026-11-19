@@ -139,7 +139,7 @@ func TestStory44PortableAcrossMacsAndMountPoints(t *testing.T) {
 func TestStory46InterruptedIndexResumesAndMatchesAFreshOne(t *testing.T) {
 	m := newMac(t)
 	drive := makeDrive(t, m.vols, "Archive")
-	if _, err := m.ld.CreateDriveIndex(drive, DriveOptions{Bulk: index.BulkOptions{Chunk: 5, StopAfterChunks: 2}}); err == nil {
+	if _, err := m.ld.CreateDriveIndex(drive, DriveOptions{Stream: index.StreamOptions{BatchRows: 1, MaxWorkers: 1, StopAfterBatches: 2}}); err == nil {
 		t.Fatal("unplugged mid-index")
 	}
 	m.ld.Close()
@@ -150,6 +150,7 @@ func TestStory46InterruptedIndexResumesAndMatchesAFreshOne(t *testing.T) {
 	if _, err := again.AttachDrive(drive, ""); err != nil {
 		t.Fatal(err)
 	}
+	again.streams.Wait() // it goes on in the background
 	if !again.Drives()[0].Complete {
 		t.Error("resumed to completion")
 	}

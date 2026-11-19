@@ -3,6 +3,19 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.19
+
+- A big external drive is searchable from its first seconds of indexing, not after hours: results appear as its
+  folders are read, top folders and recently changed ones first. Searching in a folder of a drive still being
+  indexed moves that folder to the front.
+- Unplugging, ejecting or quitting in the middle of a drive's first index stops it at once and keeps what was read.
+  Next time the drive is plugged in, it carries on from where it stopped, in the background.
+- Indexing a drive uses little memory however big the drive is, and adjusts how many folders it reads at once to the
+  drive (spinning disks like few).
+- A drive coming back is checked quickly: on Mac-formatted drives (APFS, Mac OS Extended) only folders that changed
+  are read again, with a full check once a week. Other drives (exFAT, FAT, NTFS) are read whole, as before.
+- Very broad searches on huge drives (such as re:.) use far less memory.
+
 ## 0.9.18
 
 - Fixed: Laserdot could stop responding (even to Quit) while it looked at a big external drive, such as an 8 TB disk.

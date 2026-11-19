@@ -30,9 +30,8 @@ From the speed review of 2026-11-16 (measured on CI's Mac with a million files),
 1. **Duplicate pictures through macOS's ImageIO.** HEIC (every iPhone photo), RAW and AVIF are not compared for
    similarity at all today, and other pictures are decoded at full size in pure Go before being shrunk to 32×32.
    ImageIO reads all of them and can decode straight to a small size; likely several times faster.
-2. **Walk and write at the same time.** A first index walks (6.4 s for a million files) and then writes (3.0 s);
-   overlapping them, and streaming entries instead of holding them all, means searchable sooner and a lower peak
-   than today's 834 MB.
+2. **Walk and write at the same time** — done for drives in 0.9.19 (streamed, searchable while indexed, bounded
+   memory, resumable). Still to do for this Mac's own folders, which keep the tuned bulk path.
 3. **Lighter typing.** Each keystroke sends four requests; stale searches still run while typing fast. Skip them and
    fold the requests together.
 4. **The slowest search** rose from 23 to 38 ms on a million files; find that query and bring it down.
@@ -44,7 +43,9 @@ From the speed review of 2026-11-16 (measured on CI's Mac with a million files),
 Smaller ideas noted along the way:
 
 - Let the self-test's Space check retry the key press before failing (it is occasionally lost on CI machines).
-- A Stop button for indexing a drive, as Find Duplicates has.
+- A Stop button for indexing a drive, as Find Duplicates has (the engine can stop and resume since 0.9.19; the
+  button is missing).
+- Stream this Mac's own first index too, and let FSEvents say which folders changed instead of comparing times.
 - Run the million-file test (`perf-big`) after every change to the indexer, not only weekly.
 
 ## Left out on purpose
