@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/fold"
@@ -100,10 +101,14 @@ type newEntry struct {
 
 func extOf(name string) string { return media.Extension(fold.Fold(name)) }
 
-// Apply applies changes to db and s.
-func Apply(db *Db, s *Store, changes []scan.Change, opts scan.Options) (UpdateStats, error) {
+// Apply applies changes to db and s. The caller keeps other writers out
+// (s changes only here meanwhile); lock, when given, is taken only for the
+// last step, changing s in memory: looking at the disk, probing new files and
+// writing the database (minutes, on a big drive) happen while searches go on.
+// With lock nil the caller holds whatever s's readers need.
+func Apply(db *Db, s *Store, changes []scan.Change, opts scan.Options, lock sync.Locker) (UpdateStats, error) {
 	t := time.Now()
-	stats, followups, err := applyOnce(db, s, changes, opts)
+	stats, followups, err := applyOnce(db, s, changes, opts, lock)
 	if err != nil {
 		return stats, err
 	}
@@ -111,7 +116,7 @@ func Apply(db *Db, s *Store, changes []scan.Change, opts scan.Options) (UpdateSt
 	// now are — and those rescans can find more of the same (inode reuse
 	// nested inside moved folders), so repeat until settled.
 	for i := 0; i < 8 && len(followups) > 0; i++ {
-		more, next, err := applyOnce(db, s, followups, opts)
+		more, next, err := applyOnce(db, s, followups, opts, lock)
 		if err != nil {
 			return stats, err
 		}
@@ -119,7 +124,7 @@ func Apply(db *Db, s *Store, changes []scan.Change, opts scan.Options) (UpdateSt
 		followups = next
 	}
 	if len(followups) > 0 {
-		more, _, err := applyOnce(db, s, followups, opts)
+		more, _, err := applyOnce(db, s, followups, opts, lock)
 		if err != nil {
 			return stats, err
 		}
@@ -131,7 +136,7 @@ func Apply(db *Db, s *Store, changes []scan.Change, opts scan.Options) (UpdateSt
 
 func hasPathPrefix(p, prefix string) bool { return within(p, prefix) }
 
-func applyOnce(db *Db, s *Store, changes []scan.Change, opts scan.Options) (UpdateStats, []scan.Change, error) {
+func applyOnce(db *Db, s *Store, changes []scan.Change, opts scan.Options, lock sync.Locker) (UpdateStats, []scan.Change, error) {
 	stats := UpdateStats{}
 
 	// 1. Changed paths → folders to rescan.
@@ -501,7 +506,11 @@ func applyOnce(db *Db, s *Store, changes []scan.Change, opts scan.Options) (Upda
 		}
 	}
 
-	// 6. In-memory store, same order.
+	// 6. In-memory store, same order: the only step searches must wait for.
+	if lock != nil {
+		lock.Lock()
+		defer lock.Unlock()
+	}
 	touched := map[uint32]bool{}
 	for _, id := range killed {
 		touched[s.parent[id]] = true

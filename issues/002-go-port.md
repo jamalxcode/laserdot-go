@@ -341,6 +341,13 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.18 (2026-11-19):** big drives never freeze the app. `index.Apply(…, lock)` takes the store lock only for
+  step 6 (in-memory changes); `applyLocal` and `applyDrive` no longer hold `mu` while walking; drives have their own
+  `wmu` (lock order drive → `mu`; `detach` follows it and marks `closed`); `CreateDriveIndex` reserves the mount in
+  `creating` instead of holding the global `wmu`; `SyncDrives` stats outside the lock; `PlanDrive` uses
+  `scan.EstimateWithin` (5 s, `Partial`). App: `quickCall` (searches, recent opens) on a connection of its own,
+  `recordOpen` off the search queue, `drivePlan` via `longCall`, `shutdown`/`retire` never block on the shared
+  lock. Tests `TestADriveBeingReadDoesNotFreezeSearching`, `TestTheDrivePromptDoesNotWaitForAHugeDrive`.
 - **0.9.17 (2026-11-16):** `LaserdotKit/Engagement.swift` (`ReminderSchedule`, `Tips`, tested in
   `EngagementTests`); `Reminders` (UNUserNotificationCenter, hourly check, permission on opt-in); Duplicates
   follow-ups, `freedTotal`, saved scope/options; home tip from `valueCounts`; "Show More" replaces auto-load.

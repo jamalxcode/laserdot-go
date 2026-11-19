@@ -57,6 +57,10 @@ func IsPartialDownload(name string) bool {
 
 // Options control a walk.
 type Options struct {
+	// Until, when set, stops the walk once it is past (an estimate on a big
+	// drive needs a few seconds of it, not the whole drive); what was read
+	// by then is returned.
+	Until time.Time
 	// Found, when set, counts entries as Walk lists them (indexing
 	// progress: how many files were found so far).
 	Found       *atomic.Uint64
@@ -146,6 +150,9 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 	// Reading folders waits on the disk, not the CPU: more readers than cores.
 	workers := max(8, runtime.GOMAXPROCS(0)*4)
 	for len(level) > 0 {
+		if !opts.Until.IsZero() && time.Now().After(opts.Until) {
+			break
+		}
 		results := make([][]Entry, len(level))
 		failures := make([][]Error, len(level))
 		var wg sync.WaitGroup
@@ -155,6 +162,9 @@ func Walk(root string, opts Options) ([]Entry, []Error, error) {
 			go func() {
 				defer wg.Done()
 				for i := range next {
+					if !opts.Until.IsZero() && time.Now().After(opts.Until) {
+						continue // out of time: the rest of this level is skipped
+					}
 					dir := entries[level[i]]
 					results[i], failures[i], _ = readDirWithin(dir.Path, level[i], rootEntry.Dev, opts)
 					if opts.Found != nil {
@@ -375,3 +385,7 @@ func entryOf(path string, parent int, info os.FileInfo, opts Options) Entry {
 	}
 	return e
 }
+
+// SlowFoldersForTests makes reading each folder call f first (tests slow a
+// drive down to check that searching stays responsive); nil turns it off.
+func SlowFoldersForTests(f func(dir string)) { readDirHook = f }

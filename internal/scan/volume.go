@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"syscall"
+	"time"
 )
 
 // IsNetworkVolume reports whether path is on a network file system (SMB,
@@ -101,9 +103,20 @@ func ListVolumes(dir string, mountsOnly bool) []Volume {
 // Estimate counts what indexing mount would cover — files, folders and
 // bytes — without writing anything (the first-mount prompt, spec §9.3).
 func Estimate(mount string, opts Options) (files, dirs, bytes uint64, err error) {
+	files, dirs, bytes, _, err = EstimateWithin(mount, opts, 0)
+	return files, dirs, bytes, err
+}
+
+// EstimateWithin is Estimate with a time budget (0: none): a big, slow drive
+// is counted for that long only. partial: the counts are a lower bound; bytes
+// is then the space used on the volume (asked of the file system, instantly).
+func EstimateWithin(mount string, opts Options, budget time.Duration) (files, dirs, bytes uint64, partial bool, err error) {
+	if budget > 0 {
+		opts.Until = time.Now().Add(budget)
+	}
 	entries, _, err := Walk(mount, opts)
 	if err != nil {
-		return 0, 0, 0, err
+		return 0, 0, 0, false, err
 	}
 	for _, e := range entries {
 		if e.IsDir {
@@ -113,5 +126,14 @@ func Estimate(mount string, opts Options) (files, dirs, bytes uint64, err error)
 		}
 		bytes += e.Size
 	}
-	return files, dirs, bytes, nil
+	if budget > 0 && time.Now().After(opts.Until) {
+		partial = true
+		var st syscall.Statfs_t
+		if syscall.Statfs(mount, &st) == nil {
+			if used := (uint64(st.Blocks) - uint64(st.Bfree)) * uint64(st.Bsize); used > bytes {
+				bytes = used
+			}
+		}
+	}
+	return files, dirs, bytes, partial, nil
 }

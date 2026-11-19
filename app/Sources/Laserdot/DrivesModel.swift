@@ -85,9 +85,15 @@ final class DrivesModel: ObservableObject {
     /// Ask before indexing: what it will take and where the index goes.
     func promptIndex(_ d: Drive, rebuild: Bool = false) {
         let mount = d.mount
-        queue.async { [weak self] in
-            let plan = try? self?.engine.drivePlan(mount: mount)
-            DispatchQueue.main.async { self?.showIndexPrompt(d, plan: plan, rebuild: rebuild) }
+        busy = String(format: L("drive.looking"), d.name)
+        let engine = self.engine
+        // Not on the drives queue: refreshing the list goes on meanwhile.
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let plan = try? engine.drivePlan(mount: mount)
+            DispatchQueue.main.async {
+                self?.busy = nil
+                self?.showIndexPrompt(d, plan: plan, rebuild: rebuild)
+            }
         }
     }
 
@@ -98,7 +104,8 @@ final class DrivesModel: ObservableObject {
         if let p = plan {
             let size = ByteCountFormatter.string(fromByteCount: Int64(p.bytes), countStyle: .file)
             let index = ByteCountFormatter.string(fromByteCount: Int64(p.indexEstimateBytes), countStyle: .file)
-            var text = String(format: L("drive.index.estimate"), Int64(p.files), size, index)
+            var text = String(format: L(p.partial ? "drive.index.estimatePartial" : "drive.index.estimate"),
+                              Int64(p.files), size, index)
             if !p.onDrive { text += "\n" + L("drive.index.offDrive") }
             alert.informativeText = text
         }

@@ -95,7 +95,8 @@ extension SearchModel {
     func noteOpened(_ h: Hit) {
         guard h.volume == nil else { return } // the history covers this Mac's index
         let (engine, path) = (self.engine, h.path)
-        queue.async { engine.recordOpen(path: path) }
+        // Off the search line: a slow write never holds the next search up.
+        DispatchQueue.global(qos: .utility).async { engine.recordOpen(path: path) }
     }
 
     func remember() {

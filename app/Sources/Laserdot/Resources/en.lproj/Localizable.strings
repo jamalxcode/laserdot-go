@@ -419,3 +419,5 @@
 "tip.recentphotos" = "%@ pictures; this month’s:";
 "tip.music" = "%@ audio files; recent ones:";
 "tip.documents" = "%@ documents; this week’s:";
+"drive.looking" = "Looking at %@…";
+"drive.index.estimatePartial" = "More than %lld files (%@ in use). The index needs about %@ or more and is kept on the drive, so it works on any Mac.";

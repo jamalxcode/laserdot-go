@@ -133,8 +133,8 @@ public final class Engine: @unchecked Sendable {
     }
 
     public func search(query: String, limit: Int = 100, offset: Int = 0, sort: SortKey = .relevance, reverse: Bool = false) throws -> Results {
-        let r = try call(.search(query: query, sort: sort, reverse: reverse, offset: offset, limit: limit, typo: true),
-                         as: Wire.SearchResults.self)
+        let r = try quickCall(.search(query: query, sort: sort, reverse: reverse, offset: offset, limit: limit, typo: true),
+                              as: Wire.SearchResults.self)
         return Results(
             total: r.total, hits: r.hits.map(Hit.init), elapsedMs: Double(r.elapsedUs) / 1000,
             typoFallback: r.typoFallback, notes: r.warnings.map(\.message))
@@ -169,7 +169,7 @@ public final class Engine: @unchecked Sendable {
 
     /// The results opened most recently (empty with older daemons).
     public func recentOpens(limit: Int = 8) -> [Hit] {
-        ((try? call(.recentOpens(limit: limit), as: [Wire.Hit].self)) ?? []).map(Hit.init)
+        ((try? quickCall(.recentOpens(limit: limit), as: [Wire.Hit].self)) ?? []).map(Hit.init)
     }
 
     /// Note that the user opened `path` (spec §6.2). Older daemons answer
@@ -269,9 +269,13 @@ public final class Engine: @unchecked Sendable {
     /// Stop the daemon, whoever started it, and never start one again
     /// (Erase All Data: nothing may write the index while it is deleted).
     public func retire() {
-        lock.lock()
-        retired = true
-        lock.unlock()
+        // Never wait long for a request stuck on a busy daemon.
+        if lock.lock(before: Date().addingTimeInterval(1)) {
+            retired = true
+            lock.unlock()
+        } else {
+            retired = true
+        }
         shutdown()
         if let live = DaemonClient.connectLive(socketPath: socketPath) {
             _ = try? live.call(.shutdown, as: String.self)
@@ -281,18 +285,62 @@ public final class Engine: @unchecked Sendable {
     }
 
     /// Stop a daemon this engine started (one started elsewhere keeps running).
+    /// Stop the daemon this app started. Quitting must never hang: a
+    /// request stuck on a busy daemon is not waited for (the lock is given
+    /// one second), the daemon is asked to stop on a connection of its own,
+    /// then ended, then killed.
     public func shutdown() {
-        lock.lock()
-        let c = client
-        client = nil
+        var c: DaemonClient?
         let p = child
-        child = nil
-        lock.unlock()
+        if lock.lock(before: Date().addingTimeInterval(1)) {
+            c = client
+            client = nil
+            child = nil
+            lock.unlock()
+        } else {
+            c = nil // the shared connection is busy with a stuck request
+        }
         guard let p else { return }
+        if c == nil {
+            c = try? DaemonClient(socketPath: socketPath, timeout: 2)
+        }
+        c?.setTimeout(2)
         _ = try? c?.call(.shutdown, as: String.self)
-        let deadline = Date().addingTimeInterval(5)
+        var deadline = Date().addingTimeInterval(5)
         while p.isRunning && Date() < deadline { usleep(20_000) }
         if p.isRunning { p.terminate() }
+        deadline = Date().addingTimeInterval(2)
+        while p.isRunning && Date() < deadline { usleep(20_000) }
+        if p.isRunning { kill(p.processIdentifier, SIGKILL) }
+    }
+
+    // MARK: searching on a line of its own
+
+    let searchLock = NSLock()
+    var searchClient: DaemonClient?
+
+    /// Searches have a connection of their own: a slow request on the shared
+    /// one (a drive being read, a cleanup) never makes typing wait. If it
+    /// cannot be used, the shared connection (which starts the daemon) is.
+    func quickCall<T: Decodable>(_ request: DaemonRequest, as type: T.Type) throws -> T {
+        searchLock.lock()
+        defer { searchLock.unlock() }
+        if !retired {
+            if searchClient == nil, let c = DaemonClient.connectLive(socketPath: socketPath) {
+                c.setTimeout(30)
+                searchClient = c
+            }
+            if let c = searchClient {
+                do {
+                    return try c.call(request, as: type)
+                } catch DaemonClientError.remote(let e) {
+                    throw LaserdotError(e)
+                } catch {
+                    searchClient = nil // broken or too slow: the shared line below
+                }
+            }
+        }
+        return try call(request, as: type)
     }
 
     // MARK: watchdog

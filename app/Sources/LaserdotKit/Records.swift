@@ -206,4 +206,6 @@ public struct DrivePlan: Sendable {
     public var indexEstimateBytes: UInt64
     public var location: String
     public var onDrive: Bool
+    /// Counted for a few seconds only (a huge drive): files are at least these.
+    public var partial: Bool = false
 }

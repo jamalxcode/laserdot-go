@@ -24,6 +24,12 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
    [`interface-rules.md`](interface-rules.md) §2.
 7. **A clock that waits for the engine looks frozen when the engine is busy.** The elapsed time now ticks on its own.
 
+5b. **Hold a lock for the change, not for the looking.** Re-checking an 8 TB drive held the index lock while it
+    walked the whole drive, so every search waited and Quit hung until Force Quit. Now the disk is read with no
+    lock, and the lock is held only for the moment the in-memory index changes.
+5c. **One slow request must not queue the rest behind it.** Searches shared a line with slow writes; now they have
+    their own, and quitting never waits on a stuck request.
+
 ## Crashes and recovery
 
 8. **Kill it on purpose.** A test that kills a real Laserdot process at random moments found, on its first runs, a

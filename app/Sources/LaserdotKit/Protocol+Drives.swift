@@ -64,10 +64,12 @@ extension Wire {
         public var indexEstimateBytes: UInt64
         public var location: String
         public var onDrive: Bool
+        /// The count stopped after a few seconds: files are at least these.
+        public var partial: Bool
 
         enum CodingKeys: String, CodingKey {
             case name, mount, files, folders, bytes, indexEstimateBytes = "index_estimate_bytes", location,
-                 onDrive = "on_drive"
+                 onDrive = "on_drive", partial
         }
 
         public init(from decoder: Decoder) throws {
@@ -77,6 +79,7 @@ extension Wire {
             files = try c.value(.files, or: 0)
             folders = try c.value(.folders, or: 0)
             bytes = try c.value(.bytes, or: 0)
+            partial = try c.value(.partial, or: false)
             indexEstimateBytes = try c.value(.indexEstimateBytes, or: 0)
             location = try c.value(.location, or: "")
             onDrive = try c.value(.onDrive, or: false)

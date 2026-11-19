@@ -15,10 +15,11 @@ extension Engine {
     }
 
     public func drivePlan(mount: String) throws -> DrivePlan {
-        let p = try call(.drivePlan(mount: mount), as: Wire.DrivePlan.self)
+        // A connection of its own: counting a big drive must not hold searches up.
+        let p = try longCall(longJobConnection(), .drivePlan(mount: mount), as: Wire.DrivePlan.self)
         return DrivePlan(
             name: p.name, files: p.files, folders: p.folders, bytes: p.bytes,
-            indexEstimateBytes: p.indexEstimateBytes, location: p.location, onDrive: p.onDrive)
+            indexEstimateBytes: p.indexEstimateBytes, location: p.location, onDrive: p.onDrive, partial: p.partial)
     }
 
     /// Index a drive; a passphrase encrypts the index. Returns a summary.

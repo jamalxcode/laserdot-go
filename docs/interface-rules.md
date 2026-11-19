@@ -38,6 +38,8 @@ for `>` commands, after a trailing space, or while moving through the results.
    no time limit.
 2. A long job can be **stopped**, keeping what it found, and **continued** later without starting over.
 3. Closing a window stops its job the same way.
+4. **Quit always works**, within seconds, whatever the engine is doing.
+5. A question never waits on a long count: the drive prompt counts for 5 seconds, then says "more than N files".
 
 ## 4. One primary action per screen
 

@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
@@ -82,7 +83,13 @@ type DrivePlan struct {
 	IndexEstimateBytes uint64 `json:"index_estimate_bytes"`
 	Location           string `json:"location"`
 	OnDrive            bool   `json:"on_drive"`
+	// Partial: counting stopped after PlanBudget; Files and Folders are at
+	// least these, Bytes is the space used on the drive.
+	Partial bool `json:"partial,omitempty"`
 }
+
+// PlanBudget: how long the drive prompt's count may take.
+var PlanBudget = 5 * time.Second
 
 // DriveOptions for creating a drive index.
 type DriveOptions struct {
@@ -123,19 +130,34 @@ type drive struct {
 	work  string
 	store *index.Store
 	scan  scan.Options
+	// wmu: one writer at a time for this drive's index. The writer looks at
+	// the drive (minutes, on a big one) holding only this; searches go on.
+	wmu sync.Mutex
+	// closed: detached; a writer that waited for wmu stops.
+	closed bool
 }
 
 func (d *drive) indexPath() string { return filepath.Join(d.dir, "index.db") }
 
 func (d *drive) reload() error {
-	raw, err := d.db.Load()
+	s, err := d.load()
 	if err != nil {
 		return err
 	}
-	s := index.Build(raw)
-	s.SetVolumeName(d.name)
 	d.store = s
 	return nil
+}
+
+// load builds the drive's in-memory index from its database (slow for a big
+// drive: done without locks; the caller swaps it in).
+func (d *drive) load() (*index.Store, error) {
+	raw, err := d.db.Load()
+	if err != nil {
+		return nil, err
+	}
+	s := index.Build(raw)
+	s.SetVolumeName(d.name)
+	return s, nil
 }
 
 // sealBack writes an encrypted drive's working copy back to the drive.
@@ -311,14 +333,16 @@ func (ld *Laserdot) PlanDrive(mount string) (DrivePlan, error) {
 	if err != nil {
 		return DrivePlan{}, err
 	}
-	files, dirs, bytes, err := scan.Estimate(mount, driveScanOptions(v))
+	// A few seconds of counting at most: an 8 TB drive would otherwise keep
+	// the user waiting minutes for the question (indexing reads it anyway).
+	files, dirs, bytes, partial, err := scan.EstimateWithin(mount, driveScanOptions(v), PlanBudget)
 	if err != nil {
 		return DrivePlan{}, err
 	}
 	// Estimate counts the mount itself as a folder.
 	dirs = max(dirs, 1) - 1
 	p := DrivePlan{Name: v.Name, Mount: mount, Files: files, Folders: dirs, Bytes: bytes,
-		IndexEstimateBytes: (files + dirs) * indexBytesPerEntry, OnDrive: !v.ReadOnly}
+		IndexEstimateBytes: (files + dirs) * indexBytesPerEntry, OnDrive: !v.ReadOnly, Partial: partial}
 	if p.OnDrive {
 		p.Location = filepath.Join(mount, ".laserdot")
 	} else {
@@ -363,15 +387,27 @@ func (ld *Laserdot) CreateDriveIndex(mount string, opts DriveOptions) (IndexStat
 	if err != nil {
 		return IndexStats{}, err
 	}
-	ld.wmu.Lock()
-	defer ld.wmu.Unlock()
-	ld.mu.RLock()
+	// No global lock while the drive is read (hours, for a big drive):
+	// the mount is reserved instead, so it is not indexed or attached twice.
+	ld.mu.Lock()
 	_, _, _, exists := ld.findIndex(v)
 	exists = exists || ld.driveAt(mount) != nil
-	ld.mu.RUnlock()
+	busy := ld.creating[mount]
+	if !exists && !busy {
+		ld.creating[mount] = true
+	}
+	ld.mu.Unlock()
+	if busy {
+		return IndexStats{}, fmt.Errorf("%s is being indexed already", mount)
+	}
 	if exists {
 		return IndexStats{}, fmt.Errorf("%s already has an index — rebuild it instead", mount)
 	}
+	defer func() {
+		ld.mu.Lock()
+		delete(ld.creating, mount)
+		ld.mu.Unlock()
+	}()
 	dir, onDrive := filepath.Join(mount, ".laserdot"), true
 	if opts.ForceOffDrive || v.ReadOnly || os.MkdirAll(dir, 0o755) != nil {
 		dir, onDrive = ld.offDriveDir(v), false
@@ -392,7 +428,9 @@ func (ld *Laserdot) CreateDriveIndex(mount string, opts DriveOptions) (IndexStat
 	d := &drive{id: vf.ID, mount: mount, name: v.Name, dir: dir, onDrive: onDrive, encrypted: vf.Encrypted,
 		pass: opts.Passphrase, db: db, work: work, scan: driveScanOptions(v)}
 	if vf.Encrypted {
+		ld.mu.Lock()
 		ld.keys[vf.ID] = opts.Passphrase
+		ld.mu.Unlock()
 	}
 	// The menu shows how far it has got, as for a folder on this Mac.
 	bulk := opts.Bulk
@@ -435,6 +473,11 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 	}
 	ld.wmu.Lock()
 	ld.mu.RLock()
+	if ld.creating[mount] {
+		ld.mu.RUnlock()
+		ld.wmu.Unlock()
+		return DriveInfo{}, fmt.Errorf("%s is being indexed", v.Name)
+	}
 	if ld.driveAt(mount) != nil {
 		info := ld.driveInfo(v)
 		ld.mu.RUnlock()
@@ -498,23 +541,33 @@ func (ld *Laserdot) RefreshDrive(mount string) (UpdateStats, error) {
 }
 
 // applyDrive applies changes to the drive at mount. Caller holds no lock.
+// Only this drive's writer lock is held while the drive is looked at (an 8 TB
+// drive takes minutes): searches, this Mac's own updates and other drives
+// carry on; searches wait only while the in-memory index changes.
 func (ld *Laserdot) applyDrive(mount string, changes []Change, complete bool) (UpdateStats, error) {
-	ld.wmu.Lock()
-	defer ld.wmu.Unlock()
-	ld.mu.Lock()
+	ld.mu.RLock()
 	d := ld.driveAt(mount)
+	ld.mu.RUnlock()
 	if d == nil {
-		ld.mu.Unlock()
 		return UpdateStats{}, errors.New("drive not attached")
 	}
-	u, err := index.Apply(d.db, d.store, changes, d.scan)
+	d.wmu.Lock()
+	defer d.wmu.Unlock()
+	if d.closed {
+		return UpdateStats{OfflineRoots: []string{}}, errors.New("drive not attached")
+	}
+	u, err := index.Apply(d.db, d.store, changes, d.scan, &ld.mu)
 	if err == nil && complete {
 		err = d.db.FinishRoot(mount)
 	}
 	if err == nil && d.store.NeedsCompaction() {
-		err = d.reload()
+		var s *index.Store
+		if s, err = d.load(); err == nil {
+			ld.mu.Lock()
+			d.store = s
+			ld.mu.Unlock()
+		}
 	}
-	ld.mu.Unlock()
 	if u.OfflineRoots == nil {
 		u.OfflineRoots = []string{}
 	}
@@ -535,10 +588,20 @@ func (ld *Laserdot) DetachDrive(mount string) bool {
 }
 
 func (ld *Laserdot) detach(mount string) bool {
+	ld.mu.RLock()
+	d := ld.driveAt(mount)
+	ld.mu.RUnlock()
+	if d == nil {
+		return false
+	}
+	// After the drive's writer (lock order: drive, then the index).
+	d.wmu.Lock()
+	defer d.wmu.Unlock()
 	ld.mu.Lock()
 	defer ld.mu.Unlock()
-	for i, d := range ld.drives {
-		if d.mount == mount {
+	for i, x := range ld.drives {
+		if x == d {
+			d.closed = true
 			d.close()
 			ld.drives = slices.Delete(ld.drives, i, i+1)
 			return true
@@ -594,21 +657,28 @@ func (ld *Laserdot) EjectDrive(mount string) error {
 // SyncDrives follows mounts: drives that went away are detached; mounted
 // drives with an index (and a known passphrase, if encrypted) attach.
 func (ld *Laserdot) SyncDrives() (attached, gone []string) {
+	// Looking at the drives happens without the lock: a drive that stops
+	// answering must not hold searches up.
 	ld.mu.RLock()
-	mounted := scan.ListVolumes(ld.volumes.Dir, ld.volumes.MountsOnly)
+	vols := ld.volumes
+	var mounts []string
 	for _, d := range ld.drives {
-		_, err := os.Stat(d.mount)
-		if err != nil || !slices.ContainsFunc(mounted, func(v scan.Volume) bool { return v.Mount == d.mount }) {
-			gone = append(gone, d.mount)
-		}
+		mounts = append(mounts, d.mount)
 	}
 	ld.mu.RUnlock()
+	mounted := scan.ListVolumes(vols.Dir, vols.MountsOnly)
+	for _, m := range mounts {
+		_, err := os.Stat(m)
+		if err != nil || !slices.ContainsFunc(mounted, func(v scan.Volume) bool { return v.Mount == m }) {
+			gone = append(gone, m)
+		}
+	}
 	for _, m := range gone {
 		ld.DetachDrive(m)
 	}
 	for _, v := range mounted {
 		ld.mu.RLock()
-		skip := ld.driveAt(v.Mount) != nil
+		skip := ld.driveAt(v.Mount) != nil || ld.creating[v.Mount]
 		_, _, vf, ok := ld.findIndex(v)
 		_, haveKey := ld.keys[vf.ID]
 		ld.mu.RUnlock()

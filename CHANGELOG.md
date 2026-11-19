@@ -3,6 +3,14 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.18
+
+- Fixed: Laserdot could stop responding (even to Quit) while it looked at a big external drive, such as an 8 TB disk.
+  Searching, opening results and quitting now carry on normally however long a drive takes.
+- Searches have a line of their own to Laserdot's engine, so nothing slow can hold up typing.
+- Quitting never hangs: if the engine is busy, Laserdot stops it without waiting.
+- The "index this drive?" question comes within seconds, even for a huge drive ("more than N files").
+
 ## 0.9.17
 
 - Optional reminders (Settings ▸ Reminders, off unless you turn them on): check for duplicates every month or

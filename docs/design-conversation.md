@@ -464,6 +464,22 @@ the four requests per keystroke into fewer; (4) find the 37.8 ms query; (5) the 
 FSEvents which folders changed; (6) launch (~170–280 ms before Laserdot's own code); (7) video frames through
 AVFoundation. Not started: the owner moved on to the engagement work (section 30).
 
+## 33. Frozen by an 8 TB drive (0.9.18)
+
+**Reported:** "laserdot froze or stopped responding when scanning an 8tb removable drive, it had to have a force quit".
+**Found:** looking at a drive again (on attach, on Refresh) held the engine's index lock *exclusively* for the whole
+walk of the drive, so every search waited; a drive's first index held the writers' lock for hours, so recording an
+opened result waited, and every search queued behind it on the app's shared connection; quitting then waited for
+that connection's lock, so only Force Quit helped. Checking for unplugged drives also stat-ed mounts under the lock,
+and the "index this drive?" prompt counted every file first. **Decided:** the update engine holds the lock only
+while it changes the in-memory index (looking at the disk, probing and writing the database happen while searches go
+on), for drives and for this Mac's folders alike; each drive has its own writer lock, and a first drive index holds
+no global lock (the mount is reserved instead); drives are looked at outside the lock; the prompt counts for 5 s at
+most ("more than N files", the size from the file system); the app searches on a connection of its own, records
+opens off the search queue, plans drives on their own connection, and quits without waiting for a stuck request
+(asked to stop, then ended, then killed). Tests: a slowed drive refresh must not delay a search, an open or a local
+change by more than 300 ms (it delayed a search 1.45 s before the fix); the prompt must answer in seconds.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

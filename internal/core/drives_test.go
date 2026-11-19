@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jamalxcode/laserdot-go/internal/scan"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
 )
@@ -331,5 +333,84 @@ func TestOffDriveIndexGoesWithTheDrive(t *testing.T) {
 	m.ld.PurgeOffDriveIndexes()
 	if dirs() != 0 {
 		t.Errorf("%d indexes left", dirs())
+	}
+}
+
+// A big drive being looked at again (it can take many minutes on 8 TB) does
+// not hold anything else up: searching, opening a result (which records the
+// open) and indexing this Mac's own changes all answer at once meanwhile.
+func TestADriveBeingReadDoesNotFreezeSearching(t *testing.T) {
+	m := newMac(t)
+	drive := makeDrive(t, m.vols, "Big")
+	if _, err := m.ld.CreateDriveIndex(drive, DriveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	home := filepath.Join(m.base, "home")
+	write(t, home, "local.txt", "x")
+	if _, err := m.ld.Index(home); err != nil {
+		t.Fatal(err)
+	}
+	// Every folder on the drive now takes a while to read.
+	release := make(chan struct{})
+	scan.SlowFoldersForTests(func(dir string) {
+		if strings.HasPrefix(dir, drive) {
+			select {
+			case <-release:
+			case <-time.After(400 * time.Millisecond):
+			}
+		}
+	})
+	defer func() { close(release); scan.SlowFoldersForTests(nil) }()
+	done := make(chan error, 1)
+	go func() { _, err := m.ld.RefreshDrive(drive); done <- err }()
+	time.Sleep(150 * time.Millisecond) // the drive is being read now
+
+	quick := func(what string, f func() error) {
+		t.Helper()
+		start := time.Now()
+		if err := f(); err != nil {
+			t.Fatalf("%s: %v", what, err)
+		}
+		if d := time.Since(start); d > 300*time.Millisecond {
+			t.Errorf("%s waited %v for the drive", what, d)
+		}
+	}
+	quick("searching", func() error { _, err := m.ld.Search("invoice", SearchOptions{}); return err })
+	quick("recording an open", func() error { return m.ld.RecordOpen(filepath.Join(home, "local.txt")) })
+	quick("this Mac's own changes", func() error {
+		write(t, home, "new.txt", "y")
+		_, err := m.ld.ApplyChanges([]Change{{Path: home}})
+		return err
+	})
+	select {
+	case <-done: // a refresh that ended early is fine too
+	case <-time.After(30 * time.Second):
+		t.Fatal("the drive refresh never finished")
+	}
+}
+
+// The question "index this drive?" comes after a few seconds at most, even
+// for a huge, slow drive: the count stops and says "at least".
+func TestTheDrivePromptDoesNotWaitForAHugeDrive(t *testing.T) {
+	m := newMac(t)
+	drive := makeDrive(t, m.vols, "Huge")
+	old := PlanBudget
+	PlanBudget = 200 * time.Millisecond
+	scan.SlowFoldersForTests(func(dir string) {
+		if strings.HasPrefix(dir, drive) {
+			time.Sleep(150 * time.Millisecond)
+		}
+	})
+	defer func() { PlanBudget = old; scan.SlowFoldersForTests(nil) }()
+	start := time.Now()
+	p, err := m.ld.PlanDrive(drive)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if d := time.Since(start); d > 2*time.Second {
+		t.Fatalf("the plan took %v", d)
+	}
+	if !p.Partial || p.Bytes == 0 {
+		t.Fatalf("a cut-short count should say so and still give a size: %+v", p)
 	}
 }
