@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.22
+
+- Choosing from your results now works like a shop's filters: after picking a resolution, every other choice stays
+  (sound, shape, length, codec…) so you can keep adding. What you picked shows highlighted with a ✓ — click it again
+  to take it out, or pick another value of the same kind to switch. The numbers always say how many results each
+  choice gives with your other picks; a choice that would leave nothing is greyed out.
+
 ## 0.9.21
 
 - Ejecting a drive always works while Laserdot runs. Laserdot no longer keeps a drive's index file open: it opens it

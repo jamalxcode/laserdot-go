@@ -458,3 +458,4 @@
 "refine.size.medium" = "١–١٠٠ م.ب";
 "refine.size.large" = "١٠٠ م.ب–١ غ.ب";
 "refine.size.huge" = "أكثر من ١ غ.ب";
+"refine.remove" = "إزالة %@ من البحث";

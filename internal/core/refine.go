@@ -28,7 +28,11 @@ type RefineOption struct {
 	// when Key is set the app shows its own words for it ("With sound").
 	Label string `json:"label"`
 	Key   string `json:"key,omitempty"`
+	// Count: results it gives with the other groups' choices applied (0:
+	// none any more; the app greys it out).
 	Count uint64 `json:"count"`
+	// Selected: q already has it (Token is then as written in q).
+	Selected bool `json:"selected,omitempty"`
 }
 
 // RefineGroup is a set of choices about one attribute.
@@ -77,17 +81,43 @@ var (
 )
 
 // Refinements answers for q across this Mac's index and every attached drive.
+//
+// Choosing keeps every other choice available (the owner: "keep the other
+// options still active so the user can add more"), the way faceted search
+// works: the tokens of q that are choices (res:1080p, a.count:0, ext:pdf…)
+// are set apart from the rest (the base). The groups and their values come
+// from the base's results, so they stay put as choices are made; each
+// group's counts are taken with every other group's choices applied but not
+// its own, so another value of the same group can be switched to, and a
+// value no longer matching shows 0 (the app greys it out). Choices already
+// in q come back marked Selected, with their token as written in q.
 func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
+	out := []RefineGroup{}
 	if strings.TrimSpace(q) == "" || strings.HasPrefix(strings.TrimSpace(q), ">") {
-		return []RefineGroup{}, nil
+		return out, nil
+	}
+	// The choices in q, by group, and the rest.
+	selected := map[string][]string{} // group → tokens as written
+	var baseToks []string
+	for _, tok := range splitTokens(q) {
+		if g := refineGroupOf(tok); g != "" {
+			selected[g] = append(selected[g], tok)
+		} else {
+			baseToks = append(baseToks, tok)
+		}
+	}
+	base := strings.Join(baseToks, " ")
+	if strings.TrimSpace(base) == "" {
+		base, selected = q, map[string][]string{} // only choices: nothing set apart
 	}
 	ld.mu.RLock()
 	defer ld.mu.RUnlock()
 	type source struct {
-		s    *index.Store
-		hits *roaring.Bitmap
+		s     *index.Store
+		hits  *roaring.Bitmap // the base's results
+		cache map[string]*roaring.Bitmap
 	}
-	var sources []source
+	var sources []*source
 	var total uint64
 	stores := []*index.Store{ld.store}
 	contents := []*index.ContentIndex{ld.content}
@@ -96,42 +126,96 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 		contents = append(contents, nil)
 	}
 	for i, s := range stores {
-		hits, err := queryHits(s, contents[i], q)
+		hits, err := queryHits(s, contents[i], base)
 		if err != nil {
 			return nil, err
 		}
 		if !hits.IsEmpty() {
-			sources = append(sources, source{s, hits})
+			sources = append(sources, &source{s, hits, map[string]*roaring.Bitmap{}})
 			total += hits.GetCardinality()
 		}
 	}
-	out := []RefineGroup{}
 	if total < 2 {
 		return out, nil // nothing to choose between
 	}
-	have := strings.ToLower(q)
-	count := func(token string) uint64 {
-		parsed, err := query.Parse(token)
-		if err != nil {
-			return 0
+	// tokenSet: the entries a token selects (one evaluation per token).
+	tokenSet := func(src *source, token string) *roaring.Bitmap {
+		key := strings.ToLower(token)
+		if bm, ok := src.cache[key]; ok {
+			return bm
 		}
-		c, err := query.Compile(parsed, false)
-		if err != nil {
-			return 0
-		}
-		var n uint64
-		for _, src := range sources {
-			if bm, err := src.s.Execute(c); err == nil {
-				n += bm.AndCardinality(src.hits)
+		bm := roaring.New()
+		if parsed, err := query.Parse(token); err == nil {
+			if c, err := query.Compile(parsed, false); err == nil {
+				if r, err := src.s.Execute(c); err == nil {
+					bm = r
+				}
 			}
 		}
+		src.cache[key] = bm
+		return bm
+	}
+	// Counts in the base's results (which values exist to choose from).
+	countBase := func(token string) uint64 {
+		var n uint64
+		for _, src := range sources {
+			n += tokenSet(src, token).AndCardinality(src.hits)
+		}
 		return n
+	}
+	// within: the base's results with every other group's choices applied.
+	within := map[string][]*roaring.Bitmap{}
+	hitsFor := func(group string) []*roaring.Bitmap {
+		if w, ok := within[group]; ok {
+			return w
+		}
+		w := make([]*roaring.Bitmap, len(sources))
+		for i, src := range sources {
+			b := src.hits.Clone()
+			for g, toks := range selected {
+				if g == group {
+					continue
+				}
+				for _, t := range toks {
+					b.And(tokenSet(src, t))
+				}
+			}
+			w[i] = b
+		}
+		within[group] = w
+		return w
+	}
+	isSelected := func(group, token string) (string, bool) {
+		for _, t := range selected[group] {
+			if strings.EqualFold(t, token) {
+				return t, true
+			}
+		}
+		return "", false
 	}
 	groups := map[string]*RefineGroup{}
 	var order []string
 	add := func(group string, o RefineOption) {
-		if o.Count == 0 || o.Count >= total || strings.Contains(have, strings.ToLower(o.Token)) {
-			return
+		written, sel := isSelected(group, o.Token)
+		if !sel {
+			if b := countBase(o.Token); b == 0 || b >= total {
+				return // nothing to choose: no result, or every result, has it
+			}
+		}
+		if g := groups[group]; g != nil {
+			for _, x := range g.Options {
+				if strings.EqualFold(x.Token, o.Token) {
+					return
+				}
+			}
+		}
+		if sel {
+			o.Token, o.Selected = written, true
+		}
+		w := hitsFor(group)
+		o.Count = 0
+		for i, src := range sources {
+			o.Count += tokenSet(src, o.Token).AndCardinality(w[i])
 		}
 		g := groups[group]
 		if g == nil {
@@ -143,18 +227,18 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	}
 	try := func(cands []refineCandidate) {
 		for _, c := range cands {
-			add(c.group, RefineOption{Token: c.token, Label: c.label, Key: c.key, Count: count(c.token)})
+			add(c.group, RefineOption{Token: c.token, Label: c.label, Key: c.key})
 		}
 	}
 	facets := func(group, key string, id query.FilterID, scope query.Scope, titled bool) {
-		merged := map[string]uint64{}
+		seen := map[string]bool{}
 		var values []string
 		for _, src := range sources {
 			for _, f := range src.s.FacetCountsIn(id, scope, src.hits, RefineFacetLimit) {
-				if _, ok := merged[f.Value]; !ok {
+				if !seen[f.Value] {
+					seen[f.Value] = true
 					values = append(values, f.Value)
 				}
-				merged[f.Value] += f.Count
 			}
 		}
 		for _, v := range values {
@@ -162,10 +246,10 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 			if titled {
 				label = displayValue(v)
 			}
-			add(group, RefineOption{Token: key + ":" + quoteValue(v), Label: label, Count: merged[v]})
+			add(group, RefineOption{Token: key + ":" + quoteValue(v), Label: label})
 		}
 	}
-	videos, images, audio, docs := count("kind:video"), count("kind:image"), count("kind:audio"), count("kind:document")
+	videos, images, audio, docs := countBase("kind:video"), countBase("kind:image"), countBase("kind:audio"), countBase("kind:document")
 	if videos > 0 {
 		try(refineVideo[:6]) // resolution
 		try(refineVideo[6:8])
@@ -192,16 +276,73 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	}
 	if docs > 0 {
 		for _, e := range refineDocTypes {
-			add("type", RefineOption{Token: "ext:" + e, Label: strings.ToUpper(e), Count: count("ext:" + e)})
+			add("type", RefineOption{Token: "ext:" + e, Label: strings.ToUpper(e)})
 		}
 	}
 	try(refineCommon)
+	// A choice typed by hand that is not among the values above (another
+	// camera, ext:heic…) still shows, selected, so it can be removed.
+	for g, toks := range selected {
+		for _, t := range toks {
+			label := t
+			if i := strings.Index(t, ":"); i >= 0 {
+				label = strings.Trim(t[i+1:], `"`)
+			}
+			add(g, RefineOption{Token: t, Label: label})
+		}
+	}
 	for _, id := range order {
 		if g := groups[id]; len(g.Options) > 0 {
 			out = append(out, *g)
 		}
 	}
 	return out, nil
+}
+
+// refineGroups: which group a choice's filter belongs to.
+var refineGroups = map[string]string{
+	"res": "resolution", "a.count": "sound", "orientation": "shape", "duration": "length", "codec": "codec",
+	"hdr": "hdr", "camera": "camera", "gps": "place", "screenshot": "picture", "live": "picture", "raw": "picture",
+	"artist": "artist", "album": "album", "genre": "genre", "ext": "type", "modified": "modified", "since": "modified",
+	"fsize": "size",
+}
+
+// refineGroupOf: the group of a token that is a choice ("" when it is not:
+// a word, a negation, another filter).
+func refineGroupOf(tok string) string {
+	i := strings.Index(tok, ":")
+	if i <= 0 || strings.HasPrefix(tok, "-") {
+		return ""
+	}
+	return refineGroups[strings.ToLower(tok[:i])]
+}
+
+// splitTokens splits a query at spaces outside quotes and parentheses.
+func splitTokens(q string) []string {
+	var out []string
+	var cur strings.Builder
+	inQuote, depth := false, 0
+	for _, r := range q {
+		switch {
+		case r == '"':
+			inQuote = !inQuote
+		case !inQuote && r == '(':
+			depth++
+		case !inQuote && r == ')' && depth > 0:
+			depth--
+		case !inQuote && depth == 0 && (r == ' ' || r == '\t'):
+			if cur.Len() > 0 {
+				out = append(out, cur.String())
+				cur.Reset()
+			}
+			continue
+		}
+		cur.WriteRune(r)
+	}
+	if cur.Len() > 0 {
+		out = append(out, cur.String())
+	}
+	return out
 }
 
 // queryHits: the entries of s matching q by name and filters (what a

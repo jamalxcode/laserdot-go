@@ -337,10 +337,31 @@ final class SearchModel: ObservableObject {
         return generationShared
     }
 
-    /// A refinement chip: its token joins the query.
-    func applyRefinement(_ o: RefineOption) {
-        let q = query.trimmingCharacters(in: .whitespaces)
-        query = q.isEmpty ? o.token : q + " " + o.token
+    /// A refinement chip. Chosen already: it leaves the search. Another
+    /// value of a group with a choice: it takes that choice's place (a video
+    /// is one resolution). Otherwise it joins the search. Every other group
+    /// stays available to add to.
+    func applyRefinement(_ o: RefineOption, in group: RefineGroup? = nil) {
+        if o.isSelected {
+            query = Self.removing(o.token, from: query)
+        } else if let current = group?.options.first(where: \.isSelected) {
+            query = Self.removing(current.token, from: query) + " " + o.token
+        } else {
+            let q = query.trimmingCharacters(in: .whitespaces)
+            query = q.isEmpty ? o.token : q + " " + o.token
+        }
+        query = query.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// The query without one token (as written in it), spaces tidied.
+    static func removing(_ token: String, from q: String) -> String {
+        var words = q.components(separatedBy: " ")
+        if let i = words.firstIndex(of: token) {
+            words.remove(at: i)
+        } else if let r = q.range(of: token) {
+            words = q.replacingCharacters(in: r, with: "").components(separatedBy: " ")
+        }
+        return words.filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     func apply(_ outcome: Result<Results, Error>) {

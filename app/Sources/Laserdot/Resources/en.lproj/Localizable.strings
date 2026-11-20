@@ -458,3 +458,4 @@
 "refine.size.medium" = "1–100 MB";
 "refine.size.large" = "100 MB–1 GB";
 "refine.size.huge" = "Over 1 GB";
+"refine.remove" = "Remove %@ from the search";

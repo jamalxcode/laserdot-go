@@ -112,6 +112,22 @@ final class SelfTestRunner {
                     model.applyRefinement(pdf)
                 }
             }, until: { $0.refinements.flatMap(\.options).contains { $0.token == "ext:pdf" } }, wait: 1.0),
+            // After a choice every group stays: PDF chosen, TXT still offered;
+            // TXT switches to it (a file has one type); chosen, it can be
+            // clicked again to take it out.
+            Step(name: "switched", typed: "proj ext:pdf", after: {
+                if let g = model.refinements.first(where: { $0.id == "type" }),
+                   let txt = g.options.first(where: { $0.token == "ext:txt" }) {
+                    self.extra["refine_kept"] = g.options.map { ($0.isSelected ? "*" : "") + $0.token }
+                    model.applyRefinement(txt, in: g)
+                }
+            }, until: { $0.refinements.flatMap(\.options).contains { $0.isSelected && $0.token == "ext:pdf" } }, wait: 1.0),
+            Step(name: "unrefined", typed: "proj ext:txt", after: {
+                if let g = model.refinements.first(where: { $0.id == "type" }),
+                   let txt = g.options.first(where: \.isSelected) {
+                    model.applyRefinement(txt, in: g)
+                }
+            }, until: { $0.refinements.flatMap(\.options).contains(where: \.isSelected) }, wait: 1.0),
             Step(name: "pdftoday", typed: "pdf today"),
             Step(name: "commands", typed: ">dup"),
             // As in Spotlight: the top hit's name completes inline, the rest

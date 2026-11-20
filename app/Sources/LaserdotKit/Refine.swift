@@ -7,13 +7,19 @@ public struct RefineOption: Codable, Equatable, Hashable, Sendable {
     public let token: String
     public let label: String
     public let key: String?
+    /// Results it gives with the other groups' choices applied (0: greyed).
     public let count: UInt64
+    /// The search already has it (`token` is then as written there).
+    public let selected: Bool?
 
-    public init(token: String, label: String, key: String?, count: UInt64) {
+    public var isSelected: Bool { selected ?? false }
+
+    public init(token: String, label: String, key: String?, count: UInt64, selected: Bool? = nil) {
         self.token = token
         self.label = label
         self.key = key
         self.count = count
+        self.selected = selected
     }
 }
 

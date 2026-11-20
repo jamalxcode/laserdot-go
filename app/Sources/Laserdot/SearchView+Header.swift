@@ -194,14 +194,7 @@ extension SearchView {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             ForEach(g.options, id: \.token) { o in
-                                Button {
-                                    model.applyRefinement(o)
-                                } label: {
-                                    Text("\(Self.refineLabel(o)) ").font(.caption)
-                                        + Text(Self.count(o.count)).font(.caption).foregroundColor(.secondary)
-                                }
-                                .help(o.token)
-                                .accessibilityLabel("\(Self.refineTitle(g.id)) \(Self.refineLabel(o)), \(Self.count(o.count))")
+                                refineChip(o, in: g)
                             }
                         }
                     }
@@ -212,6 +205,27 @@ extension SearchView {
             }
             .padding(.bottom, 8)
             .accessibilityIdentifier("refinements")
+        }
+    }
+
+    /// One choice: chosen ones are filled with a check (click: take it out);
+    /// one that no longer matches anything is greyed out.
+    @ViewBuilder func refineChip(_ o: RefineOption, in g: RefineGroup) -> some View {
+        let label = (o.isSelected ? "✓ " : "") + Self.refineLabel(o)
+        let content = Text("\(label) ").font(.caption)
+            + Text(Self.count(o.count)).font(.caption).foregroundColor(o.isSelected ? .white.opacity(0.85) : .secondary)
+        let spoken = "\(Self.refineTitle(g.id)) \(Self.refineLabel(o)), \(Self.count(o.count))"
+        if o.isSelected {
+            Button { model.applyRefinement(o, in: g) } label: { content }
+                .buttonStyle(.borderedProminent)
+                .help(String(format: L("refine.remove"), o.token))
+                .accessibilityLabel(spoken)
+                .accessibilityAddTraits(.isSelected)
+        } else {
+            Button { model.applyRefinement(o, in: g) } label: { content }
+                .disabled(o.count == 0)
+                .help(o.token)
+                .accessibilityLabel(spoken)
         }
     }
 

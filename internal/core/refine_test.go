@@ -62,11 +62,44 @@ func TestVideoResultsOfferTheirAttributes(t *testing.T) {
 			t.Errorf("%s: offered with %d, the search finds %d", o.Token, o.Count, r.Total)
 		}
 	}
-	// What the query already asks for is not offered again; a choice that
-	// would not narrow anything is left out.
-	g2, _ := ld.Refinements("kind:video res:4k")
-	if slices.Contains(tokens(refineGroup(g2, "resolution")), "res:4k") {
-		t.Error("res:4k offered again")
+	// After choosing a resolution every group stays: the chosen value comes
+	// back selected, the other resolutions stay to switch to (counted
+	// without the resolution chosen), and every other group is counted
+	// within the chosen resolution — each count is exactly what choosing
+	// it gives.
+	g2, err := ld.Refinements("kind:video res:1080p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, g := range groups {
+		if len(refineGroup(g2, g.ID)) == 0 {
+			t.Errorf("group %s disappeared after choosing a resolution", g.ID)
+		}
+	}
+	var chosen *RefineOption
+	for _, g := range g2 {
+		for i, o := range g.Options {
+			want := "kind:video res:1080p " + o.Token
+			if g.ID == "resolution" {
+				want = "kind:video " + o.Token // its own group: switching
+				if o.Token == "res:1080p" {
+					chosen = &g.Options[i]
+				}
+			}
+			r, err := ld.Search(want, DefaultSearchOptions)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if r.Total != o.Count {
+				t.Errorf("%s %s: shows %d, choosing it gives %d", g.ID, o.Token, o.Count, r.Total)
+			}
+		}
+	}
+	if chosen == nil || !chosen.Selected {
+		t.Fatalf("res:1080p comes back selected: %+v", refineGroup(g2, "resolution"))
+	}
+	if len(refineGroup(g2, "resolution")) < 2 {
+		t.Error("the other resolutions stay to switch to")
 	}
 	one, _ := ld.Refinements("city")
 	if len(refineGroup(one, "resolution")) > 0 {
@@ -112,4 +145,33 @@ func newCore(t *testing.T) (*Laserdot, string) {
 	root := filepath.Join(dir, "home")
 	os.MkdirAll(root, 0o755)
 	return ld, root
+}
+
+// A choice typed by hand comes back selected as written (so the app can take
+// it out again); quoted values and groups stay whole.
+func TestTypedChoicesAreRecognised(t *testing.T) {
+	ld, root := newCore(t)
+	writeAged(t, filepath.Join(root, "a.mp4"), corpus(t, "h264_4k.mp4"))
+	writeAged(t, filepath.Join(root, "b.mkv"), corpus(t, "pal.mkv"))
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	groups, _ := ld.Refinements("kind:video RES:4K")
+	var found bool
+	for _, o := range refineGroup(groups, "resolution") {
+		if o.Selected && o.Token == "RES:4K" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("RES:4K selected as written: %+v", refineGroup(groups, "resolution"))
+	}
+	got := splitTokens(`trip camera:"canon eos r5" a(lang:ar channels:5.1) -ext:pdf`)
+	want := []string{"trip", `camera:"canon eos r5"`, "a(lang:ar channels:5.1)", "-ext:pdf"}
+	if !slices.Equal(got, want) {
+		t.Errorf("splitTokens: %q", got)
+	}
+	if refineGroupOf("-ext:pdf") != "" || refineGroupOf("ext:pdf") != "type" || refineGroupOf("trip") != "" {
+		t.Error("only plain choice filters count as choices")
+	}
 }

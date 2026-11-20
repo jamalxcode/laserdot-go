@@ -545,6 +545,14 @@ type; all: date and size). Clicking one adds its filter to the search as a word,
 and teaches the language. Only choices that narrow the results appear. Shipped with the eject fix as 0.9.21, with the
 speed review's "skip stale searches while typing".
 
+## 39. Choices that stay (0.9.22)
+
+**Asked:** "when an options is chosen like resolution, keep the other options still active so the user can add more
+options to his search like sound shape codec etc". **Decided:** faceted search, as in a shop: the groups come from the
+search words without the choices, so they stay; a chosen value shows highlighted with a check and is taken out by
+clicking it again; another value of the same group switches to it; each count is what that choice gives with the
+other picks, and a choice that would leave nothing is greyed out rather than hidden.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

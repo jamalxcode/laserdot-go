@@ -357,6 +357,15 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.22 (2026-11-20):** "when an option is chosen like resolution, keep the other options still active so the user
+  can add more options". Before, a chosen value's group vanished (its token was in the query, and every result then
+  had it), and so did any group the choice made uniform. Now `Refinements` sets the choice tokens apart
+  (`refineGroupOf`, `splitTokens`), takes groups and values from the base's results, counts each group within the
+  other groups' choices (token bitmaps cached per index, `hitsFor`), and returns choices `selected` as written.
+  App: `RefineOption.selected`, `applyRefinement(_:in:)` (remove / switch / add), `refineChip` (filled with ✓,
+  greyed at 0), `refine.remove`. Tests: every count after choosing 1080p equals the narrowed search (own group
+  without it), no group disappears, the choice comes back selected, `TestTypedChoicesAreRecognised`; self-test steps
+  `switched` (PDF→TXT) and `unrefined` (TXT removed).
 - **0.9.21, refinements (2026-11-20):** the owner, with a screenshot of `mp4` results: "it would be convenient to
   have different resolutions to choose from, sound / no sound, and other related options; same for images,
   documents; show related attributes that can be selected in addition to search term". `core/refine.go`

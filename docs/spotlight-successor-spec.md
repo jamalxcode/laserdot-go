@@ -370,6 +370,13 @@ white       = " " | "\t" | "\n" ;
   `refine` (`core.Refinements`): the query's hits per index (this Mac and each drive), each candidate token's bitmap
   intersected with them, facet values counted inside the hits (`Store.FacetCountsIn`, at most 6 per attribute).
   The app asks after each search's results arrive, on the guidance connection, skipping stale requests.
+  *0.9.22 (the owner: "keep the other options still active so the user can add more"):* faceted. The query's choice
+  tokens (by filter key: `res`, `a.count`, `orientation`, `duration`, `codec`, `hdr`, `camera`, `gps`,
+  `screenshot`/`live`/`raw`, `artist`, `album`, `genre`, `ext`, `modified`/`since`, `fsize`; not negated) are set apart
+  from the base; groups and values come from the base's results (so they stay put), each group is counted with the
+  other groups' choices applied but not its own, chosen values come back `selected` with their token as written. The
+  app: a chosen chip is filled with a check and removes its token; another value of a group with a choice replaces
+  it; a value giving 0 is greyed out.
 - **8.3** Zero-results coaching: three most likely causes — filter too narrow (one-click "relax this filter"), typo in filter value (suggested correction), folder not indexed (one-click "index this folder")
   - *As built (M8):* computed in the core from the index (`coach`), at most three, in this order:
     - **index this folder:** an `in:` path that exists on disk but is not inside an indexed folder;
