@@ -118,6 +118,11 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Background means background (0.9.20):** laserdotd runs at low priority with throttled disk access; few files
   open at once; indexing pauses while an update installs; every update tool has a time limit, the window a clock,
   and Save Diagnostics a log of step durations.
+- **A lean, self-healing build (2026-11-20):** documents-only commits use no Mac; a newer push cancels the branch run
+  it replaces (never main's); every job has a time limit; jobs GitHub left without a machine retry by themselves (at
+  most twice) while real failures stay failures; the Mac runs the race detector only on macOS-specific code; the
+  million-file test follows indexer changes; the self-test times every step and milestone, so slow spots are found
+  from numbers.
 - **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account), and more
   languages than English and Arabic for now.
 
@@ -365,7 +370,9 @@ Binding unless revisited deliberately; each is also in the spec.
   step for a Quick Look panel that CI's Mac reports visible after it closed (now waited for once, about a second,
   `quicklook_stuck_before`); the Arabic run held for the accessibility reader CI runs only in English (the variable is
   set, empty) and waited out its 2-minute limit (now only a non-empty value holds). The app job went from ~17 min to
-  11.6 min with the first fix, and the Arabic hold is another ~2.5 min.
+  11.6 min with the first fix and to **8.4 min** with the second (self-test 138 s English, 134 s Arabic, from 291 and
+  429 s); the Mac test job 1.8 min (from 4.4). What is left is the work itself: 46 steps at about 2.8 s and the
+  windows tour at 22 s per language.
 - **0.9.20 (2026-11-19):** the owner's 0.9.19 install took over 3 minutes and the Mac showed the beachball while an
   8 TB drive was being indexed; with the drive unplugged the update went through. Four fixes: (1) `daemon.StepBack`
   (nice 10; macOS throttled disk I/O through purego) before the index opens; (2) `AttachDrive`/`CatchUpDrive`

@@ -69,6 +69,8 @@ The engineering pillars behind them are in [`../CLAUDE.md`](../CLAUDE.md).
    commit and reuses the passing run. Nothing reaches `main` before its branch run is green.
 3. Release notes are plain words; a version marked `<!-- quiet -->` gets no What's New message.
 4. Only the owner can push or publish.
+5. **The build is lean and heals itself:** documents-only commits use no Mac, every job has a time limit, and a job
+   GitHub could not give a machine is started again by itself; a job that ran and failed is never retried silently.
 
 ## 6. Engagement: useful return, not time spent
 

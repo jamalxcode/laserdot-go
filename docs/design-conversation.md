@@ -521,7 +521,9 @@ the race detector only where the code is macOS-specific; the million-file test f
 self-test retries a lost Space key and times every step, so the next trim is chosen from numbers rather than guesses.
 **Then "fix it all":** the timings found the two big waits (Quick Look waited for before every step, 105 s per
 language; the Arabic run holding for an English-only reader, about 2.5 minutes); both fixed, the app job from about 17
-minutes to under 10.
+minutes to 8.4 (the self-test from 291 s and 429 s to 138 s and 134 s; the Mac test job from 4.4 to 1.8 minutes),
+merged to `main` at 04:44 Kuwait time without a release (nothing in the app changed for users). The owner checked in
+twice ("is it done yet?") while the runs went; each answer gave the run's start time and an estimate.
 
 ## Chat conventions
 
