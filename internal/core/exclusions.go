@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sync"
 
+	"github.com/jamalxcode/laserdot-go/internal/index"
 	"github.com/jamalxcode/laserdot-go/internal/scan"
 )
 
@@ -118,9 +119,32 @@ func (ld *Laserdot) dropSystemJunk() {
 	if v, _ := ld.db.Setting(junkCleanedKey); v == "1" {
 		return
 	}
-	dirs := map[string]bool{}
 	ld.mu.RLock()
-	s := ld.store
+	changes := junkFolders(ld.store)
+	ld.mu.RUnlock()
+	if len(changes) > 0 {
+		if _, err := ld.ApplyChanges(changes); err != nil {
+			return // tried again next time
+		}
+	}
+	ld.db.SetSetting(junkCleanedKey, "1")
+}
+
+// dropDriveJunk does the same for a drive's index (indexed before system
+// files were ignored), each time the drive is attached: finding none costs
+// one pass over its names.
+func (ld *Laserdot) dropDriveJunk(d *drive) {
+	ld.mu.RLock()
+	changes := junkFolders(d.store)
+	ld.mu.RUnlock()
+	if len(changes) > 0 {
+		_, _ = ld.ApplyChanges(changes)
+	}
+}
+
+// junkFolders: the folders of s holding a system file, to list again.
+func junkFolders(s *index.Store) []Change {
+	dirs := map[string]bool{}
 	it := s.Live().Iterator()
 	for it.HasNext() {
 		id := it.Next()
@@ -128,15 +152,9 @@ func (ld *Laserdot) dropSystemJunk() {
 			dirs[filepath.Dir(s.Path(id))] = true
 		}
 	}
-	ld.mu.RUnlock()
-	var changes []Change
+	changes := make([]Change, 0, len(dirs))
 	for d := range dirs {
 		changes = append(changes, Change{Path: d})
 	}
-	if len(changes) > 0 {
-		if _, err := ld.ApplyChanges(changes); err != nil {
-			return // tried again next time
-		}
-	}
-	ld.db.SetSetting(junkCleanedKey, "1")
+	return changes
 }

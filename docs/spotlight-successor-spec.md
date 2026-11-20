@@ -546,6 +546,8 @@ white       = " " | "\t" | "\n" ;
   is typed, ↓ is pressed or a button is clicked; an empty box goes back to the start. Recent files no longer open the
   window by themselves (↓ or Recently Opened). Below 300 points of field the tools, then all buttons, are left out.
   The search field is one view in one place whatever the state (rebuilding it on the switch lost the first letter).
+  *0.9.32:* ⌘1–⌘9 press the buttons; the empty box's placeholder says "↓ for recent files"; a search limited to a
+  place that finds nothing offers Search Everywhere.
 - **13.6x** *Dialogs and content (v1.46, 0.9.29):* every dialog (alerts, open and save panels, the update prompt)
   stays in front: it does not hide when another app is used, shows on every Space and over full-screen apps (the
   owner's update prompt kept vanishing behind the browser). Content search reads no hidden entry (anything inside a
@@ -591,7 +593,8 @@ white       = " " | "\t" | "\n" ;
     bookkeeping files are never indexed, by exact name — `.DS_Store`, `.localized`, `.apdisk`, `.VolumeIcon.icns`,
     `.com.apple.timemachine.donotpresent`, `Icon\r`, `Thumbs.db`, `ehthumbs.db`, `desktop.ini`, `.directory` — and
     AppleDouble `._*` files, in the same rule as partial downloads (walks and the watcher's re-listing alike). This
-    Mac's index is cleared of any it already held once, on opening; other dot files (`.env`, `.zshrc`) stay
+    Mac's index is cleared of any it already held once, in the background after opening (0.9.32), and a drive's
+    index each time the drive is attached; other dot files (`.env`, `.zshrc`) stay
   - Version-control folders (`.git`, `.hg`, `.svn`) are listed as results but their contents are not indexed
 - **13.7** Index schema versioned; app updates migrate in place; incompatible versions trigger rebuild with checkpoint resume
 - **13.9** Rust workspace layout (Cargo workspace, `crates/`):

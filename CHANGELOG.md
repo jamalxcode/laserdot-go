@@ -3,6 +3,15 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.32
+
+- ⌘1–⌘9 press the start's round buttons (⌘2 is Videos), so the start works without the mouse.
+- The empty search box says "↓ for recent files".
+- When a search limited to one place finds nothing, a **Search Everywhere** button looks everywhere else.
+- The home screen no longer repeats Videos (the round button does it).
+- The one-time removal of .DS_Store files from the index runs in the background, so Laserdot starts at full speed,
+  and a drive indexed before 0.9.30 loses its .DS_Store entries the next time it is connected.
+
 ## 0.9.31
 
 - A new start, like macOS's Spotlight: ⌥Space shows a rounded search bar and a row of round buttons — Recently

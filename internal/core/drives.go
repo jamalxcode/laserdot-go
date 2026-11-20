@@ -718,6 +718,7 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 		go func() {
 			defer ld.streams.Done()
 			ld.CatchUpDrive(mount)
+			ld.dropDriveJunk(d) // .DS_Store and the like from an index made before they were ignored
 		}()
 	}
 	ld.mu.RLock()

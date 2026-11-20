@@ -36,7 +36,8 @@ From the search review of 2026-11-20 (the owner chose 2, 4, 5, 8 and 10, all don
 - **Similar-looking pictures in More Like This** (needs pictures fingerprinted at search time; Find Duplicates
   already finds look-alikes).
 - Hide a choice that every result already has (e.g. "Documents 1" when the one result is a document).
-- Drives indexed before 0.9.30 keep `.DS_Store` entries until rebuilt; clean them on attach too.
+- From the critique of 2026-11-21: one place control instead of four (place menu, Folder choice, `in:`, Settings);
+  a visible recent-files row at the start; a rewritten spec; an Arabic review by a native speaker.
 
 From the speed review of 2026-11-16 (measured on CI's Mac with a million files), in the order proposed:
 

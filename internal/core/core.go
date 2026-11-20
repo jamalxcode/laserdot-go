@@ -231,7 +231,14 @@ func OpenAt(dbPath string, now time.Time) (*Laserdot, error) {
 		db.Close()
 		return nil, err
 	}
-	ld.dropSystemJunk()
+	// Off the start: on a Mac with thousands of folders the one-time
+	// cleanup could hold searches up for seconds.
+	ld.background.Add(1)
+	go func() {
+		defer ld.background.Done()
+		defer crash.Guard("clearing system files from the index")
+		ld.dropSystemJunk()
+	}()
 	for _, root := range rep.RootsToReindex {
 		if fi, err := os.Stat(root); err == nil && fi.IsDir() {
 			if _, err := ld.Index(root); err == nil {

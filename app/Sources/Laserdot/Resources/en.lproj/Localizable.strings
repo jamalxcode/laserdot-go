@@ -485,6 +485,8 @@
 "quality.good" = "good quality";
 "quality.low" = "low quality";
 "start.recent" = "Recently Opened";
+"search.placeholderStart" = "Search files, media and disks — ↓ for recent files";
+"place.nothingThere" = "Nothing in %@ — Search Everywhere";
 "refine.leaveOut" = "Leave Out";
 "refine.leftOut.help" = "Left out of the search: click to bring %@ back";
 "refine.leftOut.spoken" = "%@ %@, left out";

@@ -76,6 +76,10 @@ struct SearchField: NSViewRepresentable {
     func updateNSView(_ f: NSTextField, context: Context) {
         let c = context.coordinator
         c.parent = self
+        if f.placeholderString != placeholder {
+            f.placeholderString = placeholder
+            f.setAccessibilityLabel(placeholder)
+        }
         let typed = text as NSString
         // The model changed the query (history, completion, a chip): show it.
         if f.stringValue != text && !(c.shownSuffix != nil && f.stringValue == text + (c.shownSuffix ?? "")) {

@@ -635,7 +635,6 @@ final class SearchModel: ObservableObject {
     static let quickStarts: [QuickStart] = [
         QuickStart(id: "downloads", symbol: "arrow.down.circle", query: "in:~/Downloads since:30d"),
         QuickStart(id: "photos", symbol: "photo", query: "kind:image since:30d"),
-        QuickStart(id: "videos", symbol: "film", query: "kind:video"),
         QuickStart(id: "documents", symbol: "doc.text", query: "kind:document since:7d"),
         QuickStart(id: "big", symbol: "externaldrive", query: "fsize:>1gb"),
     ]

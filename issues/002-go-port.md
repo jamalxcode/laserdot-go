@@ -137,6 +137,11 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Tidy and quiet (0.9.32):** `openNumbered` presses the start's buttons while `compact`; the placeholder at the
+  start mentions ↓ (`SearchField` now updates its placeholder); an empty result with `placeInEffect` shows Search
+  Everywhere (`dropPlace`); `quickStarts` loses `videos`. `dropSystemJunk` runs on `ld.background` after open;
+  `dropDriveJunk` runs after a drive's catch-up on attach (`junkFolders` shared). Tests:
+  `TestADrivesOlderIndexLosesItsJunkFiles`; self-test steps startnumber, noneplace, noneplaceoff.
 - **The start (0.9.31):** `compact` no longer depends on the empty box's results; `showHomeList` (↓ or Recently
   Opened) opens them. `SearchModel.startButtons` builds kinds from `kind:` pills and tools from `commandProvider`
   (the `>` commands), Drives only while an `eject:` command exists. `SearchView.startBar` draws the capsule and

@@ -661,6 +661,17 @@ first letter typed (the start and the full window each had their own search fiel
 letter); the self-test's typed queries showed it ("pg" for "jpg"), and the field was made one view in one place.
 The start was checked on the screenshots in English and Arabic (mirrored, buttons on the left) before releasing.
 
+## 50. Critique, and "do 2 3" (0.9.32)
+
+**Asked:** "review laserdot and critique it, how can it be made better", then "do 2 3". The critique: overlapping
+controls, hidden ones (recent files behind ↓, leaving out behind a hover), a silent default place hiding files,
+too many releases, lab-only testing, the junk cleanup on the start, drives lagging behind this Mac, a patched spec,
+unreviewed Arabic, no notarization. **Done (2, tidying):** ⌘1–⌘9 press the start's buttons; the empty box says
+"↓ for recent files"; a search limited to a place that finds nothing offers Search Everywhere; the home screen's
+Videos start, which the round button repeats, is gone. **Done (3, quiet risks):** the one-time junk cleanup runs in
+the background instead of holding the start up, and a drive's index is cleared of junk each time it is attached.
+**Left for later:** a week of use before new features (1), weekly releases (4), a rewritten spec (5), notarization (6).
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

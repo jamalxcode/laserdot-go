@@ -25,6 +25,15 @@ extension SearchView {
                     if model.problem == nil {
                         Text(L("results.none")).foregroundStyle(.secondary)
                     }
+                    // Limited to a place (Settings ▸ Search in, or the
+                    // place menu): it may be elsewhere.
+                    if model.placeInEffect {
+                        Button(String(format: L("place.nothingThere"), SearchPlace.title(model.searchPlace, thisMac: L("refine.drive.local")))) {
+                            model.dropPlace()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("searchEverywhere")
+                    }
                     ForEach(model.notes, id: \.self) { Text($0).font(.caption).foregroundStyle(.secondary) }
                     coachingList
                 }

@@ -60,6 +60,30 @@ func TestAnOlderIndexLosesItsJunkFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer ld2.Close()
-	expect(t, dnames(t, ld2, "ds_store"))
+	// In the background (it must not hold the start up): soon gone.
+	waitFor(t, "the old .DS_Store to go", func() bool { return len(dnames(t, ld2, "ds_store")) == 0 })
 	expect(t, dnames(t, ld2, "plan"), "plan.txt")
+}
+
+// A drive indexed before system files were ignored loses them when it is
+// attached again.
+func TestADrivesOlderIndexLosesItsJunkFiles(t *testing.T) {
+	saved := scan.SystemJunkNames
+	scan.SystemJunkNames = nil
+	m := newMac(t)
+	drive := makeDrive(t, m.vols, "Archive")
+	writeAged(t, filepath.Join(drive, "Films/.DS_Store"), []byte("x"))
+	if _, err := m.ld.CreateDriveIndex(drive, DriveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, dnames(t, m.ld, "ds_store"), ".DS_Store")
+	scan.SystemJunkNames = saved
+	if !m.ld.DetachDrive(drive) {
+		t.Fatal("detach")
+	}
+	if _, err := m.ld.AttachDrive(drive, ""); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, "the drive's old .DS_Store to go", func() bool { return len(dnames(t, m.ld, "ds_store")) == 0 })
+	expect(t, dnames(t, m.ld, "trip"), "trip.mp4")
 }

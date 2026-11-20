@@ -17,7 +17,8 @@ extension SearchView {
             pillRow
             SearchField(
                 text: $model.fieldText,
-                placeholder: L("search.placeholder"),
+                // At the start the box says where recent files are (↓).
+                placeholder: atStart ? L("search.placeholderStart") : L("search.placeholder"),
                 focusToken: model.focusRequest,
                 onMove: { d in model.showCheatSheet ? model.moveCheat(d) : model.move(d) },
                 onExtend: { d in model.extend(d) },

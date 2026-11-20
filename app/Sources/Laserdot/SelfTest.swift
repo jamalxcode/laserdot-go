@@ -151,7 +151,7 @@ final class SelfTestRunner {
             // A one-click start from the home screen: its filter is a pill;
             // Delete with nothing typed takes the pill away.
             Step(name: "quickstart", typed: "", after: {
-                model.query = SearchModel.quickStarts.first { $0.id == "videos" }!.query + " "
+                model.query = (SearchModel.quickStarts.first { $0.id == "documents" }?.query ?? "kind:document since:7d") + " "
             }, until: { $0.isHome }, wait: 1.5),
             Step(name: "pillback", typed: "", after: {
                 model.query = "kind:video "
@@ -307,6 +307,16 @@ final class SelfTestRunner {
                 model.loadHome()
                 model.showHomeList = true // ↓ or Recently Opened
             }),
+            // ⌘2 at the start presses the second round button (Videos).
+            Step(name: "startnumber", typed: "", after: { model.openNumbered(2) }, until: { $0.compact }, wait: 1.5),
+            // Limited to a place where nothing matches: Search Everywhere.
+            Step(name: "noneplace", typed: "quokka", before: {
+                UserDefaults.standard.set(folder + "/Trips/2023", forKey: SearchPlace.key)
+            }, until: { $0.placeInEffect && $0.results.isEmpty && !$0.searching }),
+            Step(name: "noneplaceoff", typed: "quokka", after: {
+                model.dropPlace()
+                UserDefaults.standard.removeObject(forKey: SearchPlace.key)
+            }, until: { $0.placeInEffect }, wait: 1.5),
             // The start's round buttons: Videos runs its search as a pill.
             Step(name: "startvideos", typed: "", after: {
                 model.startButtons.first { $0.id == "videos" }?.run()

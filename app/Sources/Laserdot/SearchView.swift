@@ -83,7 +83,7 @@ struct SearchView: View {
                     .background(Circle().fill(.regularMaterial))
                     .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
                     .padding(.leading, b.isTool && i > 0 && !buttons[i - 1].isTool ? 10 : 0)
-                    .help(b.title)
+                    .help(i < 9 ? "\(b.title)  ⌘\(i + 1)" : b.title)
                     .accessibilityLabel(b.title)
                     .accessibilityIdentifier("start-" + b.id)
                 }

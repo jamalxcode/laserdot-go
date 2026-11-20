@@ -36,7 +36,7 @@ if split:
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
 for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
-             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "startvideos"):
+             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "startnumber", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -99,7 +99,7 @@ check(pl["results"] == ["rome trip.txt"] and pl.get("place_pill") is True, f"a d
 check(len(po["results"]) >= 3 and po.get("place_pill") is False, f"Search Everywhere drops it for this search (got {po['results']}, pill {po.get('place_pill')})")
 
 qs = steps["quickstart"]
-check(qs.get("pills") == ["kind:video"] and qs.get("field_text") == "" and "clip.mp4" in qs["results"],
+check(qs.get("pills") == ["kind:document", "since:7d"] and qs.get("field_text") == "" and "project.pdf" in qs["results"],
       f"a home start runs its search as a pill (got {qs.get('pills')}, {qs.get('field_text')!r}, {qs['results']})")
 bk = steps["pillback"]
 check(bk.get("pills") == [] and bk["query"] == "", f"Delete in an empty field takes the last pill away (got {bk.get('pills')}, {bk['query']!r})")
@@ -119,6 +119,11 @@ check(steps.get("start", {}).get("compact") is True, "the overlay starts as the 
 sb = steps.get("start", {}).get("start_buttons", [])
 check(all(b in sb for b in ("recent", "videos", "images", "music", "documents", "apps", "dupes", "storage", "index", "settings")) and sb.index("videos") < sb.index("dupes"),
       f"the start offers kinds of files, then the menu's tools (got {sb})")
+sn = steps["startnumber"]
+check(sn.get("pills") == ["kind:video"] and "clip.mp4" in sn["results"], f"⌘2 at the start presses Videos (got {sn.get('pills')}, {sn['results']})")
+np_, npo = steps["noneplace"], steps["noneplaceoff"]
+check(np_["results"] == [] and np_.get("place_pill") is True, f"nothing in the place: an empty list with Search Everywhere (got {np_['results']}, {np_.get('place_pill')})")
+check("archive-2023.zip" in npo["results"] and npo.get("place_pill") is False, f"Search Everywhere finds it elsewhere (got {npo['results']})")
 sv = steps["startvideos"]
 check(sv.get("pills") == ["kind:video"] and "clip.mp4" in sv["results"] and not sv["compact"], f"the Videos button searches videos (got {sv.get('pills')}, {sv['results']})")
 check(not jpg["compact"], "the overlay grows for results")

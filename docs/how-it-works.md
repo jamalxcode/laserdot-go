@@ -39,7 +39,8 @@ One page, kept current: what is true today. The history and the reasons are in
 - **The start:** ⌥Space shows the bar alone (a capsule) and round buttons: kinds of files (Recently Opened, Videos,
   Images, Music, Documents, Apps — each runs its search as a pill) and the menu's tools (Duplicates, Storage, Drives
   while one is attached, Index a Folder, Settings — the `>` commands' actions). The window grows on typing, ↓ or a
-  button; the tools, then all buttons, give way when the window is narrow.
+  button; the tools, then all buttons, give way when the window is narrow. ⌘1–⌘9 press the buttons; the empty box
+  says "↓ for recent files"; a search limited to a place that finds nothing offers Search Everywhere.
 - **Pills:** the query is one string; the field shows its typed words and its filter words as pills before them
   (`Pills.split`/`join` in LaserdotKit). A filter becomes a pill once a space follows it; choices are added in front,
   so typing goes on at the end. A chosen group leaves the choice row (its pill stands for it).
@@ -47,7 +48,8 @@ One page, kept current: what is true today. The history and the reasons are in
 - **Default place:** Settings ▸ General ▸ Search in (Everywhere, This Mac, a folder) adds `volume:local` or `in:"…"`
   to every search that names no place; a pill shows it, and Search Everywhere drops it until the field is cleared.
 - **System junk** (`.DS_Store`, `._*`, `.localized`, `Icon\r`, `Thumbs.db`, `desktop.ini`…) is never indexed
-  (`scan.IsSystemJunk`, in the same rule as partial downloads); an older index is cleared of it once on opening.
+  (`scan.IsSystemJunk`, in the same rule as partial downloads); an older index is cleared of it once, in the
+  background after opening, and a drive's index each time the drive is attached.
 - **Content search** reads no hidden folder (`.obsidian`, `.git`, an app's plugins); among content matches,
   documents come first, then other files, then code.
 - **Inside zips:** the daemon lists the names inside this Mac's `.zip` files (the central directory only) into
