@@ -46,6 +46,10 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 5h. **Hold a file only while you use it.** A drive's index stayed open for as long as the drive was attached, so
     macOS refused to eject it. Open for the job, close after it, and let go when the system asks.
 
+5i. **Test the case the user hit, not a neighbour of it.** The self-test chose `ext:pdf`, which has no typing
+    suggestions; the owner chose `res:1440p`, which does, and the suggestions hid the choices. The test now checks
+    the row is still shown after a click, whatever the filter.
+
 ## Crashes and recovery
 
 8. **Kill it on purpose.** A test that kills a real Laserdot process at random moments found, on its first runs, a

@@ -560,6 +560,13 @@ like resolution, the resolution attributes should go, but other mutually exclusi
 choices like location, modified, camera, etc". **Decided:** a chosen value's group shrinks to that value, moved to the
 front with its check (click to take it out); all other groups stay.
 
+## 41. Choices hidden by a suggestion (0.9.24)
+
+**Reported** (with screenshots): "i typed mov and chose res and then the other choices disappeared, thats not how it
+should work, i want to have a choice of with sound, time, things that can logically be added". **Found:** the chosen
+filter was treated as a word being typed, so a suggestion for it ("1440p") appeared and the choice row hid behind it.
+**Decided:** a clicked choice brings no suggestions, and the choice row is never hidden by suggestions.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

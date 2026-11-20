@@ -181,11 +181,11 @@ extension SearchView {
     /// What the results have to choose from, by attribute ("Resolution:
     /// 4K 3 · 1080p 12   Sound: With sound 14 · No sound 1"). A choice joins
     /// the query, so the hint line explains it and it can be removed by
-    /// editing the search like any word. Hidden while a filter is being
-    /// typed (its completions are shown instead).
+    /// editing the search like any word. Never hidden by completions (a
+    /// choice just clicked offers none).
     @ViewBuilder var refinementChips: some View {
         let groups = model.visibleRefinements
-        if !groups.isEmpty && model.completionChips.isEmpty && !model.isCommandMode {
+        if model.showsRefinements {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(groups, id: \.id) { g in

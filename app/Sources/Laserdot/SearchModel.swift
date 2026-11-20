@@ -273,11 +273,14 @@ final class SearchModel: ObservableObject {
             updateCompact()
             return
         }
+        // A choice just clicked is not a word being typed: no completions for
+        // it (they offered its own value back, "1440p", and hid the choices).
+        let fromChoice = choiceJustApplied
         guideQueue.async { [weak self] in
             guard let self, gen == self.currentGeneration() else { return }
             let h = engine.hint(query: q, cursor: caret, lang: appLang)
             let section = engine.sectionAt(query: q, cursor: caret)
-            let chips = Array(engine.completions(query: q, cursor: caret, lang: appLang).prefix(6))
+            let chips = fromChoice ? [] : Array(engine.completions(query: q, cursor: caret, lang: appLang).prefix(6))
             DispatchQueue.main.async {
                 guard gen == self.generation else { return }
                 self.hint = h
@@ -337,6 +340,14 @@ final class SearchModel: ObservableObject {
         return generationShared
     }
 
+    /// Set while a choice changes the query (queryChanged then offers no
+    /// completions for the token it added).
+    private var choiceJustApplied = false
+
+    /// The choice row shows whenever there are choices (completions for a
+    /// word being typed show above it; they never hide it).
+    var showsRefinements: Bool { !refinements.isEmpty && !isCommandMode }
+
     /// The choices as shown: a group with a choice shrinks to that choice
     /// (its other values go; click it to take it out and they come back),
     /// and chosen ones come first; every other group stays, to keep
@@ -361,15 +372,19 @@ final class SearchModel: ObservableObject {
     /// is one resolution). Otherwise it joins the search. Every other group
     /// stays available to add to.
     func applyRefinement(_ o: RefineOption, in group: RefineGroup? = nil) {
+        var next: String
         if o.isSelected {
-            query = Self.removing(o.token, from: query)
+            next = Self.removing(o.token, from: query)
         } else if let current = group?.options.first(where: \.isSelected) {
-            query = Self.removing(current.token, from: query) + " " + o.token
+            next = Self.removing(current.token, from: query) + " " + o.token
         } else {
             let q = query.trimmingCharacters(in: .whitespaces)
-            query = q.isEmpty ? o.token : q + " " + o.token
+            next = q.isEmpty ? o.token : q + " " + o.token
         }
-        query = query.trimmingCharacters(in: .whitespaces)
+        next = next.trimmingCharacters(in: .whitespaces)
+        choiceJustApplied = true
+        query = next // one change: queryChanged sees the flag
+        choiceJustApplied = false
     }
 
     /// The query without one token (as written in it), spaces tidied.

@@ -78,6 +78,8 @@ check("type" in ref.get("refine_groups", []), f"grouped under Type (got {ref.get
 rd = steps["refined"]
 check(rd["query"] == "proj ext:pdf", f"choosing PDF adds it to the search (got {rd['query']!r})")
 check(rd["results"] == ["project.pdf"], f"and narrows the results to the PDF (got {rd['results']})")
+check(rd.get("refine_row") is True, "after a choice the choice row is still shown")
+check(rd.get("completion_chips") == [], f"no completions for the choice just clicked (got {rd.get('completion_chips')})")
 shown = steps["chosen"].get("refine_shown", [])
 check(shown[:1] == ["type:*ext:pdf"], f"after choosing PDF its group shows only the choice, first (got {shown})")
 check(any(g.startswith("size:") for g in shown), f"and the other groups stay to keep narrowing (got {shown})")

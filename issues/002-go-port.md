@@ -357,6 +357,12 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.24 (2026-11-20):** the owner, with screenshots (`mov`, then `mov res:1440p` showing only a "1440p" chip): "i typed
+  mov and chose res and then the other choices disappeared". The clicked token ended the query, under the caret, so
+  completions offered its own value back, and the choice row was hidden whenever completions showed. Now a clicked
+  choice gives no completions (`choiceJustApplied`, the query set once), and the row is never hidden by completions
+  (`showsRefinements`). The self-test checks after a click: the row shown, no completion chips. (The earlier
+  self-test steps passed because `ext:pdf` has no completions; `res:1440p` does.)
 - **0.9.23 (2026-11-20):** the owner, with a screenshot of the `jpg` row (Resolution, Shape, Camera…): "when a choice is
   made, like resolution, the resolution attributes should go, but other choices remaining to allow further choices
   like location, modified, camera". `SearchModel.visibleRefinements`: a group with a choice shrinks to it and comes

@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.24
+
+- Fixed: after picking a choice (say 1440p), the other choices — sound, length, shape… — disappeared, leaving only a
+  "1440p" suggestion. They now stay, so you can keep adding to your search. The suggestions for a filter you type by
+  hand show above the choices instead of replacing them.
+
 ## 0.9.23
 
 - Tidier choices: once you pick a resolution (or a type, a camera…), the other values of that kind go away and your
