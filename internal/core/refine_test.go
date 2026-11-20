@@ -101,6 +101,12 @@ func TestVideoResultsOfferTheirAttributes(t *testing.T) {
 	if len(refineGroup(g2, "resolution")) < 2 {
 		t.Error("the other resolutions stay to switch to")
 	}
+	// A choice that leaves a single result keeps every group too, so it
+	// can be changed or taken out.
+	g4, _ := ld.Refinements("kind:video res:4k")
+	if len(refineGroup(g4, "resolution")) < 2 || len(g4) < len(groups)-1 {
+		t.Errorf("with one result left, the choices stay: %v", g4)
+	}
 	one, _ := ld.Refinements("city")
 	if len(refineGroup(one, "resolution")) > 0 {
 		t.Error("a single result has nothing to choose between")

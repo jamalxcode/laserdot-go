@@ -365,7 +365,9 @@ Binding unless revisited deliberately; each is also in the spec.
   App: `RefineOption.selected`, `applyRefinement(_:in:)` (remove / switch / add), `refineChip` (filled with ✓,
   greyed at 0), `refine.remove`. Tests: every count after choosing 1080p equals the narrowed search (own group
   without it), no group disappears, the choice comes back selected, `TestTypedChoicesAreRecognised`; self-test steps
-  `switched` (PDF→TXT) and `unrefined` (TXT removed).
+  `switched` (PDF→TXT) and `unrefined` (TXT removed). The first CI run caught the app asking only when a search had two or more results:
+  after a choice left one, the chips vanished. It now always asks (the engine answers nothing when the search itself
+  has nothing to choose between); the engine test also covers a choice that leaves one result.
 - **0.9.21, refinements (2026-11-20):** the owner, with a screenshot of `mp4` results: "it would be convenient to
   have different resolutions to choose from, sound / no sound, and other related options; same for images,
   documents; show related attributes that can be selected in addition to search term". `core/refine.go`

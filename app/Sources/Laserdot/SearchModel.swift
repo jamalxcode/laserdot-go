@@ -312,11 +312,11 @@ final class SearchModel: ObservableObject {
 
     /// Asks what the results have to choose from, after they arrive (on the
     /// guidance line, skipped when a newer keystroke came meanwhile).
+    /// Asked even for one result or none: after choices narrow the results
+    /// that far, the choices must stay to be changed or taken out (the
+    /// engine answers nothing when the search itself has nothing to choose
+    /// between).
     func loadRefinements(total: UInt64) {
-        guard total > 1 else {
-            refinements = []
-            return
-        }
         let (gen, q, engine) = (generation, query, self.engine)
         guideQueue.async { [weak self] in
             guard let self, gen == self.currentGeneration() else { return }
