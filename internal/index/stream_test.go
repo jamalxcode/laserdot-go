@@ -261,3 +261,30 @@ func TestStreamingFinishesOnEmptyFolders(t *testing.T) {
 		t.Error("every folder listed")
 	}
 }
+
+// Two processes opening a new index at once (the app's engine and the CLI)
+// both get a working index: the schema is made once, under the write lock.
+func TestOpeningANewIndexTwiceAtOnce(t *testing.T) {
+	for round := 0; round < 20; round++ {
+		path := filepath.Join(t.TempDir(), "index.db")
+		errs := make(chan error, 4)
+		dbs := make(chan *Db, 4)
+		for i := 0; i < 4; i++ {
+			go func() {
+				db, _, err := Open(path)
+				errs <- err
+				dbs <- db
+			}()
+		}
+		for i := 0; i < 4; i++ {
+			if err := <-errs; err != nil {
+				t.Fatalf("round %d: %v", round, err)
+			}
+			db := <-dbs
+			if _, err := db.Roots(); err != nil {
+				t.Fatalf("round %d: %v", round, err)
+			}
+			db.Close()
+		}
+	}
+}

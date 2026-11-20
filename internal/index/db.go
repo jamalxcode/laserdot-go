@@ -1,6 +1,7 @@
 package index
 
 import (
+	"context"
 	"database/sql"
 	"encoding/binary"
 	"errors"
@@ -182,11 +183,32 @@ func openConn(path, mount string) (*Db, error) {
 			return nil, err
 		}
 	}
-	if err := db.migrate(); err != nil {
+	if err := db.migrateRetrying(); err != nil {
 		conn.Close()
 		return nil, err
 	}
 	return db, nil
+}
+
+// migrateRetrying: two processes creating the same new index at once (the
+// app's engine and the CLI) race on SQLite's first locks and WAL files, and
+// some of those races fail at once rather than waiting out busy_timeout.
+// They are transient, so opening retries them for a while.
+func (d *Db) migrateRetrying() error {
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err := d.migrate()
+		if err == nil || !transientOpenError(err) || time.Now().After(deadline) {
+			return err
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+func transientOpenError(err error) bool {
+	m := err.Error()
+	return strings.Contains(m, "SQLITE_BUSY") || strings.Contains(m, "database is locked") ||
+		strings.Contains(m, "(5898)") // SQLITE_IOERR_DELETE_NOENT: the other opener removed a journal first
 }
 
 // Close closes the database.
@@ -240,12 +262,33 @@ func (d *Db) migrate() error {
 	if _, err := d.conn.Exec("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"); err != nil {
 		return err
 	}
-	v, err := d.Setting("schema_version")
+	// Under the write lock, checked again inside it: two processes opening
+	// a new index at once (the app's engine and the CLI, both on a new
+	// drive) must not both decide to create — the second would drop the
+	// tables the first just made ("table roots already exists" in CI).
+	ctx := context.Background()
+	c, err := d.conn.Conn(ctx)
 	if err != nil {
 		return err
 	}
+	// Closed before returning to the pool below: the pool has one
+	// connection, so holding c past the commit would deadlock.
+	defer c.Close()
+	if _, err := c.ExecContext(ctx, "BEGIN IMMEDIATE"); err != nil {
+		return err
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			c.ExecContext(ctx, "ROLLBACK")
+		}
+	}()
+	var v string
+	if err := c.QueryRowContext(ctx, "SELECT value FROM meta WHERE key = 'schema_version'").Scan(&v); err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
 	if v != strconv.Itoa(SchemaVersion) {
-		_, err = d.conn.Exec(`
+		_, err = c.ExecContext(ctx, `
 		DROP TABLE IF EXISTS entries;
 		DROP TABLE IF EXISTS roots;
 		CREATE TABLE roots (
@@ -279,11 +322,16 @@ func (d *Db) migrate() error {
 		CREATE INDEX entries_root ON entries(root);
 		CREATE INDEX entries_parent ON entries(parent);
 		DELETE FROM meta WHERE key = 'snapshot';
-		INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', '` + strconv.Itoa(SchemaVersion) + `');`)
+		INSERT OR REPLACE INTO meta (key, value) VALUES ('schema_version', '`+strconv.Itoa(SchemaVersion)+`');`)
 		if err != nil {
 			return err
 		}
 	}
+	if _, err := c.ExecContext(ctx, "COMMIT"); err != nil {
+		return err
+	}
+	committed = true
+	c.Close()
 	if d.mount == "" {
 		// Tier 2 attempts (§3.1.1), so a file is deep-probed once per version.
 		if _, err = d.conn.Exec(`CREATE TABLE IF NOT EXISTS tier2 (

@@ -182,7 +182,7 @@ jobs:
           db="$d/data/index.db"
           app/build/go/laserdotd --db "$db" --volume-interval 2 > "$d/daemon.log" 2>&1 &
           pid=$!
-          for i in $(seq 1 50); do app/build/go/laserdot --db "$db" status >/dev/null 2>&1 && break; sleep 0.2; done
+          for i in $(seq 1 50); do app/build/go/laserdot --db "$db" status 2>&1 | grep -q "not running" || break; sleep 0.2; done
           app/build/go/laserdot --db "$db" drives index "$vol"
           app/build/go/laserdot --db "$db" search note-17 | head -3
           echo "open on the drive (should be none):"; lsof +D "$vol" 2>/dev/null || true
@@ -274,7 +274,7 @@ jobs:
           db="$d/data/index.db"
           LASERDOT_DB="$db" app/build/Laserdot.app/Contents/MacOS/Laserdot > "$d/app.log" 2>&1 &
           app=$!
-          for i in $(seq 1 60); do app/build/go/laserdot --db "$db" status >/dev/null 2>&1 && break; sleep 0.5; done
+          for i in $(seq 1 60); do app/build/go/laserdot --db "$db" status 2>&1 | grep -q "not running" || break; sleep 0.5; done
           app/build/go/laserdot --db "$db" drives index "$vol" > "$d/index.log" 2>&1 &
           for i in $(seq 1 100); do app/build/go/laserdot --db "$db" drives | grep -q "LDBusy.*indexing" && break; sleep 0.1; done
           app/build/go/laserdot --db "$db" drives || true
