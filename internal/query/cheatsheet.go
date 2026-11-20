@@ -63,6 +63,7 @@ func CheatSheetIn(lang Lang) string {
 			"  معدل البت   kbps mbps                           bitrate:>20mbps\n" +
 			"  المدد       s min h                             duration:>2h\n" +
 			"  التواريخ    2025  2025-03  2025-03-14  today  yesterday  7d 2w 3mo 1y\n" +
+"              مارس 2024  الصيف الماضي  صيف 2023  بين يناير ومارس\n" +
 			"  المقارنة    > >= < <= =    المدى a..b    القائمة ext:mkv,mp4\n" +
 			"  القيمة المجردة تطابق بالدقة المكتوبة: modified:2024 = كل عام 2024، fsize:4gb = من 4.00 إلى 4.99 GB\n\n" +
 			"متقدم\n  re:<regex>   تعبير نمطي خام على الاسم (صيغة RE2، دون تمييز حالة الأحرف)؛ يأتي في النهاية\n")
@@ -75,6 +76,7 @@ func CheatSheetIn(lang Lang) string {
 		"  bit rates  kbps mbps                           bitrate:>20mbps\n" +
 		"  durations  s min h                             duration:>2h\n" +
 		"  dates      2025  2025-03  2025-03-14  today  yesterday  7d 2w 3mo 1y\n" +
+"             march 2024  last summer  summer 2023  between jan and mar\n" +
 		"  compare    > >= < <= =    range a..b    list ext:mkv,mp4\n" +
 		"  a bare value matches at the precision typed: modified:2024 = all of 2024, fsize:4gb = 4.00–4.99 GB\n" +
 		"  comparisons: numbers and sizes are exact (fsize:>4gb), dates use the whole period (modified:>2024 = 2025 on)\n\n" +

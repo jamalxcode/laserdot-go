@@ -260,6 +260,7 @@
 "storage.open" = "عرض المحتوى";
 "storage.help" = "الأحجام من الفهرس؛ تُقاس التطبيقات والحزم الأخرى مرة واحدة وتُحفظ. انقر مرتين على مجلد لعرض محتواه.";
 "action.terminal" = "فتح في Terminal";
+"action.moreLike" = "المزيد من المشابه";
 "action.copyLink" = "نسخ كرابط";
 "action.compress" = "ضغط";
 "action.moveTo" = "نقل إلى…";
@@ -439,6 +440,10 @@
 "refine.group.drive" = "القرص";
 "refine.group.folder" = "المجلد";
 "refine.drive.local" = "هذا الماك";
+"refine.leaveOut" = "استبعد";
+"refine.leftOut.help" = "مستبعد من البحث: انقر لإرجاع %@";
+"refine.leftOut.spoken" = "%@ %@، مستبعد";
+"refine.choose.help" = "انقر للبحث في هذا فقط (%@)؛ ⌥-انقر أو انقر بالزر الأيمن لاستبعاده";
 "refine.sound.with" = "مع صوت";
 "refine.sound.none" = "بلا صوت";
 "refine.hdr.yes" = "HDR";

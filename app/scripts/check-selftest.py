@@ -35,8 +35,8 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "where", "wherechosen", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
-             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "url", "similar", "home"):
+for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -85,6 +85,11 @@ check(shown[:1] == ["type:*ext:pdf"], f"after choosing PDF its group shows only 
 check(any(g.startswith("size:") for g in shown), f"and the other groups stay to keep narrowing (got {shown})")
 un = steps["unrefined"]
 check(un["query"] == "proj", f"clicking a chosen choice takes it out again (got {un['query']!r})")
+
+lo = steps["leftout"]
+check(lo["query"] == "proj -ext:pdf" and "project.pdf" not in lo["results"] and lo["results"], f"leaving PDF out drops the PDF (got {lo['query']!r}, {lo['results']})")
+los = steps["leftoutshown"].get("refine_shown", [])
+check(any("*-ext:pdf" in g for g in los), f"the left-out PDF shows, to bring it back (got {los})")
 
 wh = steps["where"]
 folders = [t for t in wh.get("refinements", []) if t.startswith("in:")]
@@ -181,7 +186,7 @@ check(steps["untrashed"]["results"] == ["trashme.txt"], f"Undo brings it back (g
 
 # ⌘K lists every action for one file.
 ids = steps["actions"]["action_ids"]
-for a in ("open", "reveal", "copyPath", "terminal", "searchIn", "compress", "moveTo", "rename", "trash"):
+for a in ("open", "reveal", "copyPath", "terminal", "searchIn", "moreLike", "compress", "moveTo", "rename", "trash"):
     check(a in ids, f"⌘K offers {a} (got {ids})")
 
 # Rename, Move to…, Undo.
@@ -212,6 +217,8 @@ drop = steps["drop"]
 check(drop["query"].startswith('in:"') and "readme.md" in drop["results"], f"dropping Projects searches in it (got {drop['query']!r}, {drop['results']})")
 
 # Search in This Folder.
+ml = steps["morelike"]
+check(ml["query"].startswith("ext:pdf fsize:") and "project.pdf" in ml["results"], f"More Like This searches the same type, size and date (got {ml['query']!r}, {ml['results']})")
 sin = steps["searchin"]
 check(sin["query"].startswith('in:"') and sin["query"].rstrip().endswith('/Projects"'), f"the query is in:\"…/Projects\" (got {sin['query']!r})")
 check("readme.md" in sin["results"] and "beach.jpg" not in sin["results"], f"only that folder's files (got {sin['results']})")

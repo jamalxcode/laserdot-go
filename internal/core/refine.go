@@ -37,6 +37,10 @@ type RefineOption struct {
 	Count uint64 `json:"count"`
 	// Selected: q already has it (Token is then as written in q).
 	Selected bool `json:"selected,omitempty"`
+	// Excluded: q leaves it out ("-ext:pdf", the owner's "exclude
+	// choices"); Token is the "-" token as written, Selected is set too
+	// (clicking takes it out of q) and Count is 0.
+	Excluded bool `json:"excluded,omitempty"`
 }
 
 // RefineGroup is a set of choices about one attribute.
@@ -102,8 +106,12 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	}
 	// The choices in q, by group, and the rest.
 	selected := map[string][]string{} // group → tokens as written
+	excluded := map[string]string{}   // the token left out (lower case, no "-") → as written
 	var baseToks []string
 	for _, tok := range splitTokens(q) {
+		if rest, ok := strings.CutPrefix(tok, "-"); ok && refineGroupOf(rest) != "" {
+			excluded[strings.ToLower(rest)] = tok // stays in the base: it narrows every count
+		}
 		if g := refineGroupOf(tok); g != "" {
 			selected[g] = append(selected[g], tok)
 		} else {
@@ -142,7 +150,7 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 			total += hits.GetCardinality()
 		}
 	}
-	if total < 2 {
+	if total < 2 && len(excluded) == 0 {
 		return out, nil // nothing to choose between
 	}
 	// tokenSet: the entries a token selects (one evaluation per token).
@@ -203,6 +211,18 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	groups := map[string]*RefineGroup{}
 	var order []string
 	add := func(group string, o RefineOption) {
+		if written, ok := excluded[strings.ToLower(o.Token)]; ok {
+			delete(excluded, strings.ToLower(o.Token)) // shown once
+			o.Token, o.Selected, o.Excluded, o.Count = written, true, true, 0
+			g := groups[group]
+			if g == nil {
+				g = &RefineGroup{ID: group}
+				groups[group] = g
+				order = append(order, group)
+			}
+			g.Options = append(g.Options, o)
+			return
+		}
 		written, sel := isSelected(group, o.Token)
 		if !sel {
 			if b := countBase(o.Token); b == 0 || b >= total {
@@ -315,6 +335,14 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 			}
 			add(g, RefineOption{Token: t, Label: label})
 		}
+	}
+	// A value left out by hand that is not among the values above.
+	for rest, written := range excluded {
+		label := written
+		if i := strings.Index(written, ":"); i >= 0 {
+			label = strings.Trim(written[i+1:], `"`)
+		}
+		add(refineGroupOf(rest), RefineOption{Token: rest, Label: label})
 	}
 	for _, id := range order {
 		if g := groups[id]; len(g.Options) > 0 {

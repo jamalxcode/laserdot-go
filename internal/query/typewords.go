@@ -2,6 +2,7 @@ package query
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -147,8 +148,205 @@ func init() {
 }
 
 // phraseFilter: two words that name a period ("last week", "this month",
-// "الاسبوع الماضي") as a filter, relative to now; "" when they do not.
+// "الاسبوع الماضي", "march 2024", "last summer") as a filter, relative to
+// now; "" when they do not.
 func phraseFilter(first, second string, now int64) string {
+	if f, n := datePhrase([]string{first, second}, now); n == 2 {
+		return f
+	}
+	return periodPhrase(first, second, now)
+}
+
+// PhraseAt: the longest date phrase starting at words[0] (up to 5 words:
+// "between march and may 2024"), as a filter, and how many words it takes;
+// 0 when none.
+func PhraseAt(words []string, now int64) (string, int) {
+	if f, n := datePhrase(words, now); n > 0 {
+		return f, n
+	}
+	if len(words) >= 2 {
+		if f := periodPhrase(words[0], words[1], now); f != "" {
+			return f, 2
+		}
+	}
+	return "", 0
+}
+
+var monthWords = map[string]int{}
+var seasonWords = map[string]int{} // → the season's first month (winter: 12)
+
+func init() {
+	for i, names := range [][]string{
+		{"january", "jan", "يناير"}, {"february", "feb", "فبراير"}, {"march", "mar", "مارس"},
+		{"april", "apr", "ابريل", "أبريل", "إبريل"}, {"may", "مايو"}, {"june", "jun", "يونيو", "يونيه"},
+		{"july", "jul", "يوليو", "يوليه"}, {"august", "aug", "اغسطس", "أغسطس"},
+		{"september", "sep", "sept", "سبتمبر"}, {"october", "oct", "اكتوبر", "أكتوبر"},
+		{"november", "nov", "نوفمبر"}, {"december", "dec", "ديسمبر"},
+	} {
+		for _, n := range names {
+			monthWords[fold.Fold(n)] = i + 1
+		}
+	}
+	for first, names := range map[int][]string{
+		3: {"spring", "الربيع", "ربيع"}, 6: {"summer", "الصيف", "صيف"},
+		9: {"autumn", "fall", "الخريف", "خريف"}, 12: {"winter", "الشتاء", "شتاء"},
+	} {
+		for _, n := range names {
+			seasonWords[fold.Fold(n)] = first
+		}
+	}
+}
+
+// month: a month name, also with the Arabic "and" joined to it (ومارس).
+func month(w string) (int, bool) {
+	w = fold.Fold(w)
+	if m, ok := monthWords[w]; ok {
+		return m, true
+	}
+	if rest, ok := strings.CutPrefix(w, fold.Fold("و")); ok {
+		m, ok := monthWords[rest]
+		return m, ok
+	}
+	return 0, false
+}
+
+func year(w string) (int, bool) {
+	if len(w) != 4 {
+		return 0, false
+	}
+	y, err := strconv.Atoi(w)
+	return y, err == nil && y >= 1900 && y <= 2200
+}
+
+// monthsFilter: modified from the start of (y1, m1) to the end of (y2, m2).
+func monthsFilter(y1, m1, y2, m2 int) string {
+	if y1 == y2 && m1 == m2 {
+		return fmt.Sprintf("modified:%04d-%02d", y1, m1)
+	}
+	return fmt.Sprintf("modified:%04d-%02d..%04d-%02d", y1, m1, y2, m2)
+}
+
+// seasonFilter: the three months of a season starting in month first of
+// year y (winter starts in December of the year before y's January).
+func seasonFilter(y, first int) string {
+	if first == 12 {
+		return monthsFilter(y-1, 12, y, 2)
+	}
+	return monthsFilter(y, first, y, first+2)
+}
+
+// datePhrase: "march 2024", "مارس 2024", "summer 2023", "last summer",
+// "this winter", "الصيف الماضي", "between march and may [2024]",
+// "from jan to mar", "بين يناير ومارس", "من يناير الى مارس". A month alone
+// is not one ("invoice march" is a name).
+func datePhrase(words []string, now int64) (string, int) {
+	if len(words) < 2 {
+		return "", 0
+	}
+	t := time.Unix(now, 0)
+	cy, cm := t.Year(), int(t.Month())
+	w0, w1 := fold.Fold(words[0]), fold.Fold(words[1])
+	// The season of year y that has begun by now, or the one before.
+	lastSeason := func(first int) string {
+		y := cy
+		if first == 12 {
+			// Winter y is December y-1 to February y; the last one over.
+			if cm <= 2 {
+				y = cy - 1
+			}
+			return seasonFilter(y, 12)
+		}
+		if cm < first+3 {
+			y-- // this year's has not finished
+		}
+		return seasonFilter(y, first)
+	}
+	thisSeason := func(first int) string {
+		if first == 12 {
+			if cm == 12 {
+				return seasonFilter(cy+1, 12)
+			}
+			return seasonFilter(cy, 12)
+		}
+		return seasonFilter(cy, first)
+	}
+	// Between two months: this year's span if it has begun, else last year's.
+	span := func(m1, m2 int, y int, hasYear bool) string {
+		y1 := y
+		if !hasYear {
+			y1 = cy
+			if m1 > cm {
+				y1--
+			}
+		}
+		y2 := y1
+		if m2 < m1 {
+			if hasYear {
+				y1-- // "between nov and feb 2025": Nov 2024 to Feb 2025
+			} else {
+				y2++
+			}
+		}
+		return monthsFilter(y1, m1, y2, m2)
+	}
+	if m, ok := month(w0); ok {
+		if y, ok := year(w1); ok {
+			return monthsFilter(y, m, y, m), 2
+		}
+	}
+	if first, ok := seasonWords[w0]; ok {
+		if y, ok := year(w1); ok {
+			return seasonFilter(y, first), 2
+		}
+		if w1 == fold.Fold("الماضي") || w1 == fold.Fold("الماضية") {
+			return lastSeason(first), 2
+		}
+		if w1 == fold.Fold("هذا") || w1 == fold.Fold("الحالي") {
+			return thisSeason(first), 2
+		}
+	}
+	if first, ok := seasonWords[w1]; ok {
+		switch w0 {
+		case "last", "past":
+			return lastSeason(first), 2
+		case "this":
+			return thisSeason(first), 2
+		}
+		if w0 == fold.Fold("هذا") {
+			return thisSeason(first), 2
+		}
+	}
+	// between / from M1 and / to M2 [year]; Arabic "و" may join M2.
+	isStart := w0 == "between" || w0 == "from" || w0 == fold.Fold("بين") || w0 == fold.Fold("من")
+	if isStart && len(words) >= 3 {
+		m1, ok := month(words[1])
+		if !ok {
+			return "", 0
+		}
+		i := 2
+		if c := fold.Fold(words[2]); c == "and" || c == "to" || c == "till" || c == "until" || c == "-" ||
+			c == fold.Fold("و") || c == fold.Fold("الى") || c == fold.Fold("حتى") {
+			i = 3
+		}
+		if i >= len(words) {
+			return "", 0
+		}
+		m2, ok := month(words[i])
+		if !ok || (i == 2 && !strings.HasPrefix(fold.Fold(words[2]), fold.Fold("و"))) {
+			return "", 0
+		}
+		if i+1 < len(words) {
+			if y, ok := year(words[i+1]); ok {
+				return span(m1, m2, y, true), i + 2
+			}
+		}
+		return span(m1, m2, 0, false), i + 1
+	}
+	return "", 0
+}
+
+// periodPhrase: "last week", "this month", "الاسبوع الماضي".
+func periodPhrase(first, second string, now int64) string {
 	a, b := fold.Fold(first), fold.Fold(second)
 	periods := map[string]string{"day": "1d", "week": "7d", "month": "30d", "year": "365d"}
 	switch a {

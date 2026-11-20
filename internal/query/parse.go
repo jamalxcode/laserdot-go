@@ -146,12 +146,17 @@ func ParseAt(input string, now int64) (*Query, error) {
 	var pendingOr *Span
 	for i := 0; i < len(tokens); i++ {
 		tok := tokens[i]
-		// "last week", "this month": two words, one date filter.
+		// "last week", "march 2024", "between jan and mar": words, one
+		// date filter.
 		if i+1 < len(tokens) {
-			if text := phraseFilter(tok.text, tokens[i+1].text, now); text != "" {
-				span := Span{tok.span.Start, tokens[i+1].span.End}
+			words := make([]string, 0, 5)
+			for j := i; j < len(tokens) && j < i+5; j++ {
+				words = append(words, tokens[j].text)
+			}
+			if text, n := PhraseAt(words, now); n > 0 {
+				span := Span{tok.span.Start, tokens[i+n-1].span.End}
 				if f, ok := p.wordFilter(text, span); ok {
-					i++
+					i += n - 1
 					term := Term{Span: span, Kind: TermFilter, Filter: *f}
 					if pendingOr != nil {
 						last := &q.Clauses[len(q.Clauses)-1]

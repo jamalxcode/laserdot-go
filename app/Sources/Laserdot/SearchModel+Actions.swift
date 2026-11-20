@@ -58,6 +58,9 @@ extension SearchModel {
                 let dir = first.isDir && first.kind != "app" ? first.path : (first.path as NSString).deletingLastPathComponent
                 self?.searchInFolder(dir)
             },
+            ActionItem(id: "moreLike", title: L("action.moreLike"), symbol: "square.stack.3d.down.right") { [weak self] in
+                self?.moreLike(path: first.path)
+            },
             ActionItem(id: "copyLink", title: L("action.copyLink"), symbol: "link.badge.plus") {
                 let links = zip(hits, urls).map { h, u in "[\(h.name)](\(u.absoluteString))" }
                 NSPasteboard.general.clearContents()
@@ -199,6 +202,17 @@ extension SearchModel {
                 self?.refreshSoon()
                 done(error)
             }
+        }
+    }
+
+    /// ⌘K "More Like This": the search becomes files like this one (same
+    /// type, similar size, near date), as words that can be changed.
+    func moreLike(path: String) {
+        let engine = self.engine
+        showActions = false
+        guideQueue.async { [weak self] in
+            guard let q = engine.moreLike(path: path), !q.isEmpty else { return }
+            DispatchQueue.main.async { self?.query = q + " " }
         }
     }
 

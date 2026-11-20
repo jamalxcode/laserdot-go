@@ -61,4 +61,21 @@ final class RefineLogicTests: XCTestCase {
         XCTAssertTrue(groups[0].options[1].isSelected)
         XCTAssertNil(groups[0].options[0].key)
     }
+
+    // The owner chose "exclude choices": ⌥-click leaves a value out with a
+    // "-" word; clicking the struck-through chip brings it back; the group
+    // stays open for more.
+    func testLeavingAChoiceOutAndBringingItBack() throws {
+        let pdf = RefineOption(token: "ext:pdf", label: "PDF", key: nil, count: 2)
+        XCTAssertEqual(RefineLogic.excluding(pdf, to: "report"), "report -ext:pdf")
+        let chosen = RefineOption(token: "ext:pdf", label: "PDF", key: nil, count: 2, selected: true)
+        XCTAssertEqual(RefineLogic.excluding(chosen, to: "report ext:pdf"), "report -ext:pdf")
+        let out = RefineOption(token: "-ext:pdf", label: "PDF", key: nil, count: 0, selected: true, excluded: true)
+        XCTAssertEqual(RefineLogic.applying(out, in: nil, to: "report -ext:pdf"), "report")
+        let groups = [RefineGroup(id: "type", options: [RefineOption(token: "ext:txt", label: "TXT", key: nil, count: 1), out])]
+        XCTAssertEqual(RefineLogic.visible(groups)[0].options.count, 2, "TXT stays to choose")
+        let json = #"[{"id":"type","options":[{"token":"-ext:pdf","label":"PDF","count":0,"selected":true,"excluded":true}]}]"#
+        let decoded = try JSONDecoder().decode([RefineGroup].self, from: Data(json.utf8))
+        XCTAssertTrue(decoded[0].options[0].isExcluded)
+    }
 }

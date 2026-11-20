@@ -390,6 +390,14 @@ final class SearchModel: ObservableObject {
         choiceJustApplied = false
     }
 
+    /// Leave a choice out (⌥-click or Leave Out): "-token" joins the search.
+    func excludeRefinement(_ o: RefineOption) {
+        let next = RefineLogic.excluding(o, to: query)
+        choiceJustApplied = true
+        query = next
+        choiceJustApplied = false
+    }
+
     static func removing(_ token: String, from q: String) -> String { RefineLogic.removing(token, from: q) }
 
     func apply(_ outcome: Result<Results, Error>) {

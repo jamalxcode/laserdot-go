@@ -18,6 +18,7 @@ type target interface {
 	refresh() (core.UpdateStats, error)
 	forget(path string) (bool, error)
 	roots() ([]index.RootInfo, error)
+	moreLike(path string) (string, error)
 	stats() (core.Stats, error)
 	close()
 	moreTarget
@@ -47,6 +48,7 @@ func (d *direct) index(p string) (core.IndexStats, error) { return d.ld.Index(p)
 func (d *direct) refresh() (core.UpdateStats, error)      { return d.ld.Refresh() }
 func (d *direct) forget(p string) (bool, error)           { return d.ld.Forget(p) }
 func (d *direct) roots() ([]index.RootInfo, error)        { return d.ld.Roots() }
+func (d *direct) moreLike(p string) (string, error)       { return d.ld.MoreLike(p) }
 func (d *direct) stats() (core.Stats, error)              { return d.ld.Stats(), nil }
 func (d *direct) close()                                  { d.ld.Close() }
 
@@ -73,6 +75,11 @@ func (r *remote) refresh() (core.UpdateStats, error) {
 func (r *remote) forget(p string) (bool, error) {
 	var ok bool
 	return ok, r.c.Call(&ipc.Request{Op: ipc.OpForget, Path: p}, &ok)
+}
+
+func (r *remote) moreLike(p string) (string, error) {
+	var out string
+	return out, r.c.Call(&ipc.Request{Op: ipc.OpMoreLike, Path: p}, &out)
 }
 
 func (r *remote) roots() ([]index.RootInfo, error) {

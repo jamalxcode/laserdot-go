@@ -11,15 +11,19 @@ public struct RefineOption: Codable, Equatable, Hashable, Sendable {
     public let count: UInt64
     /// The search already has it (`token` is then as written there).
     public let selected: Bool?
+    /// The search leaves it out (`token` is the "-" word as written there).
+    public let excluded: Bool?
 
     public var isSelected: Bool { selected ?? false }
+    public var isExcluded: Bool { excluded ?? false }
 
-    public init(token: String, label: String, key: String?, count: UInt64, selected: Bool? = nil) {
+    public init(token: String, label: String, key: String?, count: UInt64, selected: Bool? = nil, excluded: Bool? = nil) {
         self.token = token
         self.label = label
         self.key = key
         self.count = count
         self.selected = selected
+        self.excluded = excluded
     }
 }
 
@@ -43,6 +47,13 @@ extension Engine {
         guard let answer = guide(.refine(query: query), as: [RefineGroup].self) else { return [] }
         return answer ?? []
     }
+
+    /// A search for files like the one at `path` (same type, similar size,
+    /// near date); nil when the daemon cannot say.
+    public func moreLike(path: String) -> String? {
+        guard let answer = guide(.moreLike(path: path), as: String.self) else { return nil }
+        return answer
+    }
 }
 
 /// The choice row's rules, as plain functions (unit-tested in
@@ -64,6 +75,18 @@ public enum RefineLogic {
         return next.trimmingCharacters(in: .whitespaces)
     }
 
+    /// The query after leaving `o` out (⌥-click, or Leave Out): the choice
+    /// itself goes if it was chosen, and "-token" is added. Clicking the
+    /// left-out chip (it is selected) takes the "-token" out again.
+    public static func excluding(_ o: RefineOption, to query: String) -> String {
+        if o.isExcluded { return removing(o.token, from: query) }
+        var q = query
+        if o.isSelected { q = removing(o.token, from: q) }
+        q = q.trimmingCharacters(in: .whitespaces)
+        let word = "-" + o.token
+        return (q.isEmpty ? word : q + " " + word)
+    }
+
     /// The query without one token (as written in it), spaces tidied.
     public static func removing(_ token: String, from q: String) -> String {
         var words = q.components(separatedBy: " ")
@@ -80,11 +103,13 @@ public enum RefineLogic {
     public static func visible(_ groups: [RefineGroup]) -> [RefineGroup] {
         var chosen: [RefineGroup] = [], open: [RefineGroup] = []
         for g in groups {
-            let picked = g.options.filter(\.isSelected)
+            // A left-out value does not close its group: the others stay
+            // to choose or leave out too.
+            let picked = g.options.filter { $0.isSelected && !$0.isExcluded }
             if picked.isEmpty {
                 open.append(g)
             } else {
-                chosen.append(RefineGroup(id: g.id, options: picked))
+                chosen.append(RefineGroup(id: g.id, options: picked + g.options.filter(\.isExcluded)))
             }
         }
         return chosen + open

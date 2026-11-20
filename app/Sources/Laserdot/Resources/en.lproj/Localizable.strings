@@ -260,6 +260,7 @@
 "storage.open" = "Look Inside";
 "storage.help" = "Sizes come from the index; apps and other packages are measured once and remembered. Double-click a folder to look inside.";
 "action.terminal" = "Open in Terminal";
+"action.moreLike" = "More Like This";
 "action.copyLink" = "Copy as Link";
 "action.compress" = "Compress";
 "action.moveTo" = "Move to…";
@@ -439,6 +440,10 @@
 "refine.group.drive" = "Drive";
 "refine.group.folder" = "Folder";
 "refine.drive.local" = "This Mac";
+"refine.leaveOut" = "Leave Out";
+"refine.leftOut.help" = "Left out of the search: click to bring %@ back";
+"refine.leftOut.spoken" = "%@ %@, left out";
+"refine.choose.help" = "Click to search only this (%@); ⌥-click or right-click to leave it out";
 "refine.sound.with" = "With sound";
 "refine.sound.none" = "No sound";
 "refine.hdr.yes" = "HDR";

@@ -139,6 +139,45 @@ func TestDocumentResultsOfferTheirTypes(t *testing.T) {
 	}
 }
 
+// The owner chose "exclude choices": ⌥-clicking a choice leaves it out
+// (-ext:pdf). The results lose it, and it comes back marked as left out in
+// its group, so a click can bring it back.
+func TestALeftOutChoiceShowsAsLeftOut(t *testing.T) {
+	ld, root := newCore(t)
+	write(t, root, "work/report.pdf", "%PDF-1.4")
+	write(t, root, "work/report notes.txt", "x")
+	write(t, root, "work/report.docx", "x")
+	write(t, root, "work/report draft.pdf", "%PDF-1.4")
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	r, err := ld.Search("report -ext:pdf", DefaultSearchOptions)
+	if err != nil || r.Total != 2 {
+		t.Fatalf("the PDFs are left out: %v %v", r, err)
+	}
+	groups, err := ld.Refinements("report -ext:pdf")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []RefineOption
+	for _, o := range refineGroup(groups, "type") {
+		if o.Excluded {
+			out = append(out, o)
+		}
+		if o.Token == "ext:pdf" {
+			t.Errorf("PDF is not offered as a choice while left out: %+v", o)
+		}
+	}
+	if len(out) != 1 || out[0].Token != "-ext:pdf" || !out[0].Selected || out[0].Label != "PDF" {
+		t.Fatalf("PDF shows as left out: %+v", refineGroup(groups, "type"))
+	}
+	// Left out down to one result, it still shows (to bring it back).
+	g2, _ := ld.Refinements("report -ext:pdf -ext:txt")
+	if n := len(refineGroup(g2, "type")); n != 2 {
+		t.Errorf("both left-out types show: %+v", g2)
+	}
+}
+
 // newCore: an empty index and a folder to fill.
 func newCore(t *testing.T) (*Laserdot, string) {
 	t.Helper()

@@ -76,7 +76,10 @@ const (
 	OpCompletions = "completions"
 	// OpRefine: the attributes a search's results have to choose from
 	// (resolutions, sound, shape, camera, type…), with counts (Query).
-	OpRefine     = "refine"
+	OpRefine = "refine"
+	// OpMoreLike: a query for files like the one at Path (same type,
+	// similar size, near date), for the search field.
+	OpMoreLike   = "more_like"
 	OpFilters    = "filters"
 	OpCheatSheet = "cheat_sheet"
 	// Tier 2 (§3.1.1): deep probing now; loudness of one file (§3.6).

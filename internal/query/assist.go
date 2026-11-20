@@ -137,6 +137,15 @@ func Hint(q string, cursor int, lang Lang) string {
 		return errText(err)
 	}
 	if !hasValue {
+		// A longer date phrase ending here ("between march and may").
+		if before := strings.Fields(string([]rune(q)[:min(cursor, len([]rune(q)))])); len(before) >= 3 && before[len(before)-1] == tok {
+			for k := min(5, len(before)); k >= 3; k-- {
+				words := before[len(before)-k:]
+				if f, n := PhraseAt(words, time.Now().Unix()); n == k {
+					return fmt.Sprintf(phrase(phTypeWord, lang), strings.Join(words, " "), f)
+				}
+			}
+		}
 		w := strings.TrimPrefix(tok, "-")
 		prev := prevToken(q, cursor)
 		if m := WordMeaning(prev, w); m != "" {

@@ -213,6 +213,31 @@ extension SearchView {
     /// One choice: chosen ones are filled with a check (click: take it out);
     /// one that no longer matches anything is greyed out.
     @ViewBuilder func refineChip(_ o: RefineOption, in g: RefineGroup) -> some View {
+        if o.isExcluded {
+            // Left out: struck through; a click brings it back.
+            Button { model.applyRefinement(o, in: g) } label: {
+                Text("− " + Self.refineLabel(o)).font(.caption).strikethrough()
+            }
+            .help(String(format: L("refine.leftOut.help"), Self.refineLabel(o)))
+            .accessibilityLabel(String(format: L("refine.leftOut.spoken"), Self.refineTitle(g.id), Self.refineLabel(o)))
+        } else {
+            refineChoiceChip(o, in: g)
+                .contextMenu {
+                    Button(L("refine.leaveOut")) { model.excludeRefinement(o) }
+                }
+        }
+    }
+
+    /// ⌥-click leaves a choice out instead of choosing it.
+    func refineClick(_ o: RefineOption, in g: RefineGroup) {
+        if NSEvent.modifierFlags.contains(.option) {
+            model.excludeRefinement(o)
+        } else {
+            model.applyRefinement(o, in: g)
+        }
+    }
+
+    @ViewBuilder func refineChoiceChip(_ o: RefineOption, in g: RefineGroup) -> some View {
         let label = (o.isSelected ? "✓ " : "") + Self.refineLabel(o)
         let content = Text("\(label) ").font(.caption)
             + Text(Self.count(o.count)).font(.caption).foregroundColor(o.isSelected ? .white.opacity(0.85) : .secondary)
@@ -224,9 +249,9 @@ extension SearchView {
                 .accessibilityLabel(spoken)
                 .accessibilityAddTraits(.isSelected)
         } else {
-            Button { model.applyRefinement(o, in: g) } label: { content }
+            Button { refineClick(o, in: g) } label: { content }
                 .disabled(o.count == 0)
-                .help(o.token)
+                .help(String(format: L("refine.choose.help"), o.token))
                 .accessibilityLabel(spoken)
         }
     }

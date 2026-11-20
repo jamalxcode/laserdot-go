@@ -40,6 +40,7 @@ commands:
   content [ACTION]    content search folders: status, add, remove, max-size, update
   deep [--limit N]    Tier 2: read legacy containers, HDR10+ and VFR with ffprobe (needs ffprobe)
   loudness FILE       EBU R128 loudness of a file (needs ffmpeg)
+  like FILE           a search for files like this one (same type, similar size, near date)
   roots               indexed folders
   stats               index size and indexed folders
   status              is laserdotd running, and is its network access denied?
@@ -176,6 +177,20 @@ func run(args []string) error {
 			return fmt.Errorf("%s was not indexed", rest[0])
 		}
 		fmt.Println("forgot", rest[0])
+		return nil
+	case "like":
+		if len(rest) != 1 {
+			return errors.New("usage: laserdot like FILE")
+		}
+		p, err := filepath.Abs(rest[0])
+		if err != nil {
+			return err
+		}
+		q, err := t.moreLike(p)
+		if err != nil {
+			return err
+		}
+		fmt.Println(q)
 		return nil
 	case "roots":
 		roots, err := t.roots()

@@ -52,6 +52,8 @@ public enum DaemonRequest: Encodable, Sendable {
     case completions(query: String, cursor: Int, lang: String)
     /// What a search's results have to choose from (resolutions, sound, type…).
     case refine(query: String)
+    /// A query for files like the one at `path` (More Like This).
+    case moreLike(path: String)
     /// Every filter, for the cheat sheet (spec §8.9).
     case filters(lang: String)
     /// The plain-text cheat sheet.
@@ -120,6 +122,7 @@ public enum DaemonRequest: Encodable, Sendable {
         case .sectionAt: return "section_at"
         case .completions: return "completions"
         case .refine: return "refine"
+        case .moreLike: return "more_like"
         case .filters: return "filters"
         case .cheatSheet: return "cheat_sheet"
         }
@@ -140,7 +143,8 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(offset, forKey: .offset)
             try c.encode(limit, forKey: .limit)
             try c.encode(typo, forKey: .typo)
-        case let .index(path), let .forget(path), let .opened(path), let .exclude(path), let .include(path):
+        case let .index(path), let .forget(path), let .opened(path), let .exclude(path), let .include(path),
+             let .moreLike(path):
             try c.encode(path, forKey: .path)
         case let .drivePlan(mount), let .driveDetach(mount), let .driveDelete(mount), let .driveEject(mount),
              let .driveStop(mount), let .driveContinue(mount):

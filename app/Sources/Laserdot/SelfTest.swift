@@ -122,6 +122,15 @@ final class SelfTestRunner {
                     model.applyRefinement(txt, in: g)
                 }
             }, until: { $0.refinements.flatMap(\.options).contains(where: \.isSelected) }, wait: 1.0),
+            // Leave a choice out (⌥-click): "-ext:pdf" joins the search, the
+            // PDF goes, and PDF shows struck through to bring it back.
+            Step(name: "leftout", typed: "proj", after: {
+                if let pdf = model.refinements.flatMap(\.options).first(where: { $0.token == "ext:pdf" }) {
+                    model.excludeRefinement(pdf)
+                }
+            }, until: { $0.refinements.flatMap(\.options).contains { $0.token == "ext:pdf" } }, wait: 1.0),
+            Step(name: "leftoutshown", typed: "proj -ext:pdf",
+                 until: { $0.refinements.flatMap(\.options).contains(where: \.isExcluded) }),
             // Where: the folders the results are in are choices too (the
             // owner: "choose the drives and possibly directories it searches").
             Step(name: "where", typed: "trip", until: { $0.refinements.contains { $0.id == "folder" } }),
@@ -260,6 +269,9 @@ final class SelfTestRunner {
             }, until: { $0.query.hasPrefix("in:") && !$0.results.isEmpty }),
             // ⌘K ▸ Search in This Folder.
             Step(name: "searchin", typed: "", before: { model.searchInFolder(folder + "/Projects") }),
+            // More Like This: the search becomes the file's type, size and date.
+            Step(name: "morelike", typed: "", before: { model.moreLike(path: folder + "/project.pdf") },
+                 until: { $0.query.hasPrefix("ext:pdf") && !$0.results.isEmpty }),
             // Deleted behind Laserdot's back (as Finder would): gone from
             // the results at once; Refresh (⌘R) looks at every folder again.
             Step(name: "gone", typed: "gonefile", before: {
