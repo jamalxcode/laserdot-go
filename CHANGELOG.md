@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.23
+
+- Tidier choices: once you pick a resolution (or a type, a camera…), the other values of that kind go away and your
+  pick moves to the front with a ✓ — click it to take it out. Every other kind of choice (location, date, camera,
+  size…) stays, so you can keep narrowing.
+
 ## 0.9.22
 
 - Choosing from your results now works like a shop's filters: after picking a resolution, every other choice stays

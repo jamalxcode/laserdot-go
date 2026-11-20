@@ -184,6 +184,7 @@ extension SelfTestRunner {
         r["refinements"] = model.refinements.flatMap { $0.options.map(\.token) }
         r["refine_groups"] = model.refinements.map(\.id)
         r["refine_selected"] = model.refinements.flatMap { $0.options.filter(\.isSelected).map(\.token) }
+        r["refine_shown"] = model.visibleRefinements.map { g in g.id + ":" + g.options.map { ($0.isSelected ? "*" : "") + $0.token }.joined(separator: ",") }
         steps.append(r)
         writeReport(error: "unfinished: last step \(name)") // so a hang still shows where
         screenshot(window, name: name)

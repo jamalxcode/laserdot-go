@@ -553,6 +553,13 @@ search words without the choices, so they stay; a chosen value shows highlighted
 clicking it again; another value of the same group switches to it; each count is what that choice gives with the
 other picks, and a choice that would leave nothing is greyed out rather than hidden.
 
+## 40. A tidier row (0.9.23)
+
+**Asked** (with a screenshot of the `jpg` row: Resolution, Shape, Camera…): "when a choice is made from the below line,
+like resolution, the resolution attributes should go, but other mutually exclusive choices remaining to allow further
+choices like location, modified, camera, etc". **Decided:** a chosen value's group shrinks to that value, moved to the
+front with its check (click to take it out); all other groups stay.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

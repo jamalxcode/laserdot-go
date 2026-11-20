@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "refined", "switched", "unrefined", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -78,11 +78,9 @@ check("type" in ref.get("refine_groups", []), f"grouped under Type (got {ref.get
 rd = steps["refined"]
 check(rd["query"] == "proj ext:pdf", f"choosing PDF adds it to the search (got {rd['query']!r})")
 check(rd["results"] == ["project.pdf"], f"and narrows the results to the PDF (got {rd['results']})")
-kept = report.get("refine_kept", [])
-check("*ext:pdf" in kept and "ext:txt" in kept, f"after choosing PDF the Type choices stay: PDF chosen, TXT still offered (got {kept})")
-sw = steps["switched"]
-check(sw["query"] == "proj ext:txt", f"another type switches the choice (got {sw['query']!r})")
-check(sw["results"] == ["project plan.txt"], f"and the results follow (got {sw['results']})")
+shown = steps["chosen"].get("refine_shown", [])
+check(shown[:1] == ["type:*ext:pdf"], f"after choosing PDF its group shows only the choice, first (got {shown})")
+check(any(g.startswith("size:") for g in shown), f"and the other groups stay to keep narrowing (got {shown})")
 un = steps["unrefined"]
 check(un["query"] == "proj", f"clicking a chosen choice takes it out again (got {un['query']!r})")
 

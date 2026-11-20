@@ -337,6 +337,25 @@ final class SearchModel: ObservableObject {
         return generationShared
     }
 
+    /// The choices as shown: a group with a choice shrinks to that choice
+    /// (its other values go; click it to take it out and they come back),
+    /// and chosen ones come first; every other group stays, to keep
+    /// narrowing (the owner: "the resolution attributes should go, but other
+    /// choices remaining to allow further choices like location, modified,
+    /// camera").
+    var visibleRefinements: [RefineGroup] {
+        var chosen: [RefineGroup] = [], open: [RefineGroup] = []
+        for g in refinements {
+            let picked = g.options.filter(\.isSelected)
+            if picked.isEmpty {
+                open.append(g)
+            } else {
+                chosen.append(RefineGroup(id: g.id, options: picked))
+            }
+        }
+        return chosen + open
+    }
+
     /// A refinement chip. Chosen already: it leaves the search. Another
     /// value of a group with a choice: it takes that choice's place (a video
     /// is one resolution). Otherwise it joins the search. Every other group

@@ -357,6 +357,11 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.23 (2026-11-20):** the owner, with a screenshot of the `jpg` row (Resolution, Shape, Camera…): "when a choice is
+  made, like resolution, the resolution attributes should go, but other choices remaining to allow further choices
+  like location, modified, camera". `SearchModel.visibleRefinements`: a group with a choice shrinks to it and comes
+  first; the engine is unchanged. Self-test step `chosen` (`refine_shown`: `type:*ext:pdf` first, Size still there)
+  replaces `switched`.
 - **0.9.22 (2026-11-20):** "when an option is chosen like resolution, keep the other options still active so the user
   can add more options". Before, a chosen value's group vanished (its token was in the query, and every result then
   had it), and so did any group the choice made uniform. Now `Refinements` sets the choice tokens apart

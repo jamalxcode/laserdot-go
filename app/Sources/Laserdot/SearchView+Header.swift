@@ -184,7 +184,7 @@ extension SearchView {
     /// editing the search like any word. Hidden while a filter is being
     /// typed (its completions are shown instead).
     @ViewBuilder var refinementChips: some View {
-        let groups = model.refinements
+        let groups = model.visibleRefinements
         if !groups.isEmpty && model.completionChips.isEmpty && !model.isCommandMode {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {

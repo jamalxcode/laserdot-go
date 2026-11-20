@@ -376,7 +376,8 @@ white       = " " | "\t" | "\n" ;
   from the base; groups and values come from the base's results (so they stay put), each group is counted with the
   other groups' choices applied but not its own, chosen values come back `selected` with their token as written. The
   app: a chosen chip is filled with a check and removes its token; another value of a group with a choice replaces
-  it; a value giving 0 is greyed out.
+  it; a value giving 0 is greyed out. *0.9.23 (the owner, with a screenshot of `jpg`'s row):* a group with a choice
+  shows only that choice (first, with its check); its other values return when it is taken out.
 - **8.3** Zero-results coaching: three most likely causes — filter too narrow (one-click "relax this filter"), typo in filter value (suggested correction), folder not indexed (one-click "index this folder")
   - *As built (M8):* computed in the core from the index (`coach`), at most three, in this order:
     - **index this folder:** an `in:` path that exists on disk but is not inside an indexed folder;

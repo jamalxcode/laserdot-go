@@ -67,9 +67,10 @@ for `>` commands, after a trailing space, or while moving through the results.
    ("Resolution 4K 3 · 1080p 12   Sound With sound 14 · No sound 1"). A choice is added to the search as a word,
    so it stays visible and editable.
 2. Only choices that narrow the results are shown.
-3. Choosing never takes the other choices away: the groups stay, a chosen value is highlighted with a check (click it
-   to take it out), another value of the same group switches to it, and every count says what that choice gives with
-   the rest; a choice that would leave nothing is greyed out, not hidden.
+3. Choosing never takes the other kinds of choices away: a chosen value's group shrinks to that value, highlighted
+   with a check and moved to the front (click it to take it out and the group's values come back), while every other
+   group stays, each count saying what that choice gives with the rest; a choice that would leave nothing is greyed
+   out, not hidden.
 
 ## 6. Words
 
