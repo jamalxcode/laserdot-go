@@ -84,6 +84,17 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
     builds the prompt with 300 lines to check it fits.
 16. **Obvious beats complete.** Duplicate cleanup worked, but its button said "Review N Files…" in a corner, and the
     owner couldn't find how to delete. One big button that names the action won.
+17b. **Look at the screenshots before reviewing the UI.** The self-test's own screenshots showed what a description
+     would have missed: a chip labelled with a whole system path, buttons clipped at the bottom of the preview, and
+     query syntax (`-ext:pdf`) shown where people expected words.
+17c. **Keep one source of truth when making things friendlier.** Pills in the search box are only a view of the
+     query string, so history, pins, links and the command line kept working unchanged; choices go in front of the
+     typed words so the end of the query is always what is being typed (the hint had been explaining `-ext:pdf`).
+17d. **A menu-bar app's dialogs need to be told to stay.** Dialog panels hide when their app is not in front and
+     open on one desktop; for an app that is never in front, that meant an update prompt lost behind the browser.
+17e. **Read only what people would look for.** Reading every file's words found an Obsidian plugin's bundled code
+     before the user's PDF; `.DS_Store` files filled results. Hidden folders are no longer read for words and system
+     bookkeeping files are not indexed at all.
 17. **Copy the habits people already have.** Spotlight's typing (inline completion, Esc twice, last search selected)
     made the window feel familiar overnight.
 
@@ -105,4 +116,10 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
     the key before failing, and a failure on a documents-only commit is a hint.
 20. **Wait for the tests before saying "done".** A commit pushed while a test failed (its output piped through
     `tail`, which hid the exit code) had to be fixed by the next one.
+20b. **A one-connection pool deadlocks on a held connection.** The schema migration took the pool's only connection
+     for a write lock and then asked the pool for another; two processes opening a new index at once also raced on
+     SQLite's first locks. Release the connection before using the pool, and retry the transient errors.
+20c. **Test fixtures must be big enough to mean something.** A 64×48 test picture lost its fingerprint in HEIC
+     compression (18 bits apart); an 800×600 one kept it. And a file written just before indexing is "still being
+     written" and is not compared, so tests age their files.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

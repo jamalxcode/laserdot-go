@@ -2,7 +2,7 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.29 (draft)
+**Version:** 1.47 (draft; v1.44–v1.47 are the Go port's 0.9.27–0.9.30)
 **Date:** 2026-11-11 — v1.18–v1.22 record the owner's decisions while using the app; the conversation behind them is
 in `docs/design-conversation.md`
 **Target platform:** macOS 14+, Apple Silicon
@@ -149,7 +149,7 @@ query       = ws , [ clause , { ws1 , clause } ] , [ ws1 , raw ] , ws
             | ws , raw , ws ;
 raw         = "re:" , regex_text ;          (* rest of input, unparsed; Rust regex syntax *)
 clause      = term , { ws1 , "OR" , ws1 , term } ;
-term        = [ "-" ] , ( filter | phrase | type_word | pattern ) ;
+term        = [ "-" ] , ( filter | phrase | type_word | date_phrase | pattern ) ;
 type_word   = known_type_word ;             (* a whole unquoted word without wildcards; see Semantics *)
 
 filter      = [ scope , "." ] , key , ":" , value
@@ -167,6 +167,20 @@ unit        = "b" | "kb" | "mb" | "gb" | "tb"   (* size, decimal: 1 gb = 10^9 by
 date        = digit , digit , digit , digit , "-" , digit , digit , [ "-" , digit , digit ]
             | "today" | "yesterday" | number , ( "d" | "w" | "mo" | "y" ) ;   (* relative: 7d = last 7 days *)
 
+(* v1.45: plain-language dates of 2–5 words, each standing for one modified:
+   filter (a month alone is a word, not a date: "invoice march"). *)
+date_phrase = month_name , ws1 , year                                  (* march 2024 *)
+            | season , ws1 , year                                      (* summer 2023 *)
+            | ( "last" | "past" | "this" ) , ws1 , season              (* last summer *)
+            | ( "between" | "from" ) , ws1 , month_name , ws1 ,
+              ( "and" | "to" | "until" | "till" | "-" ) , ws1 , month_name , [ ws1 , year ]
+            | ( "last" | "past" ) , ws1 , ( "day" | "week" | "month" | "year" )
+            | "this" , ws1 , ( "week" | "month" | "year" )
+            | arabic_date_phrase ;                                     (* مارس 2024, الصيف الماضي, بين يناير ومارس *)
+month_name  = "january" | "jan" | … | "december" | "dec" | arabic_month ;
+season      = "spring" | "summer" | "autumn" | "fall" | "winter" | arabic_season ;
+year        = digit , digit , digit , digit ;
+
 phrase      = '"' , { phrase_char } , '"' ;
 phrase_char = ( any_char - ( '"' | "\" ) ) | '\"' | "\\" ;
 pattern     = pchar , { pchar } ;           (* may contain the wildcards * and ? *)
@@ -182,6 +196,13 @@ white       = " " | "\t" | "\n" ;
 - **AND / OR / NOT:** clauses separated by whitespace are ANDed. `OR` (uppercase, standalone) binds tighter than AND: `mkv OR mp4 res:4k` = (`mkv` OR `mp4`) AND `res:4k`. A leading `-` negates a term: `-sample`. No grouping parentheses in v1 (track groups below are the only parentheses).
 - **Type words (v1.18, the owner's request; like Spotlight):** a plain word that names a file type means that type, not text in the name. A known extension becomes `ext:` with the type's other spellings (`jpg` = `ext:jpg,jpeg,jpe`, `tif` = `tif,tiff`, `mpg` = `mpg,mpeg`, `ppt` = `ppt,pptx,pps,ppsx`, `doc` = `doc,docx`, `xls` = `xls,xlsx`); `powerpoint`/`presentation(s)` = PowerPoint and Keynote, `excel`/`spreadsheet(s)`/`اكسل` = `xls,xlsx,csv,numbers`; `video(s)`, `movie(s)`, `photo(s)`, `picture(s)`, `image(s)`, `graphics`, `music`, `song(s)`, `audio`, `document(s)`, `archive(s)` and their Arabic forms (`فيديو`, `صور`, `موسيقى`, `مستندات`…) become `kind:`. `-jpg` excludes the type and `jpg OR avi` works as expected. To search names for the word, quote it (`"avi"`) or use a wildcard (`avi*`). Extensions that are also common words (`go`, `key`, `pages`, `raw`, `app`, `ts`) are not type words. The hint line says what a type word stands for. The list lives in `internal/query/typewords.go`.
 - **Plain-language words (v1.21, the owner's UI critique):** words people say stand for filters, like type words: `today`, `yesterday` (modified), `recent` (since:7d), `big`/`large` (fsize:>100mb), `huge` (>1gb), `small` (<100kb), `tiny` (<10kb), `4k`/`8k`/`1080p`/`720p` (res), `hdr`, `screenshot(s)`, and the phrases `last|past day|week|month|year` (since), `this week|month|year`; Arabic too (`اليوم`, `امس`, `كبير`, `الاسبوع الماضي`…). The hint line says what each stands for; quotes search names. They live in `internal/query/typewords.go`.
+- **Date phrases (v1.45, the owner chose "more date words"):** `march 2024` = `modified:2024-03`; a season is three
+  months (spring Mar–May, summer Jun–Aug, autumn Sep–Nov, winter Dec–Feb, named by the year of its January);
+  `last summer` is the most recent one that has ended, `this winter` the current or latest one; `between jan and mar`
+  without a year is the most recent such span that has begun (a span past December runs into the next year; with a
+  year, that year holds the end). Arabic: month names (يناير…ديسمبر), seasons (الصيف، الشتاء…) with الماضي/هذا, بين/من …
+  و/الى/حتى (و may be joined to the month: ومارس). The hint line explains the whole phrase. `internal/query/typewords.go`
+  (`PhraseAt`).
 - **Track scope:** `a.lang:ar` = the file has *any* audio track in Arabic. Unscoped media keys apply to their natural track type (`lang:` = audio, `channels:` = audio, `codec:` = video). `a(lang:ar channels:5.1)` = **one and the same** audio track matches every filter inside the group. Without the group, `a.lang:ar a.channels:5.1` may be satisfied by two different tracks.
 - **Track groups** accept track-level filters only: `lang` `channels` `codec` `acodec` `profile` `pix_fmt` `bit_depth` `hdr` `fps` `atmos` `lossless` `sample_rate` `forced` `format`. Whole-file filters (`fsize`, `duration`, `count`…) inside a group are a positioned error
 - **`false` means "has the thing, without the property":** `atmos:false` = files with audio but no Atmos track; `hdr:false` = videos without HDR; `gps:false` = images without a location; `raw:false` = non-RAW images — never documents or folders
@@ -294,6 +315,10 @@ white       = " " | "\t" | "\n" ;
 - **4.1** Three deterministic duplicate detectors (no machine learning):
   - **Exact:** same size, then BLAKE3 of the first, middle, and last 64 KB; full hash only to confirm. A 50 GB file is never read in full to be ruled out
   - **Near-duplicate images:** 64-bit perceptual hash (dHash/pHash — a DCT, not ML) computed from the **embedded thumbnail** (EXIF/HEIC) where present; indexed in a BK-tree / multi-index hash so a 1M-image scan completes in seconds
+  - *Go port (v1.44, 0.9.27):* HEIC/HEIF, AVIF and camera RAW pictures are decoded by macOS's ImageIO (through
+    purego: a thumbnail of at most 160 px with its orientation applied, an embedded one when present), then hashed
+    like the rest; JPEG, PNG and the other portable types keep the pure-Go decoder so fingerprints already saved still
+    compare. Off macOS those types are not hashed.
   - **Re-encoded video:** duration within ±2 s plus perceptual hashes of keyframes at 10/50/90% (VideoToolbox decode), catching the same content across codecs, containers, and names. Resolution is **not** a grouping key, so a 4k and a 1080p copy land in the same group
   - *As built (M6):* **exact** — files are grouped by size; only same-size files get the quick hash (BLAKE3 of the size and the first, middle and last 64 KiB; files of at most 192 KiB are hashed whole), and only quick-hash collisions get the full hash. Hard links (same inode in one index) count once. **Images** — pHash: 32×32 grayscale, 2-D DCT-II, the 8×8 lowest frequencies without the DC row and column, one bit per coefficient above their median. Read from the EXIF thumbnail when there is one (cropped to the image's aspect ratio, as thumbnails are often padded), else decoded (JPEG at 1/2–1/8 scale; PNG, GIF, WebP, BMP, TIFF with the `image` crate), then turned upright by the EXIF orientation. HEIC, AVIF and RAW use ImageIO on macOS and are not compared elsewhere. Pairs within 7 bits (configurable up to 11; copies in the test corpus sit at 0–6) are found with a multi-index hash: four 16-bit chunks, every chunk value within ⌊d/4⌋ bits probed, which by the pigeonhole principle finds every pair within d bits. Measured on 1M uniformly random hashes (the worst case: real collections cluster) in the CPU-limited Linux development container: about 11–14 s at 7 bits and 27–73 s at 10 bits; 8–11 bits cost about 7× more than ≤ 7. Not yet measured on Apple Silicon. Nearly uniform images are skipped. **Video** — candidates are pairs whose durations are within 2 s; each frame at 10/50/90 % is decoded (AVFoundation `AVAssetImageGenerator` on macOS, `ffmpeg` elsewhere, found via `$LASERDOT_FFMPEG`, next to the binary or in a standard location; without one, re-encodes are not compared and the report says so) and pHashed. Frames must match within 12 bits each, nearly uniform (black, white) frames only match each other, and at least one frame must have detail
   - *As built (M6):* groups are the connected components of all matches, so an exact copy of a picture joins that picture's similar group. Fingerprints are cached in this Mac's index (table `fingerprints`, keyed by path and checked against size and modification time) — never in a drive's index, which is untrusted (a forged hash could make a different file look like a copy). A rescan reads only files that changed. The scan can be limited by any query (`kind:video in:~/Movies`) and a minimum size
@@ -378,6 +403,16 @@ white       = " " | "\t" | "\n" ;
   app: a chosen chip is filled with a check and removes its token; another value of a group with a choice replaces
   it; a value giving 0 is greyed out. *0.9.23 (the owner, with a screenshot of `jpg`'s row):* a group with a choice
   shows only that choice (first, with its check); its other values return when it is taken out.
+  *0.9.28 (the owner: "choose the drives and possibly directories it searches"; "exclude choices"; the UI review):*
+  a **Kind** group comes first (`kind:` for each kind among the results; when only choices remain, the kind is the
+  base); **Drive** (`volume:local` and each attached drive's name, only with a drive attached) and **Folder** (`in:`
+  the folders holding the results: under each indexed folder, down while one folder holds every result — a folder
+  that itself matches does not stop it — then up to 8 subfolders by count; `~` for home; a folder chosen by hand is
+  labelled with its name). A negated choice (`-ext:pdf`) stays in the base and comes back `excluded` (and selected,
+  count 0) so the app can show it; leaving out is ⌥-click, right-click ▸ Leave Out, or the "−" shown on hover.
+  Chosen and left-out values show as **pills** in the search field (13.6v), so a group with a choice leaves the row
+  and a left-out value leaves its group; the default search place's token is hidden from the row without closing
+  Folder. Choices are added in front of the typed words.
 - **8.3** Zero-results coaching: three most likely causes — filter too narrow (one-click "relax this filter"), typo in filter value (suggested correction), folder not indexed (one-click "index this folder")
   - *As built (M8):* computed in the core from the index (`coach`), at most three, in this order:
     - **index this folder:** an `in:` path that exists on disk but is not inside an indexed folder;
@@ -503,6 +538,32 @@ white       = " " | "\t" | "\n" ;
 - **13.6i** *No ghosts (v1.31):* before results are returned, each of this Mac's hits is checked with lstat; a file that no longer exists is left out (the total is lowered) and its folder is listed again in the background, so the index forgets it even when its change was missed. Drive hits are not checked (a drive may be a slow network volume); a file macOS will not let Laserdot see is kept. ⌘R (a header button, `> refresh`) runs `refresh`: every indexed folder is diffed again.
 - **13.6j** *Columns (v1.32):* a third view shows results as Finder's list: one flat list (no kind sections) with Name, Date Modified, Size, Kind and Date Created; a header click sorts the whole result set by that column (the engine's `sort`, so every match is ordered, not only the page shown), a second click reverses; the arrow shows the order. A new engine order `kind` sorts by kind, then name. Finder's "Date Last Opened" and "Date Added" are Spotlight metadata Laserdot does not read; they are not offered. The preview pane is hidden in this view.
 - **13.6k** *Sixth critique (v1.33):* the watcher compares every indexed folder with the disk once an hour (not while background work is paused) and restarts watching when that finds changes the events missed (`status.catch_up`: last time, missed count, restarts); the menu-bar menu shows whether changes are being watched. Results carry `opened` (last opened from Laserdot) and the engine has an `opened` order; the columns view shows it as Last Opened, and its columns are resizable (remembered). Thumbnails have a size (64–256 points; slider, ⌘+ ⌘−). What's New lists every version since the one last run, newest first, from the app's copy of CHANGELOG.md, and is not offered when every such version is marked `<!-- quiet -->`. Releases are made by CI: a passing run on `main` whose CHANGELOG has an unreleased newest version builds and publishes that commit.
+- **13.6x** *Dialogs and content (v1.46, 0.9.29):* every dialog (alerts, open and save panels, the update prompt)
+  stays in front: it does not hide when another app is used, shows on every Space and over full-screen apps (the
+  owner's update prompt kept vanishing behind the browser). Content search reads no hidden entry (anything inside a
+  dot folder: `.obsidian`, `.git`, an app's plugins — the owner got a plugin's `main.js` instead of a PDF); among
+  content matches, documents come first, then other files, then code, then anything hidden.
+- **13.6w** *Searching better (v1.44–v1.45, 0.9.28):* **inside zips** — the daemon lists the member names of this
+  Mac's `.zip` files from their central directory only (nothing is decompressed; at most 20,000 names per zip;
+  `__MACOSX` and `._` entries left out) into `archives.db` beside the index, kept in step like content (2.4); plain
+  words match a member's folded base name with the same regexes as file names, one member matching every word; the
+  zip is a result after name and content matches with `inside` (up to 3 member paths); other filters apply to the
+  zip itself. **More Like This** (⌘K, op `more_like`, `laserdot like FILE`): `ext:` (or `kind:`), `fsize:` half to
+  twice the size, `modified:` ±30 days, put in the search field; a folder gives `in:` it. **Default search place**
+  (Settings ▸ General ▸ Search in, the place menu): Everywhere, This Mac (`volume:local`) or a folder (`in:"…"`),
+  added by the app to every search that names no place; a chip click or Search Everywhere drops it for one search.
+- **13.6v** *An easier window (v1.45, 0.9.28; the owner's UI review "more easy and natural to use without losing
+  features"):* the query string stays the only state. The field shows its typed words; its filter words (a known
+  key with a value, also negated and track-scoped) show before them as pills with readable labels ("PDF", "not
+  PDF", "in 2023", "This Mac", "Videos") and ✕; Delete in an empty field removes the last; a filter typed by hand
+  becomes a pill once a space follows it. The magnifying glass is the place menu (Everywhere, This Mac, recent
+  folders, Choose Folder…), the place's name beside it while it narrows. The kind-chip row is gone (Kind is a choice
+  group). ⌘K shows Open, Quick Look, Show in Finder, Copy Path, More Like This, Search in This Folder and Move to
+  Trash, then Open With… and More Actions…, which open in place. The empty box offers one-click starts (Recent
+  Downloads, Photos This Month, Videos, Documents This Week, Big Files) and its tip reads as a sentence. Paths read
+  from a named root (Home, iCloud Drive, a drive's name, Temporary Items; no `/private`). Duplicates: Look at (kind)
+  and a folder picker, the query under Advanced, and "high/good/low quality" in place of bits per pixel. The
+  preview's buttons stay in view below its scrolling details.
 - **13.6u** *Useful return, not time spent (v1.43):* optional local reminders (duplicates every month or 3 months from the last scan; nearly-full disk at most weekly), off by default, permission asked on opt-in; after a scan or cleanup one or two follow-ups and the space cleared (with a lifetime total); zero duplicates points to Storage; the empty box shows a tip drawn from the user's own file counts; results page with "Show More"; Duplicates keeps its scope and options. No streaks, badges or endless feeds.
 - **13.6t** *The field behaves like Spotlight's (v1.42):* the top hit's name completes inline (the typed part kept as typed, the rest selected; → or Tab accepts, Delete drops it until the next letter; not with filters, commands, a trailing space or while browsing); Esc clears the field, then closes the window; reopening shows the last search fully selected; ⌘↓/⌘↑ jump between sections; ⌘C with no text selected copies the selected files; the window reopens where it was dragged (centred again if that is off screen). Laserdot's extras are kept.
 - **13.6s** *Robustness (v1.41):* bugs are caught per request and per background task and logged locally (`laserdotd-crash.log` beside the index; shown by Save Diagnostics; nothing is sent); a daemon whose in-memory index stays locked after a bug exits. The app's watchdog pings laserdotd every 30 s on its own connection and restarts it (at once when gone, after two missed pings when hung). Long jobs use their own connection with no time limit and are never resent. Reading one folder may take 30 s, then it is skipped and reported. Indexing does not start with under 512 MB free. A first index that never finished is redone (by Index, and by Refresh when the daemon starts). After two launches in a row that did not run 20 s, the third offers a fresh index (the old one is moved aside; indexed folders are remembered and indexed again).
@@ -518,6 +579,11 @@ white       = " " | "\t" | "\n" ;
 - **13.6** User-configurable index scopes and ignore patterns (node_modules, .venv, caches), with churn detection auto-excluding hot directories; auto-excluded directories can be permanently re-included
   - *Decided (v1.19, the owner's report that `claude.app` found nothing):* macOS packages are opaque like `.git`: a folder named `*.app`, `.appex`, `.framework`, `.bundle`, `.plugin`, `.kext`, `.xpc`, `.prefPane`, `.qlgenerator`, `.mdimporter`, `.saver`, `.photoslibrary` or `.musiclibrary` is one result (apps are `kind:app`; the type word `apps` finds them) and its contents are not indexed; contents indexed before this leave the index on the next refresh. The app indexes `/Applications`, `/System/Applications` and `~/Applications` once, without asking, since apps are what people look for first
   - Defaults never indexed: `node_modules`, `.venv`, `__pycache__`, `.cache`, `.Trash`, `.Trashes`, `.Spotlight-V100`, `.fseventsd`, `.DocumentRevisions-V100`, `.TemporaryItems`, `.laserdot`, and the index database itself
+  - *Decided (v1.47, 0.9.30; the owner: ".DS_Store … an internal file that no one is interested in"):* system
+    bookkeeping files are never indexed, by exact name — `.DS_Store`, `.localized`, `.apdisk`, `.VolumeIcon.icns`,
+    `.com.apple.timemachine.donotpresent`, `Icon\r`, `Thumbs.db`, `ehthumbs.db`, `desktop.ini`, `.directory` — and
+    AppleDouble `._*` files, in the same rule as partial downloads (walks and the watcher's re-listing alike). This
+    Mac's index is cleared of any it already held once, on opening; other dot files (`.env`, `.zshrc`) stay
   - Version-control folders (`.git`, `.hg`, `.svn`) are listed as results but their contents are not indexed
 - **13.7** Index schema versioned; app updates migrate in place; incompatible versions trigger rebuild with checkpoint resume
 - **13.9** Rust workspace layout (Cargo workspace, `crates/`):

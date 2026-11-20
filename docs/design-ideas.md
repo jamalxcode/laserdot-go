@@ -25,25 +25,36 @@ The thinking behind Laserdot's shape, and the ideas still waiting their turn. Ru
 
 ## Waiting their turn
 
+From the search review of 2026-11-20 (the owner chose 2, 4, 5, 8 and 10, all done in 0.9.28), still open:
+
+- **Saved searches** in the menu ("videos in Trips over 1 GB"), beyond today's pins.
+- **Search drives that are not plugged in**, from a small copy of each drive's names kept on this Mac ("on Archive
+  (not connected)").
+- **Where a file came from** (`from:github.com`), read from what macOS already records on downloads.
+- **Short path typing**: "dl inv" finds Downloads › invoice.pdf.
+- **Group versions**: "report v1, v2, final, final2" folded into one row.
+- **Similar-looking pictures in More Like This** (needs pictures fingerprinted at search time; Find Duplicates
+  already finds look-alikes).
+- Hide a choice that every result already has (e.g. "Documents 1" when the one result is a document).
+- Drives indexed before 0.9.30 keep `.DS_Store` entries until rebuilt; clean them on attach too.
+
 From the speed review of 2026-11-16 (measured on CI's Mac with a million files), in the order proposed:
 
-1. **Duplicate pictures through macOS's ImageIO.** HEIC (every iPhone photo), RAW and AVIF are not compared for
-   similarity at all today, and other pictures are decoded at full size in pure Go before being shrunk to 32×32.
-   ImageIO reads all of them and can decode straight to a small size; likely several times faster.
+1. **Duplicate pictures through macOS's ImageIO** — done in 0.9.27 for HEIC, RAW and AVIF; JPEG and PNG keep the
+   pure-Go decoder so saved fingerprints still compare.
 2. **Walk and write at the same time** — done for drives in 0.9.19 (streamed, searchable while indexed, bounded
-   memory, resumable). Still to do for this Mac's own folders, which keep the tuned bulk path.
+   memory, resumable). Measured for this Mac's own folders and not adopted (the bulk path stayed faster).
 3. **Lighter typing.** Each keystroke sends four requests; stale searches still run while typing fast. Skip them and
    fold the requests together.
-4. **The slowest search** rose from 23 to 38 ms on a million files; find that query and bring it down.
-5. **A cheaper missed-change check:** ask FSEvents which folders changed instead of looking at every folder every
-   5 minutes.
+4. **The slowest search** — done: 11.4 ms after 0.9.26, about 7 ms after 0.9.27 (plain words and simple wildcards
+   matched without the regex engine).
+5. **A cheaper missed-change check** — done in 0.9.27: every 30 minutes instead of 5 while FSEvents misses nothing.
 6. **Launch:** most of 200–320 ms is macOS setting up windows before Laserdot's code runs; create less up front.
 7. **Video frames through AVFoundation** (hardware decoding) instead of starting ffmpeg for each video.
 
 Smaller ideas noted along the way:
 
-- A Stop button for indexing a drive, as Find Duplicates has (the engine can stop and resume since 0.9.19; the
-  button is missing).
+- A Stop button for indexing a drive — done in 0.9.26 (Stop Indexing / Continue Indexing).
 - Stream this Mac's own first index too, and let FSEvents say which folders changed instead of comparing times.
 - The self-test's per-step timings (printed by `check-selftest.py`) show the steps at about 2.7 s each and the
   windows tour at 22 s; the waits that cost minutes were removed on 2026-11-20.

@@ -670,3 +670,10 @@ files people do look for (`.env`, `.zshrc`) stay searchable.
 - In the 0.9.18–0.9.20 stretch: a background script meant to fast-forward `main` tried to switch branches over
   uncommitted work and stopped (`main` was then moved by pushing the tested commit directly, no checkout needed); a
   Swift test that only CI can compile failed there; a release job that never got a Mac runner was re-run.
+- In the 0.9.27–0.9.30 stretch: the HEIC tests failed twice on CI's Mac before passing (a test picture too small to
+  keep its fingerprint, then a file written too recently to be compared — both test problems, not code ones); a new
+  concurrency test hung locally until the schema migration stopped holding the pool's only connection; one commit
+  went to the branch with a formatting slip (fixed in the next, before any merge); newer pushes cancelled branch runs
+  they replaced. The 10-item UI change compiled and passed the Mac self-test on its first run, and the screenshots
+  were read before each UI release. The owner's batching rule was set aside for 0.9.29 and 0.9.30, both fixes of
+  problems the owner reported.

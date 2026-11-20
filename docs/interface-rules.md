@@ -60,21 +60,29 @@ for `>` commands, after a trailing space, or while moving through the results.
 2. The safe choice (Cancel) answers Escape.
 3. **A dialog always fits the screen** with its buttons visible: long text (such as release notes) scrolls in a box
    of fixed height. (A 16-inch MacBook once lost the Install button.)
+4. **A dialog stays in front.** It does not hide when another app is used, and shows on every desktop and over
+   full-screen apps. (The update prompt once kept vanishing behind the owner's browser.)
 
 ## 5b. Choose, don't type
 
 1. After a search, what the results have to choose from is offered under the hint line, by attribute, with counts
-   ("Resolution 4K 3 · 1080p 12   Sound With sound 14 · No sound 1"). A choice is added to the search as a word,
-   so it stays visible and editable.
+   ("Kind Videos 12 · Resolution 4K 3 · 1080p 12 · Folder Trips 5 · Sound With sound 14"). Kind comes first, and
+   where the results are (drive, folder) is a choice like any other.
 2. Only choices that narrow the results are shown.
-3. Choosing never takes the other kinds of choices away: a chosen value's group shrinks to that value, highlighted
-   with a check and moved to the front (click it to take it out and the group's values come back), while every other
-   group stays, each count saying what that choice gives with the rest; a choice that would leave nothing is greyed
-   out, not hidden.
+3. **What is chosen is a pill in the search box** ("4K ✕", "not PDF ✕", "in 2023 ✕"), before the typed words: ✕ or
+   Delete in an empty box removes it. Its group leaves the row until the pill is removed; every other group stays,
+   each count saying what that choice gives with the rest; a choice that would leave nothing is greyed out.
+4. **Leaving out is as easy as choosing:** the "−" shown on hover, ⌥-click, or right-click ▸ Leave Out.
+5. Where to search is a menu on the magnifying glass (Everywhere, This Mac, recent folders, a folder), and its name
+   shows beside it while it narrows the search.
+6. Common searches are one click on the empty box (Recent Downloads, Photos This Month, Videos…), and a scope can
+   be picked rather than typed (Duplicates' Look at and folder pickers; the query is under Advanced).
 
 ## 6. Words
 
-1. Plain language. Say what happens and what to do, not internal terms.
+1. Plain language. Say what happens and what to do, not internal terms. The query language never has to be read:
+   filters show as pills with words, tips are sentences ("See your 4K videos"), quality is "high quality", not
+   "0.11 bpp", and folders read "Home › Trips › 2023". It can still be typed.
 2. Every string exists in **English and Arabic**; Arabic windows are laid out right to left.
 3. Numbers are formatted for the language ("27,670"), sizes with the system's formatter ("37.31 GB").
 4. Errors name the problem and the fix ("only 400 MB free on the disk… free up some space, then try again").
@@ -92,7 +100,11 @@ for `>` commands, after a trailing space, or while moving through the results.
    together, once.
 2. Reminders are optional and rare (see [`business-rules.md`](business-rules.md) §6).
 3. Results stop at *Show More*; nothing scrolls forever.
-4. The window remembers the user's choices: size, position, view, sort, tile size, Duplicates' scope and options.
+4. The window remembers the user's choices: size, position, view, sort, tile size, where to search, Duplicates'
+   scope and options.
+5. Short lists first: ⌘K shows the common actions, with Open With… and More Actions… opening in place.
+6. No clutter: system files (`.DS_Store`, `._` copies, `Thumbs.db`…) are never results, and hidden app folders are
+   never read for words.
 
 ## 9. Proving it
 

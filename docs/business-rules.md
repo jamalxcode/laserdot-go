@@ -21,6 +21,10 @@ The engineering pillars behind them are in [`../CLAUDE.md`](../CLAUDE.md).
    checkpoints inside the drive's own index, never on this Mac (0.9.19). What searches are about is used to order the
    work and kept in memory for 10 minutes only.
 
+7. **Only what people own is read for words.** Content search reads documents in the chosen folders, never hidden
+   folders (an app's plugins, `.git`); the names inside zip files are read from each zip's table of contents, never
+   by unpacking it. Both stay on the Mac (`content.db`, `archives.db`) and are erased with everything else.
+
 ## 1b. The Mac comes first
 
 1. **Laserdot's work never makes the Mac slow.** The engine runs as a background process (lower priority,
