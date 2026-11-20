@@ -1,11 +1,15 @@
 package core
 
 import (
+	"cmp"
+	"os"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/RoaringBitmap/roaring/v2"
 
+	"github.com/jamalxcode/laserdot-go/internal/fold"
 	"github.com/jamalxcode/laserdot-go/internal/index"
 	"github.com/jamalxcode/laserdot-go/internal/query"
 )
@@ -39,7 +43,7 @@ type RefineOption struct {
 type RefineGroup struct {
 	// ID names the attribute (the app titles it): resolution, sound, shape,
 	// length, codec, camera, place, picture, artist, album, genre, type,
-	// modified, size.
+	// modified, size, and where: drive (with a drive attached) and folder.
 	ID      string         `json:"id"`
 	Options []RefineOption `json:"options"`
 }
@@ -114,6 +118,7 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	defer ld.mu.RUnlock()
 	type source struct {
 		s     *index.Store
+		drive string          // the drive's name ("": this Mac)
 		hits  *roaring.Bitmap // the base's results
 		cache map[string]*roaring.Bitmap
 	}
@@ -121,9 +126,11 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	var total uint64
 	stores := []*index.Store{ld.store}
 	contents := []*index.ContentIndex{ld.content}
+	names := []string{""}
 	for _, d := range ld.drives {
 		stores = append(stores, d.store)
 		contents = append(contents, nil)
+		names = append(names, d.name)
 	}
 	for i, s := range stores {
 		hits, err := queryHits(s, contents[i], base)
@@ -131,7 +138,7 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 			return nil, err
 		}
 		if !hits.IsEmpty() {
-			sources = append(sources, &source{s, hits, map[string]*roaring.Bitmap{}})
+			sources = append(sources, &source{s, names[i], hits, map[string]*roaring.Bitmap{}})
 			total += hits.GetCardinality()
 		}
 	}
@@ -249,6 +256,24 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 			add(group, RefineOption{Token: key + ":" + quoteValue(v), Label: label})
 		}
 	}
+	// Where (the owner: "choose the drives and possibly directories it
+	// searches, have it as a choice"): this Mac or a drive, when a drive is
+	// attached; and the folders the results are in.
+	if len(ld.drives) > 0 {
+		add("drive", RefineOption{Token: "volume:local", Key: "drive.local"})
+		for _, d := range ld.drives {
+			add("drive", RefineOption{Token: "volume:" + quoteValue(fold.Fold(d.name)), Label: d.name})
+		}
+	}
+	for _, src := range sources {
+		for _, f := range resultFolders(src.s, src.hits, RefineFolderLimit) {
+			label := src.s.Name(f)
+			if src.drive != "" {
+				label = src.drive + " › " + label
+			}
+			add("folder", RefineOption{Token: "in:" + quoteValue(folderToken(src.s.Path(f))), Label: label})
+		}
+	}
 	videos, images, audio, docs := countBase("kind:video"), countBase("kind:image"), countBase("kind:audio"), countBase("kind:document")
 	if videos > 0 {
 		try(refineVideo[:6]) // resolution
@@ -299,12 +324,76 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	return out, nil
 }
 
+// RefineFolderLimit: folders offered for one index.
+const RefineFolderLimit = 8
+
+// resultFolders: the folders to choose between for hits, most results
+// first. Under each indexed folder, it goes down while one folder holds all
+// of its results (home → Movies → Trips), then offers that folder's
+// subfolders that hold results.
+func resultFolders(s *index.Store, hits *roaring.Bitmap, limit int) []uint32 {
+	type counted struct {
+		id uint32
+		n  uint64
+	}
+	var all []counted
+	for _, root := range s.RootIDs() {
+		dir := root
+		inDir := s.Within(dir).AndCardinality(hits)
+		if inDir == 0 {
+			continue
+		}
+		var kids []counted
+		for depth := 0; depth < 16; depth++ {
+			kids = kids[:0]
+			for _, c := range s.Children(dir) {
+				if s.IsDir(c) && !s.IsSymlink(c) {
+					if n := s.Within(c).AndCardinality(hits); n > 0 {
+						kids = append(kids, counted{c, n})
+					}
+				}
+			}
+			if len(kids) == 1 {
+				n := kids[0].n
+				if hits.Contains(kids[0].id) {
+					n++ // the folder itself matches (Trips for "trip")
+				}
+				if n == inDir {
+					dir, inDir = kids[0].id, kids[0].n // one folder holds them all: look inside it
+					continue
+				}
+			}
+			break
+		}
+		all = append(all, kids...)
+	}
+	slices.SortStableFunc(all, func(a, b counted) int { return cmp.Compare(b.n, a.n) })
+	out := make([]uint32, 0, min(limit, len(all)))
+	for _, c := range all {
+		if len(out) == limit {
+			break
+		}
+		out = append(out, c.id)
+	}
+	return out
+}
+
+// folderToken: a folder's path as the in: filter takes it (~ for home).
+func folderToken(p string) string {
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		if rest, ok := strings.CutPrefix(p, home); ok && (rest == "" || strings.HasPrefix(rest, "/")) {
+			return "~" + rest
+		}
+	}
+	return p
+}
+
 // refineGroups: which group a choice's filter belongs to.
 var refineGroups = map[string]string{
 	"res": "resolution", "a.count": "sound", "orientation": "shape", "duration": "length", "codec": "codec",
 	"hdr": "hdr", "camera": "camera", "gps": "place", "screenshot": "picture", "live": "picture", "raw": "picture",
 	"artist": "artist", "album": "album", "genre": "genre", "ext": "type", "modified": "modified", "since": "modified",
-	"fsize": "size",
+	"fsize": "size", "volume": "drive", "in": "folder",
 }
 
 // refineGroupOf: the group of a token that is a choice ("" when it is not:

@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "where", "wherechosen", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -85,6 +85,13 @@ check(shown[:1] == ["type:*ext:pdf"], f"after choosing PDF its group shows only 
 check(any(g.startswith("size:") for g in shown), f"and the other groups stay to keep narrowing (got {shown})")
 un = steps["unrefined"]
 check(un["query"] == "proj", f"clicking a chosen choice takes it out again (got {un['query']!r})")
+
+wh = steps["where"]
+folders = [t for t in wh.get("refinements", []) if t.startswith("in:")]
+check("folder" in wh.get("refine_groups", []) and any(t.endswith("2023") for t in folders) and any(t.endswith("2024") for t in folders),
+      f"the folders the results are in are offered (got {wh.get('refine_groups')}, {folders})")
+wc = steps["wherechosen"]
+check(wc["query"].startswith("trip in:") and len(wc["results"]) == 1, f"choosing a folder searches only there (got {wc['query']!r}, {wc['results']})")
 
 # The overlay starts as a slim bar (nothing typed, nothing opened yet).
 check(steps.get("start", {}).get("compact") is True, "the overlay starts slim")

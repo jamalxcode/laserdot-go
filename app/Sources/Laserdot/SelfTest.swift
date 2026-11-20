@@ -122,6 +122,14 @@ final class SelfTestRunner {
                     model.applyRefinement(txt, in: g)
                 }
             }, until: { $0.refinements.flatMap(\.options).contains(where: \.isSelected) }, wait: 1.0),
+            // Where: the folders the results are in are choices too (the
+            // owner: "choose the drives and possibly directories it searches").
+            Step(name: "where", typed: "trip", until: { $0.refinements.contains { $0.id == "folder" } }),
+            Step(name: "wherechosen", typed: "trip", after: {
+                if let g = model.refinements.first(where: { $0.id == "folder" }), let o = g.options.first {
+                    model.applyRefinement(o, in: g)
+                }
+            }, until: { $0.refinements.contains { $0.id == "folder" } }, wait: 1.0),
             Step(name: "pdftoday", typed: "pdf today"),
             Step(name: "commands", typed: ">dup"),
             // As in Spotlight: the top hit's name completes inline, the rest

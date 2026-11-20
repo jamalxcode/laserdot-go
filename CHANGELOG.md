@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.28
+
+- Choose where to search: the choice row now offers **Drive** (This Mac or each attached drive) and **Folder** (the
+  folders your results are in, with how many in each). Click one to search only there; click it again to search
+  everywhere.
+- Fixed: the app and the command line opening a brand-new index at the same moment could fail. <!-- quiet -->
+
 ## 0.9.27
 
 - iPhone photos (HEIC), AVIF and camera RAW pictures are now compared in Find Duplicates — a HEIC and a JPEG copy of

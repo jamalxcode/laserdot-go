@@ -436,6 +436,9 @@
 "refine.group.type" = "النوع";
 "refine.group.modified" = "آخر تعديل";
 "refine.group.size" = "الحجم";
+"refine.group.drive" = "القرص";
+"refine.group.folder" = "المجلد";
+"refine.drive.local" = "هذا الماك";
 "refine.sound.with" = "مع صوت";
 "refine.sound.none" = "بلا صوت";
 "refine.hdr.yes" = "HDR";

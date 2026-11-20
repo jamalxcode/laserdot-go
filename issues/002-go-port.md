@@ -137,6 +137,8 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Where is a choice (0.9.28):** the choice row offers Drive (`volume:`) and Folder (`in:`) groups, built from the
+  results like every other group; a matching folder does not stop the descent (Trips for "trip").
 - **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account), and more
   languages than English and Arabic for now.
 
@@ -384,6 +386,13 @@ Binding unless revisited deliberately; each is also in the spec.
   cafe 2024 -draft 10.7→6.3. (4) `quickInterval`: with FSEvents and no miss for `CalmAfter` (2 h) the quick check runs
   every `QuickCheckCalm` (30 min), else every 5. The 0.9.26 memory change, measured by perf-big on CI's Mac: a million
   files searchable after 6.6 s (was 15.1), slowest search 11.4 ms (was 35), 139 MB after (was 68).
+- **0.9.28 (2026-11-20):** "choose the drives and possibly directories it searches, have it as a choice". `core/refine.go`:
+  groups `drive` (with a drive attached: `volume:local` + each drive's folded name) and `folder` (`resultFolders`:
+  per index root, descend while one child folder holds all hits, then up to `RefineFolderLimit` subfolders by count;
+  `in:` tokens with `~` for home); `volume`/`in` are choice filters in `refineGroups`. Test:
+  `TestResultsOfferTheDrivesAndFoldersTheyAreIn` (counts equal searches, switching keeps both). App: strings (en/ar);
+  self-test steps `where`/`wherechosen` on `Trips/2023`, `Trips/2024`. Also: `index.migrate` under `BEGIN IMMEDIATE`
+  with a re-check and transient-error retry (`TestOpeningANewIndexTwiceAtOnce`).
 - **0.9.26 (2026-11-20):** the owner's "review laserdot and critique it" and "fix it all". Done: drive Stop/Continue
   (`StopDriveIndex`/`ContinueDriveIndex`, `drive.paused`, ops `drive_stop`/`drive_continue`, `DriveInfo.Indexing`,
   menu items; the hourly catch-up leaves a stopped index alone); duplicate scans skip files on drives being let go

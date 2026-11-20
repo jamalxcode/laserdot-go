@@ -603,6 +603,15 @@ confirmed and undoable; (3) plain words and simple wildcards matched without the
 thousands of random names): searches on a million files about twice as fast, all under 7 ms; (4) the missed-change
 check every 30 minutes instead of 5 while macOS's change events miss nothing.
 
+## 45. Review, and choosing where to search (0.9.28)
+
+**Asked:** "give me a quick review of laserdot", then "i need to choose the drives and possibly directories it
+searches, have it as a choice also". **Done:** the choice row gained two groups, Drive (This Mac or each attached
+drive) and Folder (the folders the results are in, most first). They are the existing `volume:` and `in:` filters,
+so a choice is a word in the search like every other choice, and the other groups keep counting within it. Which
+folders: under each indexed folder, down while one folder holds every result (home → Work), then its subfolders
+(2024, 2025). Folders to index stay in Settings ▸ Folders; this chooses where one search looks.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

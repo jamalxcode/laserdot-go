@@ -32,7 +32,9 @@ One page, kept current: what is true today. The history and the reasons are in
 - Plain words and filters (`kind:video res:4k since:7d`) compile to regular expressions over the in-memory names,
   with a trigram prefilter; media filters use columns and bitmaps; contents use SQLite FTS5.
 - After a search, the **choice row** offers what the results have (resolution, sound, shape, camera, type, date,
-  size…), with counts; a choice is added to the search as a word, its group shrinks to it, the others stay.
+  size…), with counts; a choice is added to the search as a word, its group shrinks to it, the others stay. It also
+  offers where: **Drive** (`volume:local` or a drive, when one is attached) and **Folder** (`in:` the folders holding
+  the results: under each indexed folder it goes down while one folder holds them all, then offers its subfolders).
 - Speed: about 1–2 ms on 100,000 files, under 10 ms on a million; plain words and simple wildcards are matched
   without the regex engine (same answers, proved by test).
 
