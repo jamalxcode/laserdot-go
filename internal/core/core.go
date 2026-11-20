@@ -22,6 +22,7 @@ import (
 	"github.com/RoaringBitmap/roaring/v2"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
+	"github.com/jamalxcode/laserdot-go/internal/media"
 	"github.com/jamalxcode/laserdot-go/internal/query"
 	"github.com/jamalxcode/laserdot-go/internal/scan"
 )
@@ -1133,6 +1134,20 @@ func SearchStore(s *index.Store, q string, opts SearchOptions) (*SearchResults, 
 	return r, err
 }
 
+// contentClass orders content matches: documents, then other files, then
+// code, then anything hidden.
+func contentClass(s *index.Store, id uint32) int {
+	switch {
+	case s.IsHidden(id):
+		return 3
+	case s.Kind(id) == media.Document:
+		return 0
+	case s.Kind(id) == media.Code:
+		return 2
+	}
+	return 1
+}
+
 // contentRankBase: content hits rank after every name hit (§2.4.2), in
 // BM25 order.
 const contentRankBase = 1 << 60 // above every exact name key (< 2^56), below typo keys (≥ 2^62)
@@ -1248,6 +1263,9 @@ func searchStoreKeyed(s *index.Store, content *index.ContentIndex, archives *ind
 				cids = append(cids, id)
 			}
 		}
+		// Documents before other files, code last (each in word-match
+		// order): what people search contents for is their writing.
+		slices.SortStableFunc(cids, func(a, b uint32) int { return contentClass(s, a) - contentClass(s, b) })
 		if len(cids) > 0 {
 			shown := int(nameHits.GetCardinality())
 			offset := max(p.Offset-shown, 0)

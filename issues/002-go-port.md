@@ -137,6 +137,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Dialogs and content (0.9.29):** dialogs use `NSWindow.stayInFront` (no hide on deactivate, all Spaces,
+  full-screen auxiliary); content search skips hidden entries (`inScope`) and orders content matches by
+  `contentClass` (documents, other, code, hidden).
 - **Easier window (0.9.28):** the query string stays the only state; pills are a view of its filter words
   (`Pills`), never separate state, so history, pins, URLs and the CLI keep working; choices are prepended. Kind is a
   choice group (`refine.go`), replacing the app's kind-chip row; when only choices remain, the kind is the base.

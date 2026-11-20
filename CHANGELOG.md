@@ -7,6 +7,9 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
 - Fixed: the update prompt (and every other Laserdot dialog) could vanish behind the browser and only came back
   after closing other apps. Dialogs now stay in front, on every desktop and over full-screen apps.
+- Fixed: a search could show a program file from a hidden app folder (such as an Obsidian plugin's main.js) because
+  its code contained the words. Content search no longer reads hidden folders, and among files found by their
+  contents, documents come before code.
 
 ## 0.9.28
 

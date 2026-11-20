@@ -229,3 +229,35 @@ func TestSnippet(t *testing.T) {
 		t.Error("no words, no snippet")
 	}
 }
+
+// The owner searched for a PDF and got an Obsidian plugin's main.js from a
+// hidden folder: a program file matching the words. Hidden folders stay out
+// of content search, and documents rank before code among content matches.
+func TestContentSearchSkipsHiddenFoldersAndPutsDocumentsFirst(t *testing.T) {
+	base, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(base, "home")
+	docs := filepath.Join(root, "Documents")
+	h := time.Hour
+	put(t, filepath.Join(docs, "Vault/.obsidian/plugins/notebook-navigator/main.js"), []byte("const label = 'tax return 2023 summary';\n"), h)
+	put(t, filepath.Join(docs, "code/report.js"), []byte("// tax return 2023 summary\n"), h)
+	put(t, filepath.Join(docs, "letter.txt"), []byte("Here is my tax return 2023 summary.\n"), h)
+	ld, err := Open(filepath.Join(base, "data/index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { ld.Close() })
+	if err := ld.SetContentSettings(ContentSettings{Roots: []string{docs}, MaxBytes: 1000}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	if s, err := ld.UpdateContent(); err != nil || s.Indexed != 2 {
+		t.Fatalf("the hidden plugin file is not read: %+v %v", s, err)
+	}
+	got := find(t, ld, "tax return summary")
+	want := []nameContent{{"letter.txt", true}, {"report.js", true}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("the document first, the code after, the hidden plugin not at all: %+v", got)
+	}
+}

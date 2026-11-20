@@ -631,6 +631,15 @@ iCloud Drive, a drive's name, Temporary Items); the preview's buttons pinned; on
 Two bugs found on the screenshots were fixed: a folder choice labelled with its whole path, and clipped preview
 buttons. Nothing was removed: every filter can still be typed, every action is still in ⌘K.
 
+## 47. The update prompt behind the browser; a plugin file instead of a PDF (0.9.29)
+
+**Reported:** "the update dialog keeps popping up and disappearing behind the browser … i have to close all the
+apps on my mac to reach it". **Cause:** dialog panels hide when Laserdot (a menu-bar app) is not the front app, and
+open on the Space they were made on. **Fix:** every dialog stays in front, on every Space and over full-screen apps.
+**Reported:** "i searched for a pdf that i knew i had, and i got … .obsidian/plugins/notebook-navigator/main.js".
+**Cause:** content search read hidden folders, and a plugin's bundled code contains almost any word. **Fix:** hidden
+folders are not read for contents; among content matches documents come first, code last.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

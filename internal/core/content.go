@@ -250,7 +250,10 @@ func inScope(s *index.Store, roots []string, skipCode bool) map[string]contentTo
 	it := ids.Iterator()
 	for it.HasNext() {
 		id := it.Next()
-		if s.IsDir(id) || s.IsSymlink(id) || s.IsDataless(id) || s.IsPending(id) || skipCode && s.Kind(id) == media.Code {
+		// Hidden folders (.obsidian, .git, an app's plugins) hold program
+		// files, not what people look for by its words: a plugin's main.js
+		// matched almost any search ahead of the PDF the owner wanted.
+		if s.IsDir(id) || s.IsSymlink(id) || s.IsDataless(id) || s.IsPending(id) || s.IsHidden(id) || skipCode && s.Kind(id) == media.Code {
 			continue
 		}
 		kind := index.ContentTypeOf(media.Extension(s.FoldedName(id)))
