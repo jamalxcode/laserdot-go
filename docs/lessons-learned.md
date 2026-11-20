@@ -43,6 +43,9 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 5g. **Every outside tool needs a time limit and a clock.** The update waited on `codesign`, `hdiutil` and `ditto` with
     no limit and no elapsed time, so "slow" and "stuck" looked the same.
 
+5h. **Hold a file only while you use it.** A drive's index stayed open for as long as the drive was attached, so
+    macOS refused to eject it. Open for the job, close after it, and let go when the system asks.
+
 ## Crashes and recovery
 
 8. **Kill it on purpose.** A test that kills a real Laserdot process at random moments found, on its first runs, a

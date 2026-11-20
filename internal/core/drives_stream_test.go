@@ -243,3 +243,84 @@ func TestAnOldCutShortDriveIndexStartsOverByStreaming(t *testing.T) {
 	}
 	expect(t, dnames(t, m.ld, "re:."), full...)
 }
+
+// filesOpenUnder lists the files this process has open below dir (Linux:
+// /proc/self/fd; elsewhere the test is skipped).
+func filesOpenUnder(t *testing.T, dir string) []string {
+	t.Helper()
+	fds, err := os.ReadDir("/proc/self/fd")
+	if err != nil {
+		t.Skip("no /proc here")
+	}
+	var open []string
+	for _, fd := range fds {
+		if p, err := os.Readlink(filepath.Join("/proc/self/fd", fd.Name())); err == nil && strings.HasPrefix(p, dir+"/") {
+			open = append(open, p)
+		}
+	}
+	return open
+}
+
+// Between jobs Laserdot holds nothing open on a drive, so macOS can eject it
+// (the owner could not eject a drive while Laserdot ran): its index is
+// opened for a job and closed after, and searching uses memory only.
+func TestAnIdleDriveHoldsNoOpenFiles(t *testing.T) {
+	m := newMac(t)
+	drive := makeDrive(t, m.vols, "Archive")
+	if _, err := m.ld.CreateDriveIndex(drive, DriveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if open := filesOpenUnder(t, drive); len(open) > 0 {
+		t.Fatalf("after indexing, still open on the drive: %v", open)
+	}
+	expect(t, dnames(t, m.ld, "invoice"), "invoice-march.pdf") // searching needs no file
+	if _, err := m.ld.CatchUpDrive(drive); err != nil {
+		t.Fatal(err)
+	}
+	m.ld.Drives()
+	if open := filesOpenUnder(t, drive); len(open) > 0 {
+		t.Fatalf("after catching up and listing drives, still open: %v", open)
+	}
+	if !m.ld.Drives()[0].Complete {
+		t.Error("the drive list still knows the index is complete")
+	}
+	// Reattached later (as when it is plugged in again): nothing held either.
+	m.ld.DetachDrive(drive)
+	if _, err := m.ld.AttachDrive(drive, ""); err != nil {
+		t.Fatal(err)
+	}
+	m.ld.streams.Wait()
+	if open := filesOpenUnder(t, drive); len(open) > 0 {
+		t.Fatalf("after attaching, still open: %v", open)
+	}
+}
+
+// Ejecting during a whole-drive catch-up (exFAT, or the weekly check) lets
+// go at the next folder instead of after the whole drive.
+func TestEjectingDuringACatchUpLetsGoAtOnce(t *testing.T) {
+	m := newMac(t)
+	drive := makeDrive(t, m.vols, "Stick")
+	if _, err := m.ld.CreateDriveIndex(drive, DriveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	old := trustsFolderTimes
+	defer func() { trustsFolderTimes = old }()
+	trustsFolderTimes = func(string) bool { return false }
+	slowDrive(t, drive, 300*time.Millisecond)
+	done := make(chan error, 1)
+	go func() { _, err := m.ld.CatchUpDrive(drive); done <- err }()
+	time.Sleep(400 * time.Millisecond) // reading the drive now
+	start := time.Now()
+	if !m.ld.DetachDrive(drive) {
+		t.Fatal("detached")
+	}
+	if d := time.Since(start); d > 2*time.Second {
+		t.Errorf("detaching waited %v for the catch-up", d)
+	}
+	if err := <-done; err == nil {
+		t.Error("the catch-up should report it was stopped")
+	}
+	if open := filesOpenUnder(t, drive); len(open) > 0 {
+		t.Fatalf("still open after detaching: %v", open)
+	}
+}

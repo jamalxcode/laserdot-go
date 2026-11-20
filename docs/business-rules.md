@@ -28,6 +28,8 @@ The engineering pillars behind them are in [`../CLAUDE.md`](../CLAUDE.md).
 2. **Indexing pauses for an install** and for battery or heat, and carries on afterwards.
 3. **Searching never waits for indexing**: a drive is searchable while it is indexed, and quitting, ejecting or
    unplugging stops indexing at once, keeping what was read.
+4. **Laserdot never stands in the way of ejecting a drive** (0.9.21): between jobs it holds nothing open on a drive,
+   and when macOS is about to eject one it lets go first, then approves.
 
 ## 2. Files are never put at risk
 

@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.21
+
+- Ejecting a drive always works while Laserdot runs. Laserdot no longer keeps a drive's index file open: it opens it
+  only while it is indexing or catching up, and searching a drive needs nothing on the drive. If you eject in the
+  middle of that work, Laserdot stops at once, keeps what it read, and lets the drive go. (Before, you had to quit
+  Laserdot to eject a drive.)
+
 ## 0.9.20
 
 - Indexing never slows your Mac down any more. Laserdot's engine now runs as a background task, like Spotlight's: your

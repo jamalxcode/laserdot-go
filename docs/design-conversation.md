@@ -525,6 +525,15 @@ minutes to 8.4 (the self-test from 291 s and 429 s to 138 s and 134 s; the Mac t
 merged to `main` at 04:44 Kuwait time without a release (nothing in the app changed for users). The owner checked in
 twice ("is it done yet?") while the runs went; each answer gave the run's start time and an estimate.
 
+## 37. A drive that would not eject (0.9.21)
+
+**Reported:** "i could not eject my removable volume because it was being used by laserdot, i had to quit laserdot,
+make laserdot removable media aware and not hog it". **Found:** the drive's index file stayed open for as long as the
+drive was attached, though searching never needs it. **Decided:** the index on a drive is opened only for a job
+(indexing, catching up) and closed after it; when macOS is about to eject a disk, the app has the engine let go of it
+first (a job stops at once, keeping what it read) and always approves the eject. Laserdot never stands in the way of
+ejecting. (The owner had also asked for a speed review just before; its four proposals wait for the owner's go-ahead.)
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

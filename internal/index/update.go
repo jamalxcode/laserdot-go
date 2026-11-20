@@ -80,6 +80,8 @@ type diff struct {
 	offlineRoots []uint32
 	retarget     []uint32
 	scanned      uint64
+	// stopped: opts.Stop asked to let go (a drive being ejected).
+	stopped bool
 }
 
 type action int
@@ -212,6 +214,10 @@ func applyOnce(db *Db, s *Store, changes []scan.Change, opts scan.Options, lock 
 		d.retarget = nil
 	}
 	stats.DirsScanned = d.scanned
+	if d.stopped {
+		// Let go before changing anything: the next catch-up looks again.
+		return stats, nil, ErrInterrupted
+	}
 
 	// Offline roots keep their entries (§2.6.2).
 	nowT := now()
@@ -628,6 +634,10 @@ func rawOf(e *scan.Entry, p Probe, dbID int64) RawEntry {
 }
 
 func diffDir(s *Store, dir uint32, recursive bool, opts scan.Options, out *diff, done map[uint32]bool) {
+	if out.stopped || (opts.Stop != nil && opts.Stop()) {
+		out.stopped = true
+		return
+	}
 	path := s.Path(dir)
 	if scan.IsOpaque(path, opts) {
 		// Indexed before it counted as opaque (an app bundle before 0.3):

@@ -41,6 +41,8 @@ struct LaserdotApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     @Published var statusLine = L("daemon.starting")
     var watchdog: Watchdog?
+    /// Lets go of a drive just before macOS ejects it.
+    var ejectWatcher: EjectWatcher?
     private var progressPolling = false
     @Published var networkLine = ""
     @Published var watcherLine = ""
@@ -340,6 +342,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             }
             w.start()
             watchdog = w
+            // A disk about to be ejected: the engine lets go of it first
+            // (waiting at most 5 seconds; the eject goes ahead regardless).
+            ejectWatcher = EjectWatcher { mount in
+                let done = DispatchSemaphore(value: 0)
+                DispatchQueue.global(qos: .userInitiated).async {
+                    _ = try? engine.driveRelease(mount: mount)
+                    done.signal()
+                }
+                _ = done.wait(timeout: .now() + 5)
+            }
         }
         // After the first frame: nothing here is needed to show a window.
         DispatchQueue.main.async { [weak self] in

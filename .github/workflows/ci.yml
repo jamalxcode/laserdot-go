@@ -169,6 +169,27 @@ jobs:
           pkill -f "$d/Laserdot.app/Contents/MacOS/laserdotd" || true
           cat "$d/app.log"
           echo "Laserdot.app launched and kept running"
+      - name: A drive Laserdot has indexed can be ejected while laserdotd runs (removable media aware)
+        run: |
+          d=$(mktemp -d)
+          hdiutil create -size 40m -fs APFS -volname LDEject "$d/eject.dmg" >/dev/null
+          for i in 1 2 3 4 5; do hdiutil attach -nobrowse "$d/eject.dmg" && break; sleep $((i * 3)); done
+          vol=/Volumes/LDEject
+          sudo mdutil -i off "$vol" >/dev/null 2>&1 || true # Spotlight would hold it, not Laserdot
+          mkdir -p "$vol/Docs" && for i in $(seq 1 200); do echo "file $i" > "$vol/Docs/note-$i.txt"; done
+          db="$d/data/index.db"
+          app/build/go/laserdotd --db "$db" --volume-interval 2 > "$d/daemon.log" 2>&1 &
+          pid=$!
+          for i in $(seq 1 50); do app/build/go/laserdot --db "$db" status >/dev/null 2>&1 && break; sleep 0.2; done
+          app/build/go/laserdot --db "$db" drives index "$vol"
+          app/build/go/laserdot --db "$db" search note-17 | head -3
+          echo "open on the drive (should be none):"; lsof +D "$vol" 2>/dev/null || true
+          ok=""
+          for i in 1 2 3; do hdiutil detach "$vol" && { ok=1; break; }; sleep 2; done
+          kill "$pid" || true
+          cat "$d/daemon.log"
+          [ -n "$ok" ] || { echo "::error::the drive could not be ejected while laserdotd ran"; exit 1; }
+          echo "ejected while laserdotd was running"
       - name: Self-test of the real app (types into the overlay; English and Arabic; screenshots)
         run: |
           fx="$(mktemp -d)/fixtures"

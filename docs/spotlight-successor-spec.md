@@ -412,6 +412,14 @@ white       = " " | "\t" | "\n" ;
 - **9.3** First mount of unindexed drive: prompt, show estimated size/file count, confirm the index write before starting
   - *As built (M5):* the estimate is a Tier 0 walk (files, folders, bytes) and an index size of about 220 bytes per entry. The prompt offers Index, Not Now and Never for This Drive (remembered by drive name), and an Encrypt checkbox with a passphrase
 - **9.4** On unmount: drive's index detaches cleanly; system index untouched
+  - *Go port (0.9.21):* removable media aware. A drive's index on the drive is opened for each job (first index,
+    resume, catch-up) and closed after it (`drive.acquire`/`release`; the drive list uses the roots as last read), so
+    between jobs no file on the drive is open and macOS can eject it; searching uses the in-memory store only.
+    Encrypted and read-only drives work on a copy on this Mac, which stays open. The app registers a DiskArbitration
+    unmount-approval callback: before any disk is unmounted the engine detaches that drive (on a connection of its
+    own; a running first index stops between batches, a catch-up at the next folder via `scan.Options.Stop`, changing
+    nothing), waiting at most 5 s, and the unmount is always approved. CI ejects an indexed disk image while laserdotd
+    runs.
 - **9.5** Index self-contained and portable — plug into another Mac running the app, search is instant
 - **9.6** Hidden by default (dot-folder); in-app drive manager with "rebuild index" and "eject" per drive
   - *As built (M5):* the menu bar's Drives submenu lists mounted drives with their state (not indexed, N items, not searched, locked, unreadable) and per state: Index, Unlock, Search This Drive, Stop Searching (detach), Rebuild, Delete Index, Show in Finder and Eject (`diskutil eject`). The same actions are `laserdot drives [list|plan|index|unlock|detach|rebuild|delete|eject]` and daemon requests (protocol v2). Results from a drive carry its name, shown as a badge

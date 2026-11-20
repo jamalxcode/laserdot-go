@@ -357,6 +357,16 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.21 (2026-11-20):** the owner could not eject a drive while Laserdot ran ("make laserdot removable media
+  aware and not hog it"). The drive's `index.db` stayed open (with its WAL and shared-memory files) for as long as
+  the drive was attached. Now `drive.db` is opened per job (`acquire`) and closed after it (`release`, which caches
+  the roots in `drive.roots` for `driveInfo`) when the index is a file on the drive (`holdsDrive`: on the drive and
+  not encrypted); `CatchUpDrive` reads its setting under `wmu`; `index.Apply` honours `scan.Options.Stop` (diff
+  aborted before any change → `ErrInterrupted`), set from `drive.stop` in `applyDrive`. App: `EjectWatcher`
+  (DiskArbitration unmount approval on the main run loop) calls `Engine.driveRelease` (detach on a connection of its
+  own, ≤ 5 s) and always approves. Tests: `TestAnIdleDriveHoldsNoOpenFiles` (/proc/self/fd after indexing, catching
+  up, listing and re-attaching), `TestEjectingDuringACatchUpLetsGoAtOnce` (< 2 s with 300 ms folders); CI ejects an
+  indexed APFS disk image with `hdiutil detach` while laserdotd runs (Spotlight off on it).
 - **CI review (2026-11-20, no release):** measured: the app job ~17 min, 12 of them the self-test (~5 min per
   language), bundle 79 s, Swift build and tests 55 s each; the Mac test job 4.4 min (race tests 134 s); the release
   job 4.2 min. Changes: documents-only pushes (docs/, issues/, README, CLAUDE.md; not CHANGELOG.md) skip the Mac jobs

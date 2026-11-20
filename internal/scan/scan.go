@@ -57,6 +57,10 @@ func IsPartialDownload(name string) bool {
 
 // Options control a walk.
 type Options struct {
+	// Stop, when set and answering true, makes a catch-up (index.Apply) let
+	// go of the disk at the next folder, changing nothing (a drive being
+	// ejected).
+	Stop func() bool
 	// Until, when set, stops the walk once it is past (an estimate on a big
 	// drive needs a few seconds of it, not the whole drive); what was read
 	// by then is returned.

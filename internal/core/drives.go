@@ -129,7 +129,17 @@ type drive struct {
 	id, mount, name, dir string
 	onDrive, encrypted   bool
 	pass                 string
-	db                   *index.Db
+	// db: the drive's index while a job uses it. An index kept on the drive
+	// is opened for each job (index, catch up) and closed after it, so
+	// between jobs Laserdot holds no file on the drive and it can be ejected
+	// (the owner could not eject a drive Laserdot kept its index open on).
+	// Searching uses the in-memory store and never needs it. Encrypted and
+	// read-only drives' indexes are worked on in a copy on this Mac, which
+	// stays open. Use under wmu (or before the drive is shared).
+	db *index.Db
+	// roots: the index's roots as last read (for the drive list, which must
+	// not open the drive).
+	roots atomic.Pointer[[]index.RootInfo]
 	// work: the decrypted working copy on this Mac (encrypted drives).
 	work  string
 	store *index.Store
@@ -148,6 +158,43 @@ type drive struct {
 }
 
 func (d *drive) indexPath() string { return filepath.Join(d.dir, "index.db") }
+
+// holdsDrive: the open index is a file on the drive itself.
+func (d *drive) holdsDrive() bool { return d.onDrive && !d.encrypted }
+
+// acquire opens the drive's index for a job, if it is closed.
+func (d *drive) acquire() error {
+	if d.db != nil {
+		return nil
+	}
+	db, err := index.OpenDrive(d.indexPath(), d.mount)
+	if err != nil {
+		return err
+	}
+	d.db = db
+	return nil
+}
+
+// release notes the roots and, for an index on the drive, closes it (its
+// journal files go too), so the drive is free to be ejected.
+func (d *drive) release() {
+	if d.db == nil {
+		return
+	}
+	if roots, err := d.db.Roots(); err == nil {
+		d.roots.Store(&roots)
+	}
+	if d.holdsDrive() {
+		d.db.Close()
+		d.db = nil
+	}
+}
+
+// complete: every root of the drive's index is finished (as last read).
+func (d *drive) complete() bool {
+	r := d.roots.Load()
+	return r != nil && !slices.ContainsFunc(*r, func(x index.RootInfo) bool { return !x.Complete })
+}
 
 func (d *drive) reload() error {
 	s, err := d.load()
@@ -172,7 +219,7 @@ func (d *drive) load() (*index.Store, error) {
 
 // sealBack writes an encrypted drive's working copy back to the drive.
 func (d *drive) sealBack() error {
-	if !d.encrypted {
+	if !d.encrypted || d.db == nil {
 		return nil
 	}
 	if err := d.db.Checkpoint(); err != nil {
@@ -182,8 +229,11 @@ func (d *drive) sealBack() error {
 }
 
 func (d *drive) close() {
-	d.sealBack()
-	d.db.Close()
+	if d.db != nil {
+		d.sealBack()
+		d.db.Close()
+		d.db = nil
+	}
 	if d.work != "" {
 		for _, s := range []string{"", "-wal", "-shm"} {
 			os.Remove(d.work + s)
@@ -305,14 +355,17 @@ func (ld *Laserdot) driveInfo(v scan.Volume) DriveInfo {
 		FreeBytes: v.FreeBytes, State: DriveState{State: DriveUnindexed},
 	}
 	if d := ld.driveAt(v.Mount); d != nil {
-		roots, _ := d.db.Roots()
+		var roots []index.RootInfo
+		if r := d.roots.Load(); r != nil {
+			roots = *r
+		}
 		id, p := d.id, d.indexPath()
 		info.ID, info.IndexPath = &id, &p
 		info.State = DriveState{State: DriveAttached}
 		info.OnDrive, info.Encrypted = d.onDrive, d.encrypted
 		info.IndexBytes = dirBytes(d.dir)
 		info.Entries = d.store.LiveCount()
-		info.Complete = true
+		info.Complete = !d.indexing.Load()
 		for _, r := range roots {
 			info.Complete = info.Complete && r.Complete
 			if info.LastScan == nil || r.LastVerified > *info.LastScan {
@@ -466,6 +519,10 @@ func (ld *Laserdot) streamDrive(d *drive, so index.StreamOptions) (IndexStats, e
 	if d.closed {
 		return IndexStats{}, errors.New("drive not attached")
 	}
+	if err := d.acquire(); err != nil {
+		return IndexStats{}, err
+	}
+	defer d.release()
 	d.indexing.Store(true)
 	defer d.indexing.Store(false)
 	mount := d.mount
@@ -488,6 +545,9 @@ func (ld *Laserdot) streamDrive(d *drive, so index.StreamOptions) (IndexStats, e
 	// parent (folders only: files need no lookup).
 	var folders map[int64]uint32
 	so.OnStart = func() error {
+		if roots, err := d.db.Roots(); err == nil {
+			d.roots.Store(&roots)
+		}
 		s, err := d.load()
 		if err != nil {
 			return err
@@ -615,8 +675,8 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 		ld.wmu.Unlock()
 		return DriveInfo{}, err
 	}
-	roots, _ := db.Roots()
-	incomplete := slices.ContainsFunc(roots, func(r index.RootInfo) bool { return !r.Complete })
+	d.release() // loaded: the drive's file is not kept open
+	incomplete := !d.complete()
 	ld.mu.Lock()
 	if vf.Encrypted {
 		ld.keys[vf.ID] = pass
@@ -692,7 +752,7 @@ func (ld *Laserdot) CatchUpDrive(mount string) (UpdateStats, error) {
 	if d.indexing.Load() {
 		return UpdateStats{OfflineRoots: []string{}}, nil
 	}
-	if roots, _ := d.db.Roots(); slices.ContainsFunc(roots, func(r index.RootInfo) bool { return !r.Complete }) {
+	if !d.complete() {
 		// A first index not finished (a stuck folder, or cut short): it
 		// goes on with the streaming indexer.
 		st, err := ld.streamDrive(d, index.StreamOptions{})
@@ -702,7 +762,13 @@ func (ld *Laserdot) CatchUpDrive(mount string) (UpdateStats, error) {
 	if err != nil {
 		return UpdateStats{OfflineRoots: []string{}}, err
 	}
-	last, _ := d.db.Setting(fullCheckKey)
+	d.wmu.Lock()
+	var last string
+	if err := d.acquire(); err == nil {
+		last, _ = d.db.Setting(fullCheckKey)
+		d.release()
+	}
+	d.wmu.Unlock()
 	at, _ := strconv.ParseInt(last, 10, 64)
 	if trustsFolderTimes(v.FSType) && at > 0 && time.Since(time.Unix(at, 0)) < FullCheckEvery {
 		stale := ld.staleIn(func() *index.Store { return d.store })
@@ -734,8 +800,14 @@ func (ld *Laserdot) applyDrive(mount string, changes []Change, complete bool) (U
 	if d.closed {
 		return UpdateStats{OfflineRoots: []string{}}, errors.New("drive not attached")
 	}
+	if err := d.acquire(); err != nil {
+		return UpdateStats{OfflineRoots: []string{}}, err
+	}
+	defer d.release()
 	start := time.Now().Unix()
-	u, err := index.Apply(d.db, d.store, changes, d.scan, &ld.mu)
+	opts := d.scan
+	opts.Stop = d.stop.Load // ejecting lets go at the next folder
+	u, err := index.Apply(d.db, d.store, changes, opts, &ld.mu)
 	if err == nil && complete {
 		// The whole tree was read: complete, and the time of this full
 		// read noted for CatchUpDrive.

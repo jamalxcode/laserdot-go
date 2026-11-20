@@ -46,6 +46,12 @@ extension Engine {
         try call(.driveDetach(mount: mount), as: Bool.self)
     }
 
+    /// Let go of a drive about to be ejected, on a connection of its own (a
+    /// slow request on the shared one must not delay an eject).
+    public func driveRelease(mount: String) throws -> Bool {
+        try longCall(longJobConnection(), .driveDetach(mount: mount), as: Bool.self)
+    }
+
     @discardableResult
     public func driveRebuild(mount: String, passphrase: String?) throws -> String {
         let s = try longCall(longJobConnection(), .driveRebuild(mount: mount, passphrase: passphrase), as: Wire.IndexStats.self)
