@@ -534,6 +534,17 @@ drive was attached, though searching never needs it. **Decided:** the index on a
 first (a job stops at once, keeping what it read) and always approves the eject. Laserdot never stands in the way of
 ejecting. (The owner had also asked for a speed review just before; its four proposals wait for the owner's go-ahead.)
 
+## 38. Choosing from what the results have (0.9.21)
+
+**Asked** (with a screenshot of `mp4` results): "when searching for something like mp4 videos, it would be
+convenient to have different resolutions to choose from, sound / no sound, and other related options; same for
+images, documents; show related attributes that can be selected in addition to search term". **Decided:** under the
+hint line, the attributes the results actually have, grouped and counted (videos: resolution, sound, shape, length,
+codec, HDR; pictures: shape, camera, location, screenshots, Live Photos, RAW; music: artist, album, genre; documents:
+type; all: date and size). Clicking one adds its filter to the search as a word, so it stays visible and editable
+and teaches the language. Only choices that narrow the results appear. Shipped with the eject fix as 0.9.21, with the
+speed review's "skip stale searches while typing".
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

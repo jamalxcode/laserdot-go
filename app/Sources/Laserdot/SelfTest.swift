@@ -104,6 +104,14 @@ final class SelfTestRunner {
             Step(name: "jpg", typed: "jpg"),
             Step(name: "proj", typed: "proj"),
             Step(name: "tool", typed: "tool"),
+            // What the results have to choose from (here: their types), with
+            // counts; choosing one narrows the search to it.
+            Step(name: "refine", typed: "proj", until: { !$0.refinements.isEmpty }),
+            Step(name: "refined", typed: "proj", after: {
+                if let pdf = model.refinements.flatMap(\.options).first(where: { $0.token == "ext:pdf" }) {
+                    model.applyRefinement(pdf)
+                }
+            }, until: { $0.refinements.flatMap(\.options).contains { $0.token == "ext:pdf" } }, wait: 1.0),
             Step(name: "pdftoday", typed: "pdf today"),
             Step(name: "commands", typed: ">dup"),
             // As in Spotlight: the top hit's name completes inline, the rest

@@ -70,8 +70,11 @@ const (
 	OpHint        = "hint"
 	OpSectionAt   = "section_at"
 	OpCompletions = "completions"
-	OpFilters     = "filters"
-	OpCheatSheet  = "cheat_sheet"
+	// OpRefine: the attributes a search's results have to choose from
+	// (resolutions, sound, shape, camera, type…), with counts (Query).
+	OpRefine     = "refine"
+	OpFilters    = "filters"
+	OpCheatSheet = "cheat_sheet"
 	// Tier 2 (§3.1.1): deep probing now; loudness of one file (§3.6).
 	OpDeepProbe = "deep_probe"
 	OpLoudness  = "loudness"

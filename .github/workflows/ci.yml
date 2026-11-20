@@ -172,8 +172,10 @@ jobs:
       - name: A drive Laserdot has indexed can be ejected while laserdotd runs (removable media aware)
         run: |
           d=$(mktemp -d)
-          hdiutil create -size 40m -fs APFS -volname LDEject "$d/eject.dmg" >/dev/null
-          for i in 1 2 3 4 5; do hdiutil attach -nobrowse "$d/eject.dmg" && break; sleep $((i * 3)); done
+          # Sparse: 1 GB as far as Laserdot is concerned (it wants 512 MB free
+          # before indexing a drive), a few MB on the machine.
+          hdiutil create -type SPARSE -size 1g -fs APFS -volname LDEject "$d/eject" >/dev/null
+          for i in 1 2 3 4 5; do hdiutil attach -nobrowse "$d/eject.sparseimage" && break; sleep $((i * 3)); done
           vol=/Volumes/LDEject
           sudo mdutil -i off "$vol" >/dev/null 2>&1 || true # Spotlight would hold it, not Laserdot
           mkdir -p "$vol/Docs" && for i in $(seq 1 200); do echo "file $i" > "$vol/Docs/note-$i.txt"; done

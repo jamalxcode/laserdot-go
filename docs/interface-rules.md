@@ -61,6 +61,13 @@ for `>` commands, after a trailing space, or while moving through the results.
 3. **A dialog always fits the screen** with its buttons visible: long text (such as release notes) scrolls in a box
    of fixed height. (A 16-inch MacBook once lost the Install button.)
 
+## 5b. Choose, don't type
+
+1. After a search, what the results have to choose from is offered under the hint line, by attribute, with counts
+   ("Resolution 4K 3 · 1080p 12   Sound With sound 14 · No sound 1"). A choice is added to the search as a word,
+   so it stays visible and editable.
+2. Only choices that narrow the results are shown.
+
 ## 6. Words
 
 1. Plain language. Say what happens and what to do, not internal terms.

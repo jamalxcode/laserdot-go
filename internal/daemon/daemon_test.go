@@ -120,6 +120,10 @@ func TestProtocol(t *testing.T) {
 	if err := c.Call(&ipc.Request{Op: ipc.OpCompletions, Query: "res:1", Cursor: 5}, &comps); err != nil || len(comps) != 2 {
 		t.Errorf("%v %v", comps, err)
 	}
+	var refine []map[string]any
+	if err := c.Call(&ipc.Request{Op: ipc.OpRefine, Query: ""}, &refine); err != nil || refine == nil || len(refine) != 0 {
+		t.Errorf("refine on an empty query: %v %v", refine, err)
+	}
 	var section *string
 	if err := c.Call(&ipc.Request{Op: ipc.OpSectionAt, Query: "chan", Cursor: 4}, &section); err != nil || section == nil || *section != "Audio" {
 		t.Errorf("%v %v", section, err)

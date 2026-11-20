@@ -9,6 +9,12 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
   only while it is indexing or catching up, and searching a drive needs nothing on the drive. If you eject in the
   middle of that work, Laserdot stops at once, keeps what it read, and lets the drive go. (Before, you had to quit
   Laserdot to eject a drive.)
+- Choose from what your results have. Search for videos and Laserdot offers the resolutions among them (4K, 1080p…),
+  with sound or without, portrait or landscape, length and codec, each with how many results have it; pictures offer
+  shape, camera, location, screenshots and Live Photos; music offers artist, album and genre; documents offer their
+  types; everything offers date and size. Click one to narrow the search (it is added to the search, so you can see
+  and change it).
+- Typing feels lighter: a search that a newer keystroke has replaced is skipped instead of run.
 
 ## 0.9.20
 

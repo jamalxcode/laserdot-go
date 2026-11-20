@@ -48,6 +48,8 @@ public enum DaemonRequest: Encodable, Sendable {
     case sectionAt(query: String, cursor: Int)
     /// Autocomplete for the token under the caret (spec §8.2).
     case completions(query: String, cursor: Int, lang: String)
+    /// What a search's results have to choose from (resolutions, sound, type…).
+    case refine(query: String)
     /// Every filter, for the cheat sheet (spec §8.9).
     case filters(lang: String)
     /// The plain-text cheat sheet.
@@ -113,6 +115,7 @@ public enum DaemonRequest: Encodable, Sendable {
         case .hint: return "hint"
         case .sectionAt: return "section_at"
         case .completions: return "completions"
+        case .refine: return "refine"
         case .filters: return "filters"
         case .cheatSheet: return "cheat_sheet"
         }
@@ -146,7 +149,7 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(request, forKey: .request)
         case let .setContentSettings(settings):
             try c.encode(settings, forKey: .settings)
-        case let .coach(query):
+        case let .coach(query), let .refine(query):
             try c.encode(query, forKey: .query)
         case let .hint(query, cursor, lang), let .completions(query, cursor, lang):
             try c.encode(query, forKey: .query)

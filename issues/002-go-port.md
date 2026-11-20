@@ -357,6 +357,16 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.21, refinements (2026-11-20):** the owner, with a screenshot of `mp4` results: "it would be convenient to
+  have different resolutions to choose from, sound / no sound, and other related options; same for images,
+  documents; show related attributes that can be selected in addition to search term". `core/refine.go`
+  (`Refinements`, `queryHits`), `Store.FacetCountsIn`, daemon op `refine`; app: `RefineGroup`/`RefineOption`,
+  `Engine.refinements`, `SearchModel.refinements`/`loadRefinements`/`applyRefinement`, `refinementChips` under the
+  hint, strings `refine.*` in English and Arabic. Also from the speed review: searches and guidance requests made
+  stale by a newer keystroke are skipped (`currentGeneration`). Tests: `TestVideoResultsOfferTheirAttributes` (six
+  corpus videos: resolutions, sound, shape, codecs, HDR; every count equals the narrowed search's total; nothing
+  repeated or offered for one result), `TestDocumentResultsOfferTheirTypes`, the daemon op; self-test steps `refine`
+  and `refined` (proj → PDF/TXT offered; choosing PDF gives `proj ext:pdf` → project.pdf only).
 - **0.9.21 (2026-11-20):** the owner could not eject a drive while Laserdot ran ("make laserdot removable media
   aware and not hog it"). The drive's `index.db` stayed open (with its WAL and shared-memory files) for as long as
   the drive was attached. Now `drive.db` is opened per job (`acquire`) and closed after it (`release`, which caches

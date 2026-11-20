@@ -181,6 +181,8 @@ extension SelfTestRunner {
         r["undo_banner"] = model.undoBannerVisible
         r["snippet"] = model.snippet ?? ""
         r["action_ids"] = model.selected == nil ? [String]() : model.actions.map(\.id)
+        r["refinements"] = model.refinements.flatMap { $0.options.map(\.token) }
+        r["refine_groups"] = model.refinements.map(\.id)
         steps.append(r)
         writeReport(error: "unfinished: last step \(name)") // so a hang still shows where
         screenshot(window, name: name)

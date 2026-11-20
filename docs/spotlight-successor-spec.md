@@ -359,6 +359,17 @@ white       = " " | "\t" | "\n" ;
   - `channels:` → `stereo 5.1 7.1 atmos`
   - Invalid regex (in `re:` mode) → error message with position highlighted plus fix suggestion
 - **8.2** Autocomplete for filter keys and values (arrow keys, Tab to accept)
+- **8.2b** *Refinements (Go port, 0.9.21; the owner: "show related attributes that can be selected in addition to
+  the search term").* Under the hint line, the attributes the current results actually have, grouped and counted:
+  videos — resolution (`res:`), sound (`a.count:>=1` / `a.count:0`), shape (`orientation:`), length (`duration:`
+  ranges), codec (top values), HDR; images — shape, camera (top values), location (`gps:true`), screenshots, Live
+  Photos, RAW; audio — artist, album, genre (top values), length; documents — type (`ext:`); all — modified
+  (`modified:today`, `since:7d/30d/365d`) and size (`fsize:` ranges). A choice appends its token to the query (plain
+  query language: the hint explains it and it can be edited away). Offered only when it narrows: no value that no
+  result or every result has, none the query already contains, nothing for fewer than two results. Daemon op
+  `refine` (`core.Refinements`): the query's hits per index (this Mac and each drive), each candidate token's bitmap
+  intersected with them, facet values counted inside the hits (`Store.FacetCountsIn`, at most 6 per attribute).
+  The app asks after each search's results arrive, on the guidance connection, skipping stale requests.
 - **8.3** Zero-results coaching: three most likely causes — filter too narrow (one-click "relax this filter"), typo in filter value (suggested correction), folder not indexed (one-click "index this folder")
   - *As built (M8):* computed in the core from the index (`coach`), at most three, in this order:
     - **index this folder:** an `in:` path that exists on disk but is not inside an indexed folder;

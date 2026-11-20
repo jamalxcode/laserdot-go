@@ -29,6 +29,7 @@ struct SearchView: View {
             if !(fixedSize && model.compact) {
                 hintLine
                 chips
+                refinementChips
                 Divider()
                 Group {
                     if model.showCheatSheet {

@@ -178,5 +178,55 @@ extension SearchView {
         }
     }
 
+    /// What the results have to choose from, by attribute ("Resolution:
+    /// 4K 3 · 1080p 12   Sound: With sound 14 · No sound 1"). A choice joins
+    /// the query, so the hint line explains it and it can be removed by
+    /// editing the search like any word. Hidden while a filter is being
+    /// typed (its completions are shown instead).
+    @ViewBuilder var refinementChips: some View {
+        let groups = model.refinements
+        if !groups.isEmpty && model.completionChips.isEmpty && !model.isCommandMode {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(groups, id: \.id) { g in
+                        HStack(spacing: 4) {
+                            Text(Self.refineTitle(g.id))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            ForEach(g.options, id: \.token) { o in
+                                Button {
+                                    model.applyRefinement(o)
+                                } label: {
+                                    Text("\(Self.refineLabel(o)) ").font(.caption)
+                                        + Text(Self.count(o.count)).font(.caption).foregroundColor(.secondary)
+                                }
+                                .help(o.token)
+                                .accessibilityLabel("\(Self.refineTitle(g.id)) \(Self.refineLabel(o)), \(Self.count(o.count))")
+                            }
+                        }
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+                .padding(.horizontal, 16)
+            }
+            .padding(.bottom, 8)
+            .accessibilityIdentifier("refinements")
+        }
+    }
+
+    static func refineTitle(_ id: String) -> String { L("refine.group." + id) }
+
+    static func refineLabel(_ o: RefineOption) -> String {
+        if let key = o.key { return L("refine." + key) }
+        return o.label
+    }
+
+    static func count(_ n: UInt64) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+
     static func chipKey(_ i: Int) -> String { i < 9 ? "  (⌥\(i + 1))" : "" }
 }

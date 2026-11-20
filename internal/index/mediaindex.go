@@ -630,3 +630,30 @@ func (m *MediaIndex) memoryBytes() uint64 {
 	}
 	return b
 }
+
+// FacetCountsIn: a facet's values among the entries in within, most common
+// first, at most limit (refinement chips: "codec: hevc 12, h264 4").
+func (s *Store) FacetCountsIn(id query.FilterID, scope query.Scope, within *roaring.Bitmap, limit int) []FacetValue {
+	var out []FacetValue
+	for k, bm := range s.media.facets[facetKey{id, scope}] {
+		if k == "" {
+			continue
+		}
+		if n := bm.AndCardinality(within); n > 0 {
+			out = append(out, FacetValue{k, n})
+		}
+	}
+	slices.SortFunc(out, func(a, b FacetValue) int {
+		if a.Count != b.Count {
+			if a.Count > b.Count {
+				return -1
+			}
+			return 1
+		}
+		return strings.Compare(a.Value, b.Value)
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
+}

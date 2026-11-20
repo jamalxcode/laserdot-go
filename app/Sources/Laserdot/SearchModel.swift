@@ -33,6 +33,8 @@ final class SearchModel: ObservableObject {
     @Published private(set) var sections: [ResultSection] = []
     /// Clickable completions for the word being typed (spec §8.2).
     @Published private(set) var completionChips: [Completion] = []
+    /// What the results have to choose from (resolutions, sound, type…).
+    @Published private(set) var refinements: [RefineGroup] = []
     @Published private(set) var total: UInt64 = 0
     @Published private(set) var elapsedMs: Double = 0
     /// The results on screen are for an earlier query; the current one is
@@ -248,6 +250,9 @@ final class SearchModel: ObservableObject {
         }
         generation += 1
         let gen = generation
+        generationLock.lock()
+        generationShared = gen
+        generationLock.unlock()
         let q = query
         let (engine, caret) = (self.engine, cursor)
         selection = 0
@@ -261,6 +266,7 @@ final class SearchModel: ObservableObject {
             searching = false
             hint = L("commands.hint")
             completionChips = []
+            refinements = []
             (results, sections, allHits) = ([], [], [])
             problem = nil
             coaching = []
@@ -268,11 +274,12 @@ final class SearchModel: ObservableObject {
             return
         }
         guideQueue.async { [weak self] in
+            guard let self, gen == self.currentGeneration() else { return }
             let h = engine.hint(query: q, cursor: caret, lang: appLang)
             let section = engine.sectionAt(query: q, cursor: caret)
             let chips = Array(engine.completions(query: q, cursor: caret, lang: appLang).prefix(6))
             DispatchQueue.main.async {
-                guard let self, gen == self.generation else { return }
+                guard gen == self.generation else { return }
                 self.hint = h
                 self.currentSection = section
                 self.completionChips = chips
@@ -281,6 +288,7 @@ final class SearchModel: ObservableObject {
         if q.trimmingCharacters(in: .whitespaces).isEmpty {
             searching = false
             completionChips = []
+            refinements = []
             total = 0
             problem = nil
             notes = []
@@ -291,12 +299,48 @@ final class SearchModel: ObservableObject {
         searching = true
         let (sort, reverse) = (self.sort, self.reverse)
         queue.async { [weak self] in
+            // A newer keystroke came while this one waited: its search
+            // replaces this one, which would only be thrown away.
+            guard let self, gen == self.currentGeneration() else { return }
             let outcome = Result { try engine.search(query: q, limit: 100, sort: sort, reverse: reverse) }
             DispatchQueue.main.async {
-                guard let self, gen == self.generation else { return }
+                guard gen == self.generation else { return }
                 self.apply(outcome)
             }
         }
+    }
+
+    /// Asks what the results have to choose from, after they arrive (on the
+    /// guidance line, skipped when a newer keystroke came meanwhile).
+    func loadRefinements(total: UInt64) {
+        guard total > 1 else {
+            refinements = []
+            return
+        }
+        let (gen, q, engine) = (generation, query, self.engine)
+        guideQueue.async { [weak self] in
+            guard let self, gen == self.currentGeneration() else { return }
+            let groups = engine.refinements(query: q)
+            DispatchQueue.main.async {
+                guard gen == self.generation else { return }
+                self.refinements = groups
+            }
+        }
+    }
+
+    /// The generation, read from any thread (a stale request is skipped).
+    private let generationLock = NSLock()
+    private var generationShared = 0
+    func currentGeneration() -> Int {
+        generationLock.lock()
+        defer { generationLock.unlock() }
+        return generationShared
+    }
+
+    /// A refinement chip: its token joins the query.
+    func applyRefinement(_ o: RefineOption) {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        query = q.isEmpty ? o.token : q + " " + o.token
     }
 
     func apply(_ outcome: Result<Results, Error>) {
@@ -313,6 +357,7 @@ final class SearchModel: ObservableObject {
             problem = nil
             unavailable = nil
             if r.total == 0 { loadCoaching() }
+            loadRefinements(total: r.total)
         case .failure(let error):
             results = []
             sections = []

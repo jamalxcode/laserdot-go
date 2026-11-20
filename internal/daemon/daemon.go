@@ -488,6 +488,8 @@ func (s *Server) handle(req *ipc.Request) ipc.Response {
 		return ok(nil)
 	case ipc.OpCompletions:
 		return ok(query.Completions(req.Query, req.Cursor, query.LangFromCode(req.Lang)))
+	case ipc.OpRefine:
+		return result(s.ld.Refinements(req.Query))
 	case ipc.OpFilters:
 		return ok(query.FilterList(query.LangFromCode(req.Lang)))
 	case ipc.OpDeepProbe:

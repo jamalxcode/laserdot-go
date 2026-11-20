@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "refined", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -69,6 +69,15 @@ check(len(proj["chips"]) >= 2, f"kind chips offered for mixed results (got {proj
 # Apps are one result; their contents are not indexed.
 tool = steps["tool"]
 check(tool["results"] == ["Tool.app"], f"Tool.app is one result (got {tool['results']})")
+
+# What the results have to choose from: proj finds a PDF, a text file and a
+# folder, so their types are offered; choosing PDF narrows to it.
+ref = steps["refine"]
+check({"ext:pdf", "ext:txt"} <= set(ref.get("refinements", [])), f"the results' types are offered to choose from (got {ref.get('refinements')})")
+check("type" in ref.get("refine_groups", []), f"grouped under Type (got {ref.get('refine_groups')})")
+rd = steps["refined"]
+check(rd["query"] == "proj ext:pdf", f"choosing PDF adds it to the search (got {rd['query']!r})")
+check(rd["results"] == ["project.pdf"], f"and narrows the results to the PDF (got {rd['results']})")
 
 # The overlay starts as a slim bar (nothing typed, nothing opened yet).
 check(steps.get("start", {}).get("compact") is True, "the overlay starts slim")
