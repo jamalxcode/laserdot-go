@@ -308,6 +308,7 @@ final class SearchModel: ObservableObject {
                 self.hint = h
                 self.currentSection = section
                 self.completionChips = chips
+                self.noteHintShown() // counted when the explanation itself arrives
             }
         }
         if q.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -406,7 +407,6 @@ final class SearchModel: ObservableObject {
             unavailable = nil
             if r.total == 0 { loadCoaching() }
             loadRefinements(total: r.total)
-            noteHintShown()
         case .failure(let error):
             results = []
             sections = []
