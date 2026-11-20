@@ -600,6 +600,12 @@ This app is a file, media, and disk search tool. It matches Spotlight for everyt
 - **17.3.2** Per-volume views: browse a volume's contents through the same search interface, using that volume's own index
 - **17.3.3** Disk overview in the drive manager: capacity, indexed state, index size, last scan time
 - **17.3.4** Rebuild / detach / delete index per volume
+- **17.3.5** *Storage window (Go port, 0.9.25):* sizes come from the index, except packages (apps, libraries,
+  `.git`…), which the index keeps as one entry with nothing inside: they are measured from the disk when Storage asks
+  (outside the index lock, four at a time, at most `StorageBudget` = 8 s per request) and remembered by path until
+  their own modification time changes; a size still being measured is reported `partial` ("at least …") and the app
+  asks again every second, up to ten times. Folders report `files` (outside packages), `apps` and `packages`;
+  counts are formatted for the language ("36 apps · 173,959 files"); an empty folder says "Empty".
 
 ### 17.4 What Spotlight does that stays excluded (by design)
 - **17.4.1** Personal data source search (contacts, calendar, reminders, notes, messages, mail, photos, Safari history) — out of scope; this is a file/media/disk tool

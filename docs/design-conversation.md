@@ -567,6 +567,15 @@ should work, i want to have a choice of with sound, time, things that can logica
 filter was treated as a word being typed, so a suggestion for it ("1440p") appeared and the choice row hid behind it.
 **Decided:** a clicked choice brings no suggestions, and the choice row is never hidden by suggestions.
 
+## 42. The Storage window, explained and fixed (0.9.25)
+
+**Asked** (with a screenshot): "explain this storage screen", then "fix the storage screen and release 0.9.25".
+**Explained:** By Folder / Largest Files, the indexed folders with their share of the space, double-click to look
+inside, from the index alone. **Found:** apps are one item in the index with nothing inside, so /Applications
+counted 25 KB "in 4 files"; numbers were unformatted and empty folders said "Zero KB". **Decided:** packages are
+measured once from the disk and remembered until they change ("at least …" while measuring, filling in by itself);
+apps are counted as apps; numbers formatted, "Empty" for nothing.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

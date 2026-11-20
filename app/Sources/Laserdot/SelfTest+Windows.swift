@@ -55,6 +55,11 @@ extension SelfTestRunner {
                 self.screenshot(w, name: "storage")
             }
             self.extra["storage_items"] = self.app.storageModel?.report?.items.count ?? -1
+            // Apps count as apps, at their measured size (the fixtures hold Tool.app).
+            if let r = self.app.storageModel?.report {
+                self.extra["storage_counts"] = StorageRow.counts(files: r.files, apps: r.apps, packages: r.packages)
+                self.extra["storage_apps"] = Int(r.apps)
+            }
             self.app.showDuplicates()
             self.app.duplicatesModel?.scan()
             self.waitFor(12, { self.app.duplicatesModel?.report != nil }) {

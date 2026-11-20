@@ -255,10 +255,10 @@
 "storage.folders" = "By Folder";
 "storage.largest" = "Largest Files";
 "storage.all" = "Indexed Folders";
-"storage.total" = "%@ in %lld files";
-"storage.files" = "%lld files";
+"storage.total" = "%@ in %@";
+"storage.files" = "%@ files";
 "storage.open" = "Look Inside";
-"storage.help" = "Sizes come from the index: nothing is read from disk. Double-click a folder to look inside.";
+"storage.help" = "Sizes come from the index; apps and other packages are measured once and remembered. Double-click a folder to look inside.";
 "action.terminal" = "Open in Terminal";
 "action.copyLink" = "Copy as Link";
 "action.compress" = "Compress";
@@ -459,3 +459,10 @@
 "refine.size.large" = "100 MB–1 GB";
 "refine.size.huge" = "Over 1 GB";
 "refine.remove" = "Remove %@ from the search";
+"storage.file" = "%@ file";
+"storage.apps" = "%@ apps";
+"storage.app" = "%@ app";
+"storage.packages" = "%@ packages";
+"storage.package" = "%@ package";
+"storage.empty" = "Empty";
+"storage.atLeast" = "at least %@";

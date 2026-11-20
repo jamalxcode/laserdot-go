@@ -255,10 +255,10 @@
 "storage.folders" = "حسب المجلد";
 "storage.largest" = "أكبر الملفات";
 "storage.all" = "المجلدات المفهرسة";
-"storage.total" = "%@ في %lld ملف";
-"storage.files" = "%lld ملف";
+"storage.total" = "%@ في %@";
+"storage.files" = "%@ ملف";
 "storage.open" = "عرض المحتوى";
-"storage.help" = "الأحجام من الفهرس: لا يُقرأ شيء من القرص. انقر مرتين على مجلد لعرض محتواه.";
+"storage.help" = "الأحجام من الفهرس؛ تُقاس التطبيقات والحزم الأخرى مرة واحدة وتُحفظ. انقر مرتين على مجلد لعرض محتواه.";
 "action.terminal" = "فتح في Terminal";
 "action.copyLink" = "نسخ كرابط";
 "action.compress" = "ضغط";
@@ -459,3 +459,10 @@
 "refine.size.large" = "١٠٠ م.ب–١ غ.ب";
 "refine.size.huge" = "أكثر من ١ غ.ب";
 "refine.remove" = "إزالة %@ من البحث";
+"storage.file" = "ملف واحد (%@)";
+"storage.apps" = "%@ تطبيق";
+"storage.app" = "تطبيق واحد (%@)";
+"storage.packages" = "%@ حزمة";
+"storage.package" = "حزمة واحدة (%@)";
+"storage.empty" = "فارغ";
+"storage.atLeast" = "%@ على الأقل";

@@ -81,24 +81,47 @@ extension Wire {
         public var name: String
         public var isDir: Bool
         public var bytes: UInt64
+        /// Files outside packages; apps and other packages are counted apart.
         public var files: UInt64
+        public var apps: UInt64
+        public var packages: UInt64
+        /// A package inside is not measured yet: `bytes` is at least.
+        public var partial: Bool
 
-        enum CodingKeys: String, CodingKey { case path, name, isDir = "is_dir", bytes, files }
+        enum CodingKeys: String, CodingKey { case path, name, isDir = "is_dir", bytes, files, apps, packages, partial }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            path = try c.value(.path, or: "")
+            name = try c.value(.name, or: "")
+            isDir = try c.value(.isDir, or: false)
+            bytes = try c.value(.bytes, or: 0)
+            files = try c.value(.files, or: 0)
+            apps = try c.value(.apps, or: 0)
+            packages = try c.value(.packages, or: 0)
+            partial = try c.value(.partial, or: false)
+        }
     }
 
     public struct StorageReport: Decodable, Sendable {
         public var path: String
         public var bytes: UInt64
         public var files: UInt64
+        public var apps: UInt64
+        public var packages: UInt64
+        public var partial: Bool
         public var items: [StorageItem]
 
-        enum CodingKeys: String, CodingKey { case path, bytes, files, items }
+        enum CodingKeys: String, CodingKey { case path, bytes, files, apps, packages, partial, items }
 
         public init(from decoder: Decoder) throws {
             let c = try decoder.container(keyedBy: CodingKeys.self)
             path = try c.value(.path, or: "")
             bytes = try c.value(.bytes, or: 0)
             files = try c.value(.files, or: 0)
+            apps = try c.value(.apps, or: 0)
+            packages = try c.value(.packages, or: 0)
+            partial = try c.value(.partial, or: false)
             items = try c.value(.items, or: [])
         }
     }

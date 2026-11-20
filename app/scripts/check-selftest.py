@@ -251,6 +251,7 @@ check(url["query"] == "beach" and "beach.jpg" in url["results"], f"laserdot://se
 
 # Storage and Duplicates windows.
 check(report.get("storage_items", -1) >= 1, f"the Storage window lists folders (got {report.get('storage_items')})")
+check(report.get("storage_apps", 0) >= 1, f"Storage counts apps as apps (got {report.get('storage_counts')!r})")
 check(report.get("duplicate_groups", -1) >= 1, f"the Duplicates window found the copied clip (got {report.get('duplicate_groups')})")
 # Cleaning up duplicates: its own button, Select None / All, a dry run that answers.
 check("Move" in report.get("dupes_button", "") or "نقل" in report.get("dupes_button", ""), f"a clear Move Duplicates button (got {report.get('dupes_button')!r})")

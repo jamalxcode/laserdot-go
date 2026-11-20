@@ -3,6 +3,14 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.25
+
+- The Storage window shows apps at their real size. Apps (and other packages, such as libraries) are one item in the
+  search, so they used to count as nearly nothing — /Applications showed 25 KB. Laserdot now measures each one once
+  and remembers it until it changes; while it measures, a size says "at least …" and fills in by itself.
+- Apps are counted as apps: "36 apps · 4 files" instead of "4 files".
+- Numbers are written properly ("173,959 files"), and an empty folder says "Empty" instead of "Zero KB".
+
 ## 0.9.24
 
 - Fixed: after picking a choice (say 1440p), the other choices — sound, length, shape… — disappeared, leaving only a

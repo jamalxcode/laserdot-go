@@ -357,6 +357,14 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.25 (2026-11-20):** the owner's Storage screenshot (/Applications 25 KB in "4 files", /System/Applications
+  "Zero KB", "173959 files") and "fix the storage screen and release 0.9.25". `core/storage.go`: packages found in a
+  folder's subtree (`scan.IsOpaque`) are measured outside `mu` (`measurePackage`, 4 workers, `StorageBudget`) and
+  cached in `ld.pkgSizes` by path and modification time; items and the report carry `apps`, `packages`, `partial`.
+  App: `StorageItem`/`StorageReport` decode them (defaults for older daemons), `StorageRow.size` ("Empty", "at least
+  %@") and `counts` (NumberFormatter, singular/plural, English and Arabic), re-asks while partial. Tests:
+  `TestStorageCountsAppsAtTheirRealSize` (three apps incl. one in a subfolder: 102,500 bytes, 3 apps, 1 file; inside;
+  remembered with no budget; unmeasured → partial); self-test `storage_apps` (the fixtures' Tool.app).
 - **0.9.24 (2026-11-20):** the owner, with screenshots (`mov`, then `mov res:1440p` showing only a "1440p" chip): "i typed
   mov and chose res and then the other choices disappeared". The clicked token ended the query, under the caret, so
   completions offered its own value back, and the choice row was hidden whenever completions showed. Now a clicked

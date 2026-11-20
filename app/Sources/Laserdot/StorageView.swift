@@ -20,7 +20,12 @@ final class StorageModel: ObservableObject {
 
     var current: String { trail.last ?? "" }
 
-    func load(_ path: String? = nil) {
+    /// Packages still being measured: asked again shortly (each request
+    /// measures more, and remembers what it measured), a few times.
+    private var remeasures = 0
+
+    func load(_ path: String? = nil, again: Bool = false) {
+        if !again { remeasures = 0 }
         if let path {
             if let i = trail.firstIndex(of: path) {
                 trail = Array(trail[...i])
@@ -36,7 +41,16 @@ final class StorageModel: ObservableObject {
             DispatchQueue.main.async {
                 self?.loading = false
                 switch r {
-                case .success(let rep): self?.report = rep; self?.message = nil
+                case .success(let rep):
+                    self?.report = rep
+                    self?.message = nil
+                    if rep.partial, let self, self.remeasures < 10 {
+                        self.remeasures += 1
+                        let at = self.current
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
+                            if self?.current == at { self?.load(again: true) }
+                        }
+                    }
                 case .failure(let e): self?.message = (e as? LaserdotError)?.message ?? "\(e)"
                 }
                 self?.largest = files
@@ -90,7 +104,8 @@ struct StorageView: View {
                 }
                 Spacer()
                 if let r = model.report {
-                    Text(String(format: L("storage.total"), bytes(r.bytes), Int64(r.files)))
+                    Text(String(format: L("storage.total"), StorageRow.size(r.bytes, partial: r.partial, isDir: true),
+                                StorageRow.counts(files: r.files, apps: r.apps, packages: r.packages)))
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
@@ -146,7 +161,7 @@ struct StorageRow: View {
                 HStack {
                     Text(item.name).lineLimit(1)
                     Spacer()
-                    Text(ByteCountFormatter.string(fromByteCount: Int64(item.bytes), countStyle: .file))
+                    Text(Self.size(item.bytes, partial: item.partial, isDir: item.isDir))
                         .font(.callout.monospacedDigit())
                 }
                 GeometryReader { g in
@@ -158,11 +173,33 @@ struct StorageRow: View {
                 }
                 .frame(height: 5)
                 if item.isDir {
-                    Text(String(format: L("storage.files"), Int64(item.files))).font(.caption2).foregroundStyle(.secondary)
+                    Text(Self.counts(files: item.files, apps: item.apps, packages: item.packages))
+                        .font(.caption2).foregroundStyle(.secondary)
                 }
             }
         }
         .padding(.vertical, 3)
         .accessibilityElement(children: .combine)
+    }
+
+    /// "37.31 GB", "at least 2.1 GB" (packages still being measured), or
+    /// "Empty" for a folder with nothing in it.
+    static func size(_ n: UInt64, partial: Bool, isDir: Bool) -> String {
+        if n == 0 && !partial && isDir { return L("storage.empty") }
+        let s = ByteCountFormatter.string(fromByteCount: Int64(n), countStyle: .file)
+        return partial ? String(format: L("storage.atLeast"), s) : s
+    }
+
+    /// "12 apps · 3 packages · 173,959 files" (numbers in the language's
+    /// format; parts with nothing left out).
+    static func counts(files: UInt64, apps: UInt64, packages: UInt64) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        func n(_ v: UInt64) -> String { f.string(from: NSNumber(value: v)) ?? "\(v)" }
+        var parts: [String] = []
+        if apps > 0 { parts.append(String(format: L(apps == 1 ? "storage.app" : "storage.apps"), n(apps))) }
+        if packages > 0 { parts.append(String(format: L(packages == 1 ? "storage.package" : "storage.packages"), n(packages))) }
+        if files > 0 || parts.isEmpty { parts.append(String(format: L(files == 1 ? "storage.file" : "storage.files"), n(files))) }
+        return parts.joined(separator: " · ")
     }
 }

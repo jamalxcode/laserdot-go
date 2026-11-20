@@ -128,6 +128,8 @@ type Laserdot struct {
 	streams sync.WaitGroup
 	// demand: folders recent searches were about (drive indexing order).
 	demand demand
+	// pkgSizes: packages' measured sizes (the Storage window).
+	pkgSizes packageSizes
 	// paused: background work waits (an update being installed, battery,
 	// heat); drive indexing hands out no new folders meanwhile.
 	paused atomic.Bool
