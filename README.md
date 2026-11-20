@@ -13,6 +13,8 @@ file search should be, and a robot that types into it on every change to prove i
 
 ## What it does
 
+- 🟣 **Starts like Spotlight.** ⌥Space shows a rounded bar and round buttons for Videos, Images, Music,
+  Documents, Apps and recent files, then Duplicates, Storage, Drives and Settings; the rest appears as you type.
 - 🔎 **Finds things the way you say them.** `jpg`, `photos last week`, `big videos`, `pdf yesterday`,
   `invoice march`, `4k hdr` — and Arabic: `صور الاسبوع الماضي`, `فاتورة ٢٠٢٤`. A hint under the box shows how it read
   you (*“last week means since:7d”*), so you pick up the precise language for free.
@@ -84,16 +86,17 @@ The hint under the box says what a clever word stands for, e.g. *“last week me
 Typing works like Spotlight: the top result's name completes as you type (the rest shown selected; → or Tab takes
 it, Return opens it), and when you reopen the window your last search is there, all selected. Filters show as
 **pills** before your words — `ext:pdf` reads "PDF ✕", `-in:~/Downloads` reads "not in Downloads"; ✕ removes one,
-and Delete with nothing typed removes the last. Typing a filter and a space turns it into a pill. With the box
-empty, one-click starts (**Recent Downloads, Photos This Month, Videos, Documents This Week, Big Files**) and a
-suggestion from your own files (e.g. *“See your 4K videos (812)”*) are a click away.
+and Delete with nothing typed removes the last. Typing a filter and a space turns it into a pill. Press ↓ in the
+empty box (or click **Recently Opened**) for what you opened lately, new downloads, one-click starts (**Recent
+Downloads, Photos This Month, Videos, Documents This Week, Big Files**) and a suggestion from your own files (e.g.
+*“See your 4K videos (812)”*).
 
 **Where to search.** Click the magnifying glass: **Everywhere**, **This Mac**, a recent folder or **Choose
 Folder…** (the same as **Settings ▸ General ▸ Search in**). The place's name shows beside the glass while it narrows
 your searches; a search that names its own place (a Folder choice, `in:`) looks there instead.
 
 **Results** come like Spotlight's: a **Top Hit**, then Applications, Documents, Images, Videos, Folders… (five each,
-**Show all** for more). Files you open often rise to the top. The empty box shows what you opened recently and new
+**Show all** for more). Files you open often rise to the top. ↓ in the empty box shows what you opened recently and new
 downloads.
 
 | Key | Does |
@@ -257,7 +260,8 @@ VERSION=0.9.30 app/scripts/bundle.sh     # → app/build/Laserdot.app
 CI builds and tests on Linux and macOS, bundles the app, launches it, runs the updater against GitHub, and runs
 the **self-test**: the real app types into its own ⌥Space window, checks what it shows (results, sections, hints,
 commands, actions, Quick Look, Rename, Move to…, Compress, Tags, Undo, search history, dropping a folder, content
-passages, choices and pills, leaving a choice out, the place menu, zip contents, More Like This, the home starts,
+passages, the Spotlight-style start and its buttons, choices and pills, leaving a choice out, the place menu, zip
+contents, More Like This, the home starts,
 the unreadable list, the Keychain, Settings and, last, Erase All Data) in English and Arabic, measures its
 launch time, and saves screenshots
 (`app/Sources/Laserdot/SelfTest.swift`, judged by `app/scripts/check-selftest.py`).

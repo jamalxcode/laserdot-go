@@ -2,7 +2,7 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.47 (draft; v1.44–v1.47 are the Go port's 0.9.27–0.9.30)
+**Version:** 1.48 (draft; v1.44–v1.48 are the Go port's 0.9.27–0.9.31)
 **Date:** 2026-11-11 — v1.18–v1.22 record the owner's decisions while using the app; the conversation behind them is
 in `docs/design-conversation.md`
 **Target platform:** macOS 14+, Apple Silicon
@@ -538,6 +538,14 @@ white       = " " | "\t" | "\n" ;
 - **13.6i** *No ghosts (v1.31):* before results are returned, each of this Mac's hits is checked with lstat; a file that no longer exists is left out (the total is lowered) and its folder is listed again in the background, so the index forgets it even when its change was missed. Drive hits are not checked (a drive may be a slow network volume); a file macOS will not let Laserdot see is kept. ⌘R (a header button, `> refresh`) runs `refresh`: every indexed folder is diffed again.
 - **13.6j** *Columns (v1.32):* a third view shows results as Finder's list: one flat list (no kind sections) with Name, Date Modified, Size, Kind and Date Created; a header click sorts the whole result set by that column (the engine's `sort`, so every match is ordered, not only the page shown), a second click reverses; the arrow shows the order. A new engine order `kind` sorts by kind, then name. Finder's "Date Last Opened" and "Date Added" are Spotlight metadata Laserdot does not read; they are not offered. The preview pane is hidden in this view.
 - **13.6k** *Sixth critique (v1.33):* the watcher compares every indexed folder with the disk once an hour (not while background work is paused) and restarts watching when that finds changes the events missed (`status.catch_up`: last time, missed count, restarts); the menu-bar menu shows whether changes are being watched. Results carry `opened` (last opened from Laserdot) and the engine has an `opened` order; the columns view shows it as Last Opened, and its columns are resizable (remembered). Thumbnails have a size (64–256 points; slider, ⌘+ ⌘−). What's New lists every version since the one last run, newest first, from the app's copy of CHANGELOG.md, and is not offered when every such version is marked `<!-- quiet -->`. Releases are made by CI: a passing run on `main` whose CHANGELOG has an unreleased newest version builds and publishes that commit.
+- **13.6y** *A Spotlight-style start (v1.48, 0.9.31; the owner, with a screenshot of macOS's Spotlight: "options
+  appear when they are needed"):* ⌥Space shows a capsule search bar and round buttons on a clear panel: kinds of
+  files — Recently Opened, Videos, Images, Music, Documents, Apps (each sets its `kind:` as a pill) — then, a little
+  apart, the menu's tools — Find Duplicates, Storage, Drives (only while a drive is attached; opens Settings ▸
+  Drives), Index a Folder, Settings. The hint, choices, results, view switch, … menu and footer appear once something
+  is typed, ↓ is pressed or a button is clicked; an empty box goes back to the start. Recent files no longer open the
+  window by themselves (↓ or Recently Opened). Below 300 points of field the tools, then all buttons, are left out.
+  The search field is one view in one place whatever the state (rebuilding it on the switch lost the first letter).
 - **13.6x** *Dialogs and content (v1.46, 0.9.29):* every dialog (alerts, open and save panels, the update prompt)
   stays in front: it does not hide when another app is used, shows on every Space and over full-screen apps (the
   owner's update prompt kept vanishing behind the browser). Content search reads no hidden entry (anything inside a

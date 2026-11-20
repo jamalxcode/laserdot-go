@@ -90,6 +90,10 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 17c. **Keep one source of truth when making things friendlier.** Pills in the search box are only a view of the
      query string, so history, pins, links and the command line kept working unchanged; choices go in front of the
      typed words so the end of the query is always what is being typed (the hint had been explaining `-ext:pdf`).
+17f. **Never rebuild the view that holds the keyboard.** The Spotlight-style start first drew the search field in
+     one view and the full window's field in another; typing the first letter switched views, and the new field
+     never saw that letter ("pg" for "jpg"). The self-test caught it before release. The field is now one view in
+     one place, and only what is around it changes.
 17d. **A menu-bar app's dialogs need to be told to stay.** Dialog panels hide when their app is not in front and
      open on one desktop; for an app that is never in front, that meant an update prompt lost behind the browser.
 17e. **Read only what people would look for.** Reading every file's words found an Obsidian plugin's bundled code

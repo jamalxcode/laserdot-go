@@ -656,7 +656,10 @@ choices for movie, images, media, other menu choices appear as a button also fol
 Documents, Apps, then Find Duplicates, Storage, Drives (only while a drive is connected), Index a Folder and
 Settings. The hint, choices, results, view switch and … menu appear once something is typed, ↓ is pressed or a
 button is clicked; clearing the box goes back to the start. Recent files, which used to open the window by
-themselves, are now behind ↓ or the Recently Opened button.
+themselves, are now behind ↓ or the Recently Opened button. **Caught before release:** the first build lost the
+first letter typed (the start and the full window each had their own search field, and the switch happened on that
+letter); the self-test's typed queries showed it ("pg" for "jpg"), and the field was made one view in one place.
+The start was checked on the screenshots in English and Arabic (mirrored, buttons on the left) before releasing.
 
 ## Chat conventions
 
