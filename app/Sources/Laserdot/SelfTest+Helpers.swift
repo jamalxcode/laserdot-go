@@ -128,6 +128,8 @@ extension SelfTestRunner {
     }
 
     func capture(_ name: String, model: SearchModel, window: NSWindow) {
+        let began = Date()
+        defer { recording += Date().timeIntervalSince(began) * 1000 }
         var labels: [String] = []
         if let v = window.contentView { collect(v, depth: 0, into: &labels) }
         // Built field by field: one big literal is too slow to type-check.
@@ -214,6 +216,11 @@ extension SelfTestRunner {
             "appkit_rtl": NSApp.userInterfaceLayoutDirection == .rightToLeft,
             "error": error,
             "selftest_seconds": Int(Date().timeIntervalSince(runStarted)),
+            "selftest_split_ms": [
+                "before_first_step": Int(firstStepAt ?? -1),
+                "quicklook_waits": Int(waitedForQuickLook),
+                "recording": Int(recording),
+            ],
             "steps": steps,
             "screenshots": shots,
         ]

@@ -30,6 +30,9 @@ timed = sorted((s.get("ms", 0), s["name"]) for s in report["steps"])
 print(f"info self-test took {report.get('selftest_seconds', '?')} s; {len(timed)} steps, "
       f"{sum(t for t, _ in timed) / 1000:.1f} s in steps; slowest: "
       + ", ".join(f"{n} {t / 1000:.1f} s" for t, n in reversed(timed[-8:])))
+split = report.get("selftest_split_ms", {})
+if split:
+    print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")

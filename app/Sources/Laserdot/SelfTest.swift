@@ -25,6 +25,11 @@ final class SelfTestRunner {
     /// the report, so CI's slowest steps can be found and trimmed).
     let runStarted = Date()
     var stepStarted = Date()
+    /// Where the time between steps goes (milliseconds, all steps together):
+    /// waiting for Quick Look to close, and recording (report + screenshot).
+    var waitedForQuickLook = 0.0
+    var recording = 0.0
+    var firstStepAt: Double?
 
     init(app: AppDelegate, out: URL) {
         self.app = app
@@ -253,9 +258,11 @@ final class SelfTestRunner {
         guard !QuickLook.shared.isVisible || closeAttempts > 10 else {
             closeAttempts += 1
             QuickLook.shared.close()
+            waitedForQuickLook += 300
             after(0.3) { self.runSteps(steps, model: model, overlay: overlay) }
             return
         }
+        if firstStepAt == nil { firstStepAt = Date().timeIntervalSince(runStarted) * 1000 }
         closeAttempts = 0
         stepStarted = Date()
         model.query = ""
