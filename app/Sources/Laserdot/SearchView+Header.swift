@@ -44,6 +44,9 @@ extension SearchView {
                 ProgressView().controlSize(.small).frame(width: 20, height: 20)
                     .help(L("refresh.help"))
             }
+            // At the start only the field: the view and the … menu come with
+            // the results (options appear when they are needed).
+            if !(fixedSize && model.compact) {
             // Thumbnail size, as Finder's icon view (⌘+ ⌘−): only while
             // thumbnails are shown.
             if model.viewMode == .grid {
@@ -89,6 +92,7 @@ extension SearchView {
             .accessibilityLabel(L("search.more"))
             .accessibilityIdentifier("search-more")
             .background(shortcutKeys)
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

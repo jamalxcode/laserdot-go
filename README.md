@@ -61,7 +61,10 @@ The app is signed ad hoc, not with an Apple Developer ID, so the first launch ma
 
 ## Using it
 
-Press **⌥Space** anywhere (change it in **Settings**), or use the Laserdot window.
+Press **⌥Space** anywhere (change it in **Settings**), or use the Laserdot window. Like macOS's Spotlight, it starts
+as a rounded search bar with round buttons beside it: **Recently Opened, Videos, Images, Music, Documents, Apps**,
+then **Find Duplicates, Storage, Drives** (while a drive is connected), **Index a Folder** and **Settings**. The rest
+appears when it's needed — start typing, press ↓, or click a button.
 
 | You type | You get |
 |---|---|

@@ -19,7 +19,8 @@ People already know Spotlight. Laserdot matches it wherever it can, and adds its
 | ⌘C copies the selected file | the same |
 | remembers where you dragged it | the same |
 | Top Hit, then categories | the same, five per category with *Show all* |
-| — | filters (`kind:video res:4k`), a hint line explaining clever words, Space for Quick Look, ⌘K actions, `>` commands, recent files when the box is empty |
+| a rounded bar with round buttons beside it | the same start: Recently Opened, Videos, Images, Music, Documents, Apps, then Duplicates, Storage, Drives, Index a Folder, Settings; the rest appears on typing, ↓ or a button |
+| — | filters (`kind:video res:4k`), a hint line explaining clever words, Space for Quick Look, ⌘K actions, `>` commands, recent files on ↓ |
 
 The inline completion stays out of the way of Laserdot's own language: it is not offered for queries with filters,
 for `>` commands, after a trailing space, or while moving through the results.

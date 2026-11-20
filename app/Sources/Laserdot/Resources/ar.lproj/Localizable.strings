@@ -484,6 +484,7 @@
 "quality.high" = "جودة عالية";
 "quality.good" = "جودة جيدة";
 "quality.low" = "جودة منخفضة";
+"start.recent" = "المفتوحة مؤخرًا";
 "refine.leaveOut" = "استبعد";
 "refine.leftOut.help" = "مستبعد من البحث: انقر لإرجاع %@";
 "refine.leftOut.spoken" = "%@ %@، مستبعد";

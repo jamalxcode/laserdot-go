@@ -647,6 +647,17 @@ file and other similar files". **Done:** the files macOS and Windows keep in fol
 indexed (by exact name, plus `._` AppleDouble files); this Mac's index drops any it already had, once. Other dot
 files people do look for (`.env`, `.zshrc`) stay searchable.
 
+## 49. A Spotlight-style start (0.9.31)
+
+**Asked:** with screenshots of macOS's Spotlight (a rounded bar and round buttons) and Laserdot's menu-bar menu:
+"lets have a similar spotlight start when laserdot gets pressed, options appear when they are needed, add more
+choices for movie, images, media, other menu choices appear as a button also following the media choices".
+**Done:** the overlay starts as a capsule search bar with round buttons: Recently Opened, Videos, Images, Music,
+Documents, Apps, then Find Duplicates, Storage, Drives (only while a drive is connected), Index a Folder and
+Settings. The hint, choices, results, view switch and … menu appear once something is typed, ↓ is pressed or a
+button is clicked; clearing the box goes back to the start. Recent files, which used to open the window by
+themselves, are now behind ↓ or the Recently Opened button.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

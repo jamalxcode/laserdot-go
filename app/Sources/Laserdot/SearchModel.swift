@@ -38,6 +38,11 @@ final class SearchModel: ObservableObject {
     /// The default search place is off for this search (its ✕ or its chip
     /// was clicked); back on once the search field is cleared.
     @Published var placeOff = false
+    /// The empty box's list (recently opened, new downloads, tips) is shown:
+    /// ↓ or the Recently Opened button; the bar alone otherwise.
+    @Published var showHomeList = false {
+        didSet { updateCompact() }
+    }
 
     /// Settings ▸ General ▸ Search in ("" everywhere, "local", or a folder).
     var searchPlace: String { UserDefaults.standard.string(forKey: SearchPlace.key) ?? "" }
@@ -369,7 +374,10 @@ final class SearchModel: ObservableObject {
         generationShared = gen
         generationLock.unlock()
         let q = query
-        if q.trimmingCharacters(in: .whitespaces).isEmpty { placeOff = false }
+        if q.trimmingCharacters(in: .whitespaces).isEmpty {
+            placeOff = false
+            showHomeList = false // back to the start
+        }
         let sent = effectiveQuery // with the default search place
         let (engine, caret) = (self.engine, cursor)
         selection = 0
@@ -541,8 +549,10 @@ final class SearchModel: ObservableObject {
         updateCompact()
     }
 
+    /// The start is the bar and its buttons until something is typed, ↓ is
+    /// pressed or Recently Opened is clicked.
     func updateCompact() {
-        compact = query.isEmpty && results.isEmpty && !showCheatSheet && !showActions
+        compact = query.isEmpty && !showHomeList && !showCheatSheet && !showActions
     }
 
     // MARK: the empty box: recently opened, recent downloads, pins

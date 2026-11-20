@@ -137,6 +137,11 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **The start (0.9.31):** `compact` no longer depends on the empty box's results; `showHomeList` (↓ or Recently
+  Opened) opens them. `SearchModel.startButtons` builds kinds from `kind:` pills and tools from `commandProvider`
+  (the `>` commands), Drives only while an `eject:` command exists. `SearchView.startBar` draws the capsule and
+  circles on a clear panel; `fitting` drops tools, then all buttons, below 300 points of field (one field only:
+  `ViewThatFits` would have built the keyboard-holding field three times).
 - **System junk (0.9.30):** `scan.SystemJunkNames` + `IsSystemJunk` in `skip` (walks and the watcher's
   re-listing alike); `core.dropSystemJunk` re-lists folders holding junk once (`system_junk_cleaned`). Drive indexes
   made earlier keep theirs until rebuilt or re-listed.

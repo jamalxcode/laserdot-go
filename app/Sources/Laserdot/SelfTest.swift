@@ -305,7 +305,12 @@ final class SelfTestRunner {
             Step(name: "home", typed: "", before: {
                 engine.recordOpen(path: folder + "/beach.jpg")
                 model.loadHome()
+                model.showHomeList = true // ↓ or Recently Opened
             }),
+            // The start's round buttons: Videos runs its search as a pill.
+            Step(name: "startvideos", typed: "", after: {
+                model.startButtons.first { $0.id == "videos" }?.run()
+            }, until: { $0.compact }, wait: 1.5),
         ]
         overlay.show()
         after(1) {

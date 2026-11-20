@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.31
+
+- A new start, like macOS's Spotlight: ⌥Space shows a rounded search bar and a row of round buttons — Recently
+  Opened, Videos, Images, Music, Documents and Apps, then Find Duplicates, Storage, Drives (while a drive is
+  connected), Index a Folder and Settings. Everything else appears when it is needed: start typing, press ↓, or
+  click a button.
+
 ## 0.9.30
 
 - Fixed: .DS_Store and similar system files no longer show up in results. Laserdot ignores the files macOS and

@@ -484,6 +484,7 @@
 "quality.high" = "high quality";
 "quality.good" = "good quality";
 "quality.low" = "low quality";
+"start.recent" = "Recently Opened";
 "refine.leaveOut" = "Leave Out";
 "refine.leftOut.help" = "Left out of the search: click to bring %@ back";
 "refine.leftOut.spoken" = "%@ %@, left out";

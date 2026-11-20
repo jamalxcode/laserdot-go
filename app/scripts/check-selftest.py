@@ -36,7 +36,7 @@ if split:
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
 for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
-             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home"):
+             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -115,7 +115,12 @@ wc = steps["wherechosen"]
 check(wc["query"].startswith("in:") and wc["query"].endswith("trip") and len(wc["results"]) == 1, f"choosing a folder searches only there (got {wc['query']!r}, {wc['results']})")
 
 # The overlay starts as a slim bar (nothing typed, nothing opened yet).
-check(steps.get("start", {}).get("compact") is True, "the overlay starts slim")
+check(steps.get("start", {}).get("compact") is True, "the overlay starts as the bar and its buttons")
+sb = steps.get("start", {}).get("start_buttons", [])
+check(all(b in sb for b in ("recent", "videos", "images", "music", "documents", "apps", "dupes", "storage", "index", "settings")) and sb.index("videos") < sb.index("dupes"),
+      f"the start offers kinds of files, then the menu's tools (got {sb})")
+sv = steps["startvideos"]
+check(sv.get("pills") == ["kind:video"] and "clip.mp4" in sv["results"] and not sv["compact"], f"the Videos button searches videos (got {sv.get('pills')}, {sv['results']})")
 check(not jpg["compact"], "the overlay grows for results")
 
 # Plain-language dates.

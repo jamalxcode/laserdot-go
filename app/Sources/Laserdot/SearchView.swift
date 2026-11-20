@@ -19,11 +19,75 @@ struct SearchView: View {
     /// keyboard (the overlay always does), and grey otherwise — as lists do.
     var emphasized: Bool { fixedSize || activeState == .key }
 
-    /// The overlay's slim bar: just the field.
-    static let compactHeight: CGFloat = 58
+    /// The overlay's start: the rounded bar and its round buttons.
+    static let compactHeight: CGFloat = 62
     static let fullHeight: CGFloat = 520
 
     var body: some View {
+        Group {
+            if fixedSize && model.compact {
+                startBar
+            } else {
+                card
+            }
+        }
+        .overlay(hiddenShortcuts)
+        // Drop a folder (or a file: its folder) to search inside it.
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in model.handleDrop(providers) }
+    }
+
+    // MARK: the start
+
+    /// As macOS's Spotlight starts: a rounded search bar, then round buttons —
+    /// kinds of files first, the menu's tools after them. When the window is
+    /// narrow the tools, then all the buttons, give way to the field.
+    var startBar: some View {
+        GeometryReader { geo in
+            startRow(Self.fitting(model.startButtons, width: geo.size.width))
+        }
+        .frame(maxWidth: .infinity, maxHeight: Self.compactHeight, alignment: .topLeading)
+    }
+
+    /// The buttons that leave the field at least 300 points: all, else the
+    /// kinds of files, else none (one field only: it holds the keyboard).
+    static func fitting(_ all: [SearchModel.StartButton], width: CGFloat) -> [SearchModel.StartButton] {
+        func needed(_ b: [SearchModel.StartButton]) -> CGFloat {
+            300 + CGFloat(b.count) * 54 + (b.contains(where: \.isTool) ? 10 : 0) + 4
+        }
+        if needed(all) <= width { return all }
+        let kinds = all.filter { !$0.isTool }
+        return needed(kinds) <= width ? kinds : []
+    }
+
+    func startRow(_ buttons: [SearchModel.StartButton]) -> some View {
+        HStack(spacing: 8) {
+            header
+                .frame(minWidth: 300, maxHeight: 54)
+                .background(Capsule(style: .continuous).fill(.regularMaterial))
+                .overlay(Capsule(style: .continuous).strokeBorder(Color.primary.opacity(0.12)))
+            ForEach(Array(buttons.enumerated()), id: \.element.id) { i, b in
+                Button(action: b.run) {
+                    Image(systemName: b.symbol)
+                        .font(.system(size: 19, weight: .regular))
+                        .frame(width: 46, height: 46)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.primary.opacity(0.8))
+                .background(Circle().fill(.regularMaterial))
+                .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
+                .padding(.leading, b.isTool && i > 0 && !buttons[i - 1].isTool ? 10 : 0)
+                .help(b.title)
+                .accessibilityLabel(b.title)
+                .accessibilityIdentifier("start-" + b.id)
+            }
+        }
+        .padding(2)
+    }
+
+    // MARK: the full window
+
+    var card: some View {
         VStack(spacing: 0) {
             header
             if !(fixedSize && model.compact) {
@@ -69,9 +133,6 @@ struct SearchView: View {
                 RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.regularMaterial)
             }
         }
-        .overlay(hiddenShortcuts)
-        // Drop a folder (or a file: its folder) to search inside it.
-        .onDrop(of: [.fileURL], isTargeted: nil) { providers in model.handleDrop(providers) }
     }
 
     // MARK: footer and keys
