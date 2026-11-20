@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"slices"
 	"sync"
+
+	"github.com/jamalxcode/laserdot-go/internal/scan"
 )
 
 // Excluded folders (spec §13.6, v1.23): folders the user never wants
@@ -104,4 +106,37 @@ func (ld *Laserdot) Include(path string) ([]string, error) {
 		return nil, err
 	}
 	return paths, nil
+}
+
+// junkCleanedKey: the index was cleared of system junk files once.
+const junkCleanedKey = "system_junk_cleaned"
+
+// dropSystemJunk removes .DS_Store and the like that an index made before
+// they were ignored still holds (once): each folder holding one is listed
+// again, and the scan rules leave them out.
+func (ld *Laserdot) dropSystemJunk() {
+	if v, _ := ld.db.Setting(junkCleanedKey); v == "1" {
+		return
+	}
+	dirs := map[string]bool{}
+	ld.mu.RLock()
+	s := ld.store
+	it := s.Live().Iterator()
+	for it.HasNext() {
+		id := it.Next()
+		if !s.IsDir(id) && scan.IsSystemJunk(s.Name(id)) {
+			dirs[filepath.Dir(s.Path(id))] = true
+		}
+	}
+	ld.mu.RUnlock()
+	var changes []Change
+	for d := range dirs {
+		changes = append(changes, Change{Path: d})
+	}
+	if len(changes) > 0 {
+		if _, err := ld.ApplyChanges(changes); err != nil {
+			return // tried again next time
+		}
+	}
+	ld.db.SetSetting(junkCleanedKey, "1")
 }

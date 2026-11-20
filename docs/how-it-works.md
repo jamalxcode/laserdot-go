@@ -42,6 +42,8 @@ One page, kept current: what is true today. The history and the reasons are in
 - **Place menu:** the magnifying glass sets Settings ▸ Search in (Everywhere, This Mac, recent folders, a folder).
 - **Default place:** Settings ▸ General ▸ Search in (Everywhere, This Mac, a folder) adds `volume:local` or `in:"…"`
   to every search that names no place; a pill shows it, and Search Everywhere drops it until the field is cleared.
+- **System junk** (`.DS_Store`, `._*`, `.localized`, `Icon\r`, `Thumbs.db`, `desktop.ini`…) is never indexed
+  (`scan.IsSystemJunk`, in the same rule as partial downloads); an older index is cleared of it once on opening.
 - **Content search** reads no hidden folder (`.obsidian`, `.git`, an app's plugins); among content matches,
   documents come first, then other files, then code.
 - **Inside zips:** the daemon lists the names inside this Mac's `.zip` files (the central directory only) into

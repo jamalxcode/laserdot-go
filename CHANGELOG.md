@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.30
+
+- Fixed: .DS_Store and similar system files no longer show up in results. Laserdot ignores the files macOS and
+  Windows leave in folders for themselves (.DS_Store, ._ copies, .localized, Icon, Thumbs.db, desktop.ini…), and
+  removes any it had already indexed.
+
 ## 0.9.29
 
 - Fixed: the update prompt (and every other Laserdot dialog) could vanish behind the browser and only came back

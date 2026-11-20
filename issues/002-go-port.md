@@ -137,6 +137,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **System junk (0.9.30):** `scan.SystemJunkNames` + `IsSystemJunk` in `skip` (walks and the watcher's
+  re-listing alike); `core.dropSystemJunk` re-lists folders holding junk once (`system_junk_cleaned`). Drive indexes
+  made earlier keep theirs until rebuilt or re-listed.
 - **Dialogs and content (0.9.29):** dialogs use `NSWindow.stayInFront` (no hide on deactivate, all Spaces,
   full-screen auxiliary); content search skips hidden entries (`inScope`) and orders content matches by
   `contentClass` (documents, other, code, hidden).

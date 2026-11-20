@@ -40,6 +40,27 @@ var DefaultOpaqueExts = []string{
 // PartialDownloadExts are downloads in progress: never indexed (story 12).
 var PartialDownloadExts = []string{"crdownload", "part", "partial", "download", "opdownload", "!qb", "!ut"}
 
+// SystemJunkNames are files macOS (and Windows) leave in folders for their own
+// use: never indexed (the owner: ".DS_Store … an internal file that no one is
+// interested in"). Matched exactly; "._name" AppleDouble files too.
+var SystemJunkNames = []string{
+	".DS_Store", ".localized", ".apdisk", ".VolumeIcon.icns", ".com.apple.timemachine.donotpresent",
+	"Icon\r", "Thumbs.db", "ehthumbs.db", "desktop.ini", ".directory",
+}
+
+// IsSystemJunk reports a system bookkeeping file, by name.
+func IsSystemJunk(name string) bool {
+	if strings.HasPrefix(name, "._") && len(name) > 2 {
+		return true // AppleDouble: a file's Mac metadata on a non-Mac disk
+	}
+	for _, j := range SystemJunkNames {
+		if strings.EqualFold(name, j) {
+			return true
+		}
+	}
+	return false
+}
+
 // IsPartialDownload reports a download still in progress, by extension.
 func IsPartialDownload(name string) bool {
 	i := strings.LastIndexByte(name, '.')
@@ -219,7 +240,8 @@ func readDir(dir string, parent int, rootDev uint64, opts Options) ([]Entry, []E
 // skip: the ignore rules for a child of dir.
 func skip(dir, name, path string, isDir bool, opts Options) bool {
 	only, restricted := opts.OnlyChildren[dir]
-	return (isDir && contains(opts.IgnoredDirs, name)) || IsPartialDownload(name) || contains(opts.ExcludedPaths, path) ||
+	return (isDir && contains(opts.IgnoredDirs, name)) || IsPartialDownload(name) || (!isDir && IsSystemJunk(name)) ||
+		contains(opts.ExcludedPaths, path) ||
 		(restricted && !contains(only, name))
 }
 

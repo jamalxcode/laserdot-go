@@ -640,6 +640,13 @@ open on the Space they were made on. **Fix:** every dialog stays in front, on ev
 **Cause:** content search read hidden folders, and a plugin's bundled code contains almost any word. **Fix:** hidden
 folders are not read for contents; among content matches documents come first, code last.
 
+## 48. .DS_Store in results (0.9.30)
+
+**Reported:** "i keep getting .DS_Store that is an internal file that no one is interested in, can we ignore this
+file and other similar files". **Done:** the files macOS and Windows keep in folders for themselves are never
+indexed (by exact name, plus `._` AppleDouble files); this Mac's index drops any it already had, once. Other dot
+files people do look for (`.env`, `.zshrc`) stay searchable.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

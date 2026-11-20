@@ -145,7 +145,7 @@ func TestStorageCountsAppsAtTheirRealSize(t *testing.T) {
 	write(t, apps, "Big.app/Contents/MacOS/Big", strings.Repeat("x", 70000))
 	write(t, apps, "Big.app/Contents/Resources/art.bin", strings.Repeat("x", 30000))
 	write(t, apps, "Small.app/Contents/Info.plist", strings.Repeat("x", 500))
-	write(t, apps, ".localized", "")
+	write(t, apps, "Read Me.txt", "")
 	write(t, apps, "Tools/Helper.app/Contents/MacOS/Helper", strings.Repeat("x", 2000))
 	ld, err := Open(filepath.Join(dir, "data", "index.db"))
 	if err != nil {

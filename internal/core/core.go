@@ -231,6 +231,7 @@ func OpenAt(dbPath string, now time.Time) (*Laserdot, error) {
 		db.Close()
 		return nil, err
 	}
+	ld.dropSystemJunk()
 	for _, root := range rep.RootsToReindex {
 		if fi, err := os.Stat(root); err == nil && fi.IsDir() {
 			if _, err := ld.Index(root); err == nil {
