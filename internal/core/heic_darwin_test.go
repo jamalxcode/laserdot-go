@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // An iPhone photo (HEIC) and a JPEG copy of the same picture are found as
@@ -21,6 +22,7 @@ func TestHEICAndItsJPEGAreSimilarPictures(t *testing.T) {
 	if out, err := exec.Command("/usr/bin/sips", "-s", "format", "heic", filepath.Join(root, "Photos/beach.jpg"), "--out", heic).CombinedOutput(); err != nil {
 		t.Skipf("sips cannot write HEIC here: %v %s", err, out)
 	}
+	past(t, heic, time.Hour) // a file written just now is still settling and not compared yet
 	if _, err := ld.Index(root); err != nil {
 		t.Fatal(err)
 	}
