@@ -39,7 +39,11 @@ extension SelfTestRunner {
         extra["saved_height"] = UserDefaults.standard.double(forKey: "laserdot.overlay.height")
         extra["privacy_items"] = PrivacySettings.storedItems().map { ["id": $0.id, "bytes": $0.bytes] as [String: Any] }
         overlay.hide()
-        windowsTour(model: model) { self.mainWindowAndSettingsRest(model: model) }
+        mark("windows start")
+        windowsTour(model: model) {
+            self.mark("windows done")
+            self.mainWindowAndSettingsRest(model: model)
+        }
     }
 
     /// Storage and Duplicates windows, and the Settings tabs: screenshots and
@@ -185,6 +189,7 @@ extension SelfTestRunner {
             if let main = NSApp.windows.first(where: { !($0 is NSPanel) && $0.isVisible && $0.title == "Laserdot" }) {
                 self.capture("main", model: model, window: main)
             }
+            self.mark("main captured")
             self.app.showSettings()
             self.after(1.5) {
                 // The Settings window: visible, not the main window, not the
@@ -192,7 +197,9 @@ extension SelfTestRunner {
                 if let settings = self.settingsWindow() {
                     self.screenshot(settings, name: "settings")
                 }
+                self.mark("settings captured")
                 self.eraseAndCheck()
+                self.mark("erased")
                 self.finish(error: nil)
             }
         }

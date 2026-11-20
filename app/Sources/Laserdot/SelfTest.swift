@@ -30,6 +30,14 @@ final class SelfTestRunner {
     var waitedForQuickLook = 0.0
     var recording = 0.0
     var firstStepAt: Double?
+    /// Quick Look that will not close on this machine: not waited for again.
+    var quickLookStuck = false
+    /// Milestones (seconds since the start), in order.
+    var marks: [String] = []
+
+    func mark(_ what: String) {
+        marks.append(String(format: "%@ %.1f", what, Date().timeIntervalSince(runStarted)))
+    }
 
     init(app: AppDelegate, out: URL) {
         self.app = app
@@ -251,18 +259,29 @@ final class SelfTestRunner {
 
     func runSteps(_ steps: ArraySlice<Step>, model: SearchModel, overlay: OverlayController) {
         guard let step = steps.first else {
+            mark("steps done")
             mainWindowAndSettings(model: model, overlay: overlay)
             return
         }
-        // Start each step with Quick Look really closed.
-        guard !QuickLook.shared.isVisible || closeAttempts > 10 else {
-            closeAttempts += 1
-            QuickLook.shared.close()
-            waitedForQuickLook += 300
-            after(0.3) { self.runSteps(steps, model: model, overlay: overlay) }
-            return
+        // Start each step with Quick Look really closed. On CI's Macs the
+        // preview sometimes reports itself visible after it was closed; it
+        // is given about a second once, then not waited for again (waiting
+        // the full time before every later step cost 105 s per language).
+        if QuickLook.shared.isVisible && !quickLookStuck {
+            if closeAttempts < 3 {
+                closeAttempts += 1
+                QuickLook.shared.close()
+                waitedForQuickLook += 300
+                after(0.3) { self.runSteps(steps, model: model, overlay: overlay) }
+                return
+            }
+            quickLookStuck = true
+            extra["quicklook_stuck_before"] = step.name
         }
-        if firstStepAt == nil { firstStepAt = Date().timeIntervalSince(runStarted) * 1000 }
+        if firstStepAt == nil {
+            firstStepAt = Date().timeIntervalSince(runStarted) * 1000
+            mark("steps start")
+        }
         closeAttempts = 0
         stepStarted = Date()
         model.query = ""

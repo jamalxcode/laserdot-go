@@ -33,6 +33,8 @@ print(f"info self-test took {report.get('selftest_seconds', '?')} s; {len(timed)
 split = report.get("selftest_split_ms", {})
 if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
+if report.get("selftest_marks"):
+    print("info milestones (s): " + "; ".join(report["selftest_marks"]))
 for name in ("start", "jpg", "proj", "tool", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")

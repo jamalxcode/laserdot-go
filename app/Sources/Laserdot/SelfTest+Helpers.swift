@@ -9,9 +9,11 @@ extension SelfTestRunner {
     /// Write `hold`, then wait (at most two minutes) for CI to write `release`.
     func hold(then next: @escaping () -> Void) {
         try? Data().write(to: out.appendingPathComponent("hold"))
+        mark("held for the accessibility reader")
         let release = out.appendingPathComponent("release")
         func poll(_ waited: Double) {
             if FileManager.default.fileExists(atPath: release.path) || waited > 120 {
+                mark("released")
                 next()
             } else {
                 after(0.5) { poll(waited + 0.5) }
@@ -221,6 +223,7 @@ extension SelfTestRunner {
                 "quicklook_waits": Int(waitedForQuickLook),
                 "recording": Int(recording),
             ],
+            "selftest_marks": marks,
             "steps": steps,
             "screenshots": shots,
         ]
