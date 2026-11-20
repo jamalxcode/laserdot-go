@@ -352,6 +352,16 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **CI review (2026-11-20, no release):** measured: the app job ~17 min, 12 of them the self-test (~5 min per
+  language), bundle 79 s, Swift build and tests 55 s each; the Mac test job 4.4 min (race tests 134 s); the release
+  job 4.2 min. Changes: documents-only pushes (docs/, issues/, README, CLAUDE.md; not CHANGELOG.md) skip the Mac jobs
+  (`tested` compares with the push's `before`); `concurrency` cancels a superseded branch run (never main's);
+  `timeout-minutes` on every job (was GitHub's 6 h); the Mac test job runs plain `go test` plus `-race` for the
+  macOS-specific packages (Linux runs `-race` on everything); `retry.yml` re-runs jobs of ci (not on main) and
+  Release that ended without a single step (no machine), at most twice; `perf-big` also runs when the indexer, the
+  walk or the media parsers change on main; the self-test records each step's time (`ms`, `selftest_seconds`,
+  printed by the checker) and presses Space again once if the first press never reached Quick Look
+  (`space_pressed_again`).
 - **0.9.20 (2026-11-19):** the owner's 0.9.19 install took over 3 minutes and the Mac showed the beachball while an
   8 TB drive was being indexed; with the drive unplugged the update went through. Four fixes: (1) `daemon.StepBack`
   (nice 10; macOS throttled disk I/O through purego) before the index opens; (2) `AttachDrive`/`CatchUpDrive`

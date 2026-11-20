@@ -1,0 +1,41 @@
+name: retry
+# GitHub sometimes cannot give a job a Mac: the job waits, then is cancelled
+# without running a single step (a release was held up this way on
+# 2026-11-19). Such jobs are started again, at most twice. Jobs that ran and
+# failed are real failures and are left alone. ci on main is not retried
+# here: a re-run made by this workflow would not start the release after it.
+on:
+  workflow_run:
+    workflows: [ci, Release]
+    types: [completed]
+permissions:
+  actions: write
+  contents: read
+jobs:
+  retry:
+    if: >-
+      github.event.workflow_run.run_attempt < 3 &&
+      (github.event.workflow_run.conclusion == 'cancelled' || github.event.workflow_run.conclusion == 'failure') &&
+      !(github.event.workflow_run.name == 'ci' && github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN: ${{ github.event.workflow_run.id }}
+          ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          NAME: ${{ github.event.workflow_run.name }}
+        run: |
+          # A run replaced by a newer push is not worth starting again.
+          if [ "$NAME" = ci ]; then
+            head=$(gh api "repos/$REPO/branches/$BRANCH" --jq .commit.sha 2>/dev/null || echo "")
+            if [ "$head" != "$SHA" ]; then echo "$BRANCH has moved on: not retrying"; exit 0; fi
+          fi
+          stuck=$(gh api "repos/$REPO/actions/runs/$RUN/attempts/$ATTEMPT/jobs" \
+            --jq '[.jobs[] | select((.conclusion == "cancelled" or .conclusion == "failure") and (.steps | length) == 0) | .name] | join(", ")')
+          if [ -z "$stuck" ]; then echo "no job was left without a machine: nothing to retry"; exit 0; fi
+          echo "never got a machine: $stuck — starting again"
+          gh api -X POST "repos/$REPO/actions/runs/$RUN/rerun-failed-jobs"

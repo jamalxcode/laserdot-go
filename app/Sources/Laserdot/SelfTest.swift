@@ -21,6 +21,10 @@ final class SelfTestRunner {
     var shots: [String] = []
     var closeAttempts = 0
     var extra: [String: Any] = [:]
+    /// When the run and the current step began (each step's time goes into
+    /// the report, so CI's slowest steps can be found and trimmed).
+    let runStarted = Date()
+    var stepStarted = Date()
 
     init(app: AppDelegate, out: URL) {
         self.app = app
@@ -73,6 +77,8 @@ final class SelfTestRunner {
         /// What the screen must show before it is recorded (files changed
         /// on disk reach the index through the watcher; this waits for it).
         var until: ((SearchModel) -> Bool)?
+        /// Extra seconds before the screen is recorded, after `after`.
+        var wait: Double = 0
     }
 
     func run() {
@@ -115,10 +121,21 @@ final class SelfTestRunner {
             Step(name: "actions", typed: "jpg", after: { model.toggleActions() }),
             // ↓ into the results, then Space through the app's event queue
             // (as a real key press arrives): Quick Look opens.
+            // A key posted on a busy CI machine is now and then lost: if
+            // Quick Look was not asked to show within a moment, the key is
+            // pressed once more (a press that arrived is never repeated, as
+            // a second one would close the preview).
             Step(name: "space", typed: "jpg", after: {
                 self.key(String(UnicodeScalar(UInt16(NSDownArrowFunctionKey))!), code: 125, into: overlay.panel)
+                let shows = QuickLook.shared.shows
                 self.post(" ", code: 49, to: overlay.panel)
-            }),
+                self.after(0.4) {
+                    if QuickLook.shared.shows == shows {
+                        self.extra["space_pressed_again"] = true
+                        self.post(" ", code: 49, to: overlay.panel)
+                    }
+                }
+            }, wait: 0.8),
             // A second space in a row previews without ↓.
             // (The key path itself is the "space" step; a second posted key
             // event can be lost in CI, so this one asks the field's handler.)
@@ -240,13 +257,14 @@ final class SelfTestRunner {
             return
         }
         closeAttempts = 0
+        stepStarted = Date()
         model.query = ""
         after(0.5) {
             step.before?()
             self.type(step.typed, into: overlay.panel) {
                 self.settle(model, until: step.until) {
                     step.after?()
-                    self.after(step.after == nil ? 0.1 : 0.6) {
+                    self.after((step.after == nil ? 0.1 : 0.6) + step.wait) {
                         self.capture(step.name, model: model, window: overlay.panel)
                         let next = { self.runSteps(steps.dropFirst(), model: model, overlay: overlay) }
                         // CI reads the screen with an accessibility client

@@ -1,9 +1,13 @@
 name: perf-big
 # A million files on a real Mac: how fast they become searchable, how fast
 # searches are, and how much memory the daemon uses (the spec's target is
-# 150 MB; this fails only above 1.5 GB). Weekly, and on demand.
+# 150 MB; this fails only above 1.5 GB). Weekly, on demand, and whenever the
+# indexer or the folder walk changes on main.
 on:
   workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ['internal/index/**', 'internal/scan/**', 'internal/media/**']
   schedule:
     - cron: '17 5 * * 1'
 permissions:

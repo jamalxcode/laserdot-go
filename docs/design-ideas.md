@@ -42,11 +42,11 @@ From the speed review of 2026-11-16 (measured on CI's Mac with a million files),
 
 Smaller ideas noted along the way:
 
-- Let the self-test's Space check retry the key press before failing (it is occasionally lost on CI machines).
 - A Stop button for indexing a drive, as Find Duplicates has (the engine can stop and resume since 0.9.19; the
   button is missing).
 - Stream this Mac's own first index too, and let FSEvents say which folders changed instead of comparing times.
-- Run the million-file test (`perf-big`) after every change to the indexer, not only weekly.
+- Use the self-test's per-step timings (printed by `check-selftest.py`) to trim its slowest steps; the self-test is
+  about 12 of the app job's 17 minutes.
 
 ## Left out on purpose
 

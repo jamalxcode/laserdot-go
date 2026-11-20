@@ -510,6 +510,16 @@ hiccups: a new Swift test referred to a helper of another test class (Swift comp
 follow-up commit), and the release job waited 15 minutes for a GitHub Mac, got none and was cancelled; re-running
 it published the release.
 
+## 36. Reviewing the build (2026-11-20)
+
+**Asked:** "update the repo with design decisions and our chat", then "review the build and see how it can be made
+more efficient, and faster, and robust". **Measured** on the last runs: the app job is the critical path (~17 min,
+12 of them the self-test); the Mac test job and the release job take about 4 minutes each; a release had waited 15
+minutes for a GitHub Mac that never came. **Decided:** documents-only commits use no Mac; a newer push cancels the
+run it replaces; every job has a time limit; jobs that never got a machine are retried by themselves; the Mac runs
+the race detector only where the code is macOS-specific; the million-file test follows indexer changes; the
+self-test retries a lost Space key and times every step, so the next trim is chosen from numbers rather than guesses.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

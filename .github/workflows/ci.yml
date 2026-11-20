@@ -4,6 +4,11 @@ on:
   pull_request:
 permissions:
   contents: read
+# A newer push to the same branch replaces a run still going (its result
+# would be stale anyway); main's runs are never cancelled.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   # Hard rule (owner): a commit is tested once. Work is tested on its branch
@@ -12,6 +17,7 @@ jobs:
   # release starts at once. Any other commit is tested in full.
   tested:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     permissions:
       actions: read
     outputs:
@@ -22,13 +28,25 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           already=false
-          if [ "${{ github.event_name }}" = push ] && [ "${{ github.ref }}" = refs/heads/main ]; then
+          # Documents only (docs/, issues/, README, CLAUDE.md): nothing that is
+          # built or shipped changed, so no Mac is needed. CHANGELOG.md is not
+          # in this list: it is bundled into the app.
+          before="${{ github.event.before }}"
+          if [ "${{ github.event_name }}" = push ] && [ -n "$before" ] && [ "$before" != 0000000000000000000000000000000000000000 ]; then
+            files=$(gh api "repos/${{ github.repository }}/compare/$before...${{ github.sha }}" --jq '.files[].filename' || echo "?")
+            if [ -n "$files" ] && ! echo "$files" | grep -vqE '^(docs/|issues/)|^(README|CLAUDE)\.md$'; then
+              already=true
+              echo "only documents changed: not building or testing"
+              echo "$files"
+            fi
+          fi
+          if [ "$already" = false ] && [ "${{ github.event_name }}" = push ] && [ "${{ github.ref }}" = refs/heads/main ]; then
             n=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs?head_sha=${{ github.sha }}&status=success&per_page=20" \
                   --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }} and .event == "push")] | length')
             if [ "${n:-0}" -gt 0 ]; then already=true; fi
           fi
           echo "already=$already" >> "$GITHUB_OUTPUT"
-          if [ "$already" = true ]; then echo "${{ github.sha }} already passed every test on its branch: not testing it again"; fi
+          if [ "$already" = true ]; then echo "${{ github.sha }}: nothing to test again (documents only, or it already passed on its branch)"; fi
 
   test:
     needs: tested
@@ -37,6 +55,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -45,7 +64,16 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)" || (gofmt -l . && exit 1)
       - run: go vet ./...
-      - run: go test -race ./...
+      # The race detector on Linux covers the shared code; on the Mac (fewer,
+      # slower machines) it runs for the macOS-specific packages only.
+      - name: go test
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then
+            go test ./...
+            go test -race ./internal/watch ./internal/scan ./internal/sandbox ./internal/daemon
+          else
+            go test -race ./...
+          fi
       - name: Speed on a real Mac (100,000 real files)
         if: runner.os == 'macOS'
         run: app/scripts/perf-mac.sh
@@ -54,6 +82,7 @@ jobs:
     needs: tested
     if: needs.tested.outputs.already != 'true'
     runs-on: macos-latest
+    timeout-minutes: 45
     permissions:
       contents: read
       # GitHub's keyless build proof (the same kind releases carry).

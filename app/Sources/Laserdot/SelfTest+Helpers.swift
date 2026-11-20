@@ -133,6 +133,7 @@ extension SelfTestRunner {
         // Built field by field: one big literal is too slow to type-check.
         var r: [String: Any] = [:]
         r["name"] = name
+        r["ms"] = Int(Date().timeIntervalSince(stepStarted) * 1000)
         r["query"] = model.query
         r["hint"] = model.hint ?? ""
         r["sections"] = model.sections.map { s -> [String: Any] in ["title": s.title, "count": s.range.count] }
@@ -212,6 +213,7 @@ extension SelfTestRunner {
             "layout_rtl": appLayoutDirection == .rightToLeft,
             "appkit_rtl": NSApp.userInterfaceLayoutDirection == .rightToLeft,
             "error": error,
+            "selftest_seconds": Int(Date().timeIntervalSince(runStarted)),
             "steps": steps,
             "screenshots": shots,
         ]

@@ -54,6 +54,7 @@ jobs:
     needs: decide
     if: needs.decide.outputs.go == 'true'
     runs-on: macos-latest
+    timeout-minutes: 45
     permissions:
       contents: write
       # GitHub's keyless proof that this workflow built the disk image; the
