@@ -1,6 +1,7 @@
 package index
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"os"
@@ -206,7 +207,16 @@ groups:
 // parallel.
 func (s *Store) matchNames(m *query.NameMatcher, pool *roaring.Bitmap) *roaring.Bitmap {
 	if m.OnPath {
-		return s.scan(pool, 256, func(id uint32) bool { return m.Regex.MatchString(s.FoldedPath(id)) })
+		return s.scan(pool, 256, func(id uint32) bool { return m.Match(s.FoldedPath(id)) })
+	}
+	if m.Star != nil {
+		// A wildcard of text and * only: pieces in order (no regex).
+		return s.scan(pool, 4096, func(id uint32) bool { return m.Match(s.FoldedName(id)) })
+	}
+	if m.Literal != "" {
+		// A plain word: a substring search (the regex's answer, faster).
+		lit := []byte(m.Literal)
+		return s.scan(pool, 4096, func(id uint32) bool { return bytes.Contains(s.folded.bytes(id), lit) })
 	}
 	return s.scan(pool, 4096, func(id uint32) bool { return m.Regex.Match(s.folded.bytes(id)) })
 }

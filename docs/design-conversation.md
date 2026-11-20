@@ -593,6 +593,16 @@ test, run just before the self-test, stalled the English self-test's start by ab
 when the hint arrives, and the eject test runs after the self-test. The owner then asked for the repo and README to
 be brought up to date (this section and the README's new parts: choices, drives that let go, never in your way).
 
+## 44. What else, and 1–4 (0.9.27)
+
+**Asked:** "what else ?", then "do 1-4 and release 0.9.27". **Measured first:** the 0.9.26 memory change took a
+million files from 15.1 to 6.6 s and the slowest search from 35 to 11.4 ms on CI's Mac. **Done:** (1) iPhone HEIC, AVIF
+and RAW pictures compared in Find Duplicates through macOS's own decoder (JPEG and the rest kept on the current
+decoder, so fingerprints already saved still compare); (2) Move to Trash and Show in Finder from the Storage window,
+confirmed and undoable; (3) plain words and simple wildcards matched without the regex engine (proved equal on
+thousands of random names): searches on a million files about twice as fast, all under 7 ms; (4) the missed-change
+check every 30 minutes instead of 5 while macOS's change events miss nothing.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

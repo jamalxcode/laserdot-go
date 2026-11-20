@@ -23,7 +23,8 @@ One page, kept current: what is true today. The history and the reasons are in
   checkpoints inside the drive's own index; it can be stopped and continued, and resumes after an unplug. The index
   file on a drive is open only during a job, so a drive can always be ejected; when macOS is about to eject one, the
   engine lets go first.
-- **Keeping current**: FSEvents for changes, a folder-time check every 5 minutes, an hourly catch-up; returning
+- **Keeping current**: FSEvents for changes, a folder-time check every 30 minutes while FSEvents misses nothing
+  (every 5 otherwise), an hourly catch-up; returning
   APFS/HFS+ drives are checked by folder times, other drives and once a week in full.
 
 ## Searching
@@ -32,15 +33,17 @@ One page, kept current: what is true today. The history and the reasons are in
   with a trigram prefilter; media filters use columns and bitmaps; contents use SQLite FTS5.
 - After a search, the **choice row** offers what the results have (resolution, sound, shape, camera, type, date,
   size…), with counts; a choice is added to the search as a word, its group shrinks to it, the others stay.
-- Speed: about 1–2 ms on 100,000 files, under 40 ms on a million.
+- Speed: about 1–2 ms on 100,000 files, under 10 ms on a million; plain words and simple wildcards are matched
+  without the regex engine (same answers, proved by test).
 
 ## Long jobs and safety
 
-- Duplicates (identical, similar pictures, re-encoded videos) and cleanups: dry run first, files moved to the Trash
+- Duplicates (identical, similar pictures — iPhone HEIC and RAW through macOS's ImageIO — re-encoded videos) and cleanups: dry run first, files moved to the Trash
   or a folder, never deleted; one copy always stays; undo for a week.
 - Every long job shows its step and elapsed time, can be stopped and continued, and is saved as it goes. Quitting,
   ejecting or an update stops jobs at once (indexing pauses while an update installs).
-- Storage window: sizes from the index; apps and packages measured once and remembered.
+- Storage window: sizes from the index; apps and packages measured once and remembered; items can be moved to the
+  Trash (confirmed, undoable).
 
 ## Testing and releasing
 

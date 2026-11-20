@@ -3,6 +3,16 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.27
+
+- iPhone photos (HEIC), AVIF and camera RAW pictures are now compared in Find Duplicates — a HEIC and a JPEG copy of
+  the same photo are found as similar. macOS reads them for Laserdot; nothing leaves your Mac.
+- The Storage window can clean up: right-click a folder or file to show it in Finder or move it to the Trash (with a
+  clear confirmation of what moves and how much space it frees; nothing is deleted, and Undo puts it back).
+- Searches on very big indexes are about twice as fast (plain words and wildcards like report*).
+- Less background work: on Mac drives the check for missed changes runs every 30 minutes instead of every 5, and goes
+  back to 5 if it ever finds something the system's change events missed.
+
 ## 0.9.26
 
 - Drive indexing can be stopped and continued: Drives ▸ your drive ▸ Stop Indexing keeps what was read, and the

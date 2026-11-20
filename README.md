@@ -30,7 +30,7 @@ file search should be, and a robot that types into it on every change to prove i
   always ejects: Laserdot holds nothing open on it and steps aside when you eject.
 - 🐢 **Never in your way.** The engine works as a background task, like Spotlight's: your apps get the disk first,
   and indexing pauses while an update installs.
-- 🧹 **Duplicates by quality.** Identical files, similar pictures and re-encoded videos; it recommends the best copy
+- 🧹 **Duplicates by quality.** Identical files, similar pictures (iPhone HEIC and camera RAW included) and re-encoded videos; it recommends the best copy
   and **never deletes** — files go to the Trash after a clear confirmation. It tells you what you freed, too.
 - 🛟 **Fixes itself.** Bugs are caught and logged, a stuck engine is restarted, a dead drive is skipped, an
   interrupted index heals. You shouldn't notice any of it.
@@ -122,7 +122,8 @@ what it has read every 30 seconds. Cleaning up is one button — **Move N Duplic
 confirmation; nothing is ever deleted, and Laserdot keeps a running total of the space it has helped clear.
 
 **Library ▸ Storage** (⇧⌘S) shows what fills your disk, folder by folder, and the largest files — apps and other
-packages at their real size (measured once and remembered), counted as apps rather than files. The **…** menu orders
+packages at their real size (measured once and remembered), counted as apps rather than files. Right-click an item
+to show it in Finder or move it to the Trash (confirmed first; Undo puts it back). The **…** menu orders
 results by name, size or date. `laserdot://search?q=…` links open a search (use them
 in Shortcuts with **Open URL**).
 
@@ -202,10 +203,10 @@ Some numbers from GitHub's Mac (which is slower than yours):
 
 | | |
 |---|---|
-| 100,000 files searchable after | ~1 s |
-| a million files searchable after | ~10.6 s (94,000 files/s; faster since 0.9.26 lifted the engine's memory ceiling) |
-| slowest search, a million files | 38 ms |
-| memory after indexing a million files | 65 MB (Activity Monitor's measure) |
+| 100,000 files searchable after | ~0.4 s |
+| a million files searchable after | ~6.6 s (152,000 files/s; it was 15 s before 0.9.26 lifted the engine's memory ceiling) |
+| slowest search, a million files | ~7 ms (0.9.27; it was 35 ms) |
+| memory after indexing a million files | ~140 MB (Activity Monitor's measure) |
 | opening the app | ~0.2–0.3 s |
 
 ## For developers

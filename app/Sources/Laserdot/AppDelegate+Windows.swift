@@ -11,6 +11,9 @@ extension AppDelegate {
         guard let engine else { return }
         if storageWindow == nil {
             let model = StorageModel(engine: engine)
+            model.trash = { [weak self] paths, done in
+                if let search = self?.model { search.trashPaths(paths, done: done) } else { done(nil) }
+            }
             storageModel = model
             let w = NSWindow(
                 contentRect: NSRect(x: 0, y: 0, width: 680, height: 560),

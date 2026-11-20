@@ -53,12 +53,74 @@ type NameMatcher struct {
 	OnPath bool
 	// Typo: built with typo alternatives.
 	Typo bool
+	// Literal: the pattern is exactly this text (a plain word): matched by
+	// substring search, the same answer as the regex without its cost (the
+	// regex engine was most of a wide search on a million names).
+	Literal string
+	// Whole: the pattern spans the whole name (a wildcard or quoted word):
+	// any match is an exact match.
+	Whole bool
+	// Star: a wildcard made of text and `*` only (report*, *.pdf, a*b):
+	// these pieces in order, the first at the start, the last at the end —
+	// matched without the regex engine. nil: not such a wildcard.
+	Star []string
 }
 
-func (m *NameMatcher) Match(s string) bool { return m.Regex.MatchString(s) }
+// starMatch: s is pieces[0] … pieces[n-1] in order, joined by anything,
+// whole (as the regex \Ap0.*p1.*…pn\z).
+func starMatch(s string, pieces []string) bool {
+	if len(pieces) == 1 {
+		return s == pieces[0]
+	}
+	first, last := pieces[0], pieces[len(pieces)-1]
+	if !strings.HasPrefix(s, first) || !strings.HasSuffix(s, last) || len(first)+len(last) > len(s) {
+		return false
+	}
+	rest := s[len(first) : len(s)-len(last)]
+	for _, p := range pieces[1 : len(pieces)-1] {
+		i := strings.Index(rest, p)
+		if i < 0 {
+			return false
+		}
+		rest = rest[i+len(p):]
+	}
+	return true
+}
+
+func (m *NameMatcher) Match(s string) bool {
+	if m.Literal != "" {
+		return strings.Contains(s, m.Literal)
+	}
+	if m.Star != nil {
+		return starMatch(s, m.Star)
+	}
+	return m.Regex.MatchString(s)
+}
 
 // Quality of s, or NoMatch.
 func (m *NameMatcher) Quality(s string) MatchQuality {
+	if m.Literal != "" && !m.Typo {
+		i := strings.Index(s, m.Literal)
+		switch {
+		case i < 0:
+			return NoMatch
+		case i == 0 && len(m.Literal) == len(s):
+			return Exact
+		case i == 0:
+			return Prefix
+		}
+		r, _ := utf8.DecodeLastRuneInString(s[:i])
+		if !unicode.IsLetter(r) && !unicode.IsNumber(r) {
+			return WordStart
+		}
+		return Substring
+	}
+	if m.Whole && !m.Typo {
+		if m.Match(s) {
+			return Exact
+		}
+		return NoMatch
+	}
 	loc := m.Regex.FindStringIndex(s)
 	if loc == nil {
 		return NoMatch
@@ -226,6 +288,9 @@ func textMatcher(tv TextValue, exact, typo bool, span Span) (*NameMatcher, error
 		prefilter [][]string
 		onPath    = strings.Contains(tv.Text, "/")
 		isTypo    bool
+		literal   string
+		whole     bool
+		star      []string
 	)
 	switch {
 	case tv.Phrase:
@@ -236,20 +301,37 @@ func textMatcher(tv TextValue, exact, typo bool, span Span) (*NameMatcher, error
 		prefilter = [][]string{{tv.Text}}
 	case tv.Wildcards:
 		re, prefilter = glob(tv.Text)
+		whole = true
+		if !strings.ContainsRune(tv.Text, '?') && utf8.ValidString(tv.Text) {
+			star = strings.Split(tv.Text, "*")
+		}
 	case exact:
 		re, prefilter = anchored(lit(tv.Text)), [][]string{{tv.Text}}
+		whole = true
 	case typo && typoEligible(tv.Text):
 		var pieces []string
 		re, pieces = typoTree(tv.Text)
 		prefilter, onPath, isTypo = [][]string{pieces}, false, true
 	default:
 		re, prefilter = lit(tv.Text), [][]string{{tv.Text}}
+		literal = tv.Text
 	}
 	rx, err := build(re, span)
 	if err != nil {
 		return nil, err
 	}
-	return &NameMatcher{Regex: rx, Prefilter: prefilter, OnPath: onPath, Typo: isTypo}, nil
+	// The fast paths only where the regex really is that literal or spans
+	// the whole name (checked, not assumed).
+	if literal != "" && (rx.String() != regexp.QuoteMeta(literal) || !utf8.ValidString(literal)) {
+		literal = ""
+	}
+	if whole && !(strings.HasPrefix(rx.String(), `(?s:\A`) || strings.HasPrefix(rx.String(), `\A`)) {
+		whole = false
+	}
+	if !whole || isTypo {
+		star = nil
+	}
+	return &NameMatcher{Regex: rx, Prefilter: prefilter, OnPath: onPath, Typo: isTypo, Literal: literal, Whole: whole, Star: star}, nil
 }
 
 // glob: a whole-name match (§2.2.2): ^ segments joined by .* and . $.

@@ -183,7 +183,13 @@ extension SearchModel {
     }
 
     func trashFiles(_ hits: [Hit], done: @escaping (Error?) -> Void = { _ in }) {
-        let urls = hits.map { URL(fileURLWithPath: $0.path) }
+        trashPaths(hits.map(\.path), done: done)
+    }
+
+    /// Move paths to the Trash, with the same Undo as results (the Storage
+    /// window's Move to Trash).
+    func trashPaths(_ paths: [String], done: @escaping (Error?) -> Void = { _ in }) {
+        let urls = paths.map { URL(fileURLWithPath: $0) }
         NSWorkspace.shared.recycle(urls) { [weak self] newURLs, error in
             DispatchQueue.main.async {
                 let moves = urls.compactMap { u in newURLs[u].map { (u, $0) } }

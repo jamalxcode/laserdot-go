@@ -13,6 +13,33 @@ final class StorageModel: ObservableObject {
     @Published var message: String?
     let engine: Engine
     private let queue = DispatchQueue(label: "laserdot.storage", qos: .userInitiated)
+    /// Moves paths to the Trash with Undo (the search model's); set by the
+    /// app.
+    var trash: ([String], @escaping (Error?) -> Void) -> Void = { _, done in done(nil) }
+
+    /// Move to Trash from Storage: confirmed in plain words (what, how much
+    /// space, nothing deleted, how to get it back), then moved with Undo,
+    /// then the sizes are read again.
+    func moveToTrash(path: String, name: String, bytes: UInt64, confirm: Bool = true, done: @escaping (Bool) -> Void = { _ in }) {
+        if confirm {
+            let a = NSAlert()
+            a.messageText = String(format: L("storage.trash.title"), name)
+            a.informativeText = String(format: L("storage.trash.text"),
+                                       ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file))
+            a.addButton(withTitle: L("storage.trash.confirm")).hasDestructiveAction = true
+            a.addButton(withTitle: L("action.cancel")).keyEquivalent = "\u{1b}"
+            guard a.runFront() == .alertFirstButtonReturn else { return done(false) }
+        }
+        trash([path]) { [weak self] error in
+            if let error {
+                NSAlert(error: error).runFront()
+                done(false)
+                return
+            }
+            self?.load()
+            done(true)
+        }
+    }
 
     init(engine: Engine) {
         self.engine = engine
@@ -122,9 +149,13 @@ struct StorageView: View {
                     .contextMenu {
                         if item.isDir { Button(L("storage.open")) { model.load(item.path) } }
                         Button(L("action.reveal")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.path)]) }
+                        Divider()
+                        Button(L("storage.trash.menu")) {
+                            model.moveToTrash(path: item.path, name: item.name, bytes: item.bytes)
+                        }
                     }
             }
-            Text(L("storage.help")).font(.caption).foregroundStyle(.secondary).padding(.horizontal, 12).padding(.bottom, 8)
+            Text(L("storage.help") + " " + L("storage.trash.hint")).font(.caption).foregroundStyle(.secondary).padding(.horizontal, 12).padding(.bottom, 8)
         }
     }
 
@@ -144,6 +175,8 @@ struct StorageView: View {
             .contextMenu {
                 Button(L("action.reveal")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: h.path)]) }
                 Button(L("action.quickLook")) { QuickLook.shared.show(URL(fileURLWithPath: h.path)) }
+                Divider()
+                Button(L("storage.trash.menu")) { model.moveToTrash(path: h.path, name: h.name, bytes: h.size) }
             }
         }
     }

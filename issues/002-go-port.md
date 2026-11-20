@@ -134,6 +134,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Calm and batched (0.9.26):** one "…" menu for refresh, order, pin and filters; choices wrap; a plain word's meaning
   is explained three times; drive indexing can be stopped and continued; releases batched about weekly unless urgent;
   a one-page `docs/how-it-works.md` kept current. Measured and not adopted: streaming this Mac's own folders.
+- **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
+  ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
+  Trash with the usual confirmation and Undo.
 - **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account), and more
   languages than English and Arabic for now.
 
@@ -368,6 +371,19 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.27 (2026-11-20):** "do 1-4 and release 0.9.27" from the "what else" list. (1) `media/imageio_darwin.go`:
+  ImageIO through purego (CFURL → CGImageSource → thumbnail at 160 px with the transform, an embedded one when
+  present → CGDataProvider bytes → `lumaFromPixels` for every 8-bit layout → `Downscale`); `SystemImage` (HEIC/HEIF,
+  AVIF, ~20 RAW extensions) is `HashableImage` on macOS; the portable types keep the pure-Go decoder so saved
+  fingerprints stay comparable. Tests: every pixel layout (portable), and on macOS a HEIC made by `sips` hashes within
+  8 bits of its JPEG and is grouped with it by `FindDuplicates`. (2) Storage: Move to Trash on rows and Largest Files
+  (confirmation: what, size, nothing deleted, Undo), through `SearchModel.trashPaths` (same Undo); self-test
+  `storage_trashed`/`storage_untrashed`. (3) `NameMatcher.Literal` (plain words: substring search) and `Star`
+  (text-and-`*` wildcards: pieces in order), verified against the regex on 3,000 random names
+  (`TestFastMatchAgreesWithTheRegex`); 1M benchmark: invoice march 8.3→3.7 ms, فاتوره 13.1→7.0, report* 13.4→5.1,
+  cafe 2024 -draft 10.7→6.3. (4) `quickInterval`: with FSEvents and no miss for `CalmAfter` (2 h) the quick check runs
+  every `QuickCheckCalm` (30 min), else every 5. The 0.9.26 memory change, measured by perf-big on CI's Mac: a million
+  files searchable after 6.6 s (was 15.1), slowest search 11.4 ms (was 35), 139 MB after (was 68).
 - **0.9.26 (2026-11-20):** the owner's "review laserdot and critique it" and "fix it all". Done: drive Stop/Continue
   (`StopDriveIndex`/`ContinueDriveIndex`, `drive.paused`, ops `drive_stop`/`drive_continue`, `DriveInfo.Indexing`,
   menu items; the hourly catch-up leaves a stopped index alone); duplicate scans skip files on drives being let go

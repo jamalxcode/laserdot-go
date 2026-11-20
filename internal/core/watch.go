@@ -37,6 +37,25 @@ var CatchUpEvery = time.Hour
 // within minutes rather than at the hourly catch-up.
 var QuickCheckEvery = 5 * time.Minute
 
+// QuickCheckCalm: the quick check's interval while FSEvents watches and
+// nothing has been missed for CalmAfter. FSEvents already turns dropped
+// events into rescans, so the check (one lstat per indexed folder) rarely
+// finds anything there; it runs every 30 minutes instead of 5, and goes back
+// to 5 as soon as a check finds a change the events missed.
+var (
+	QuickCheckCalm = 30 * time.Minute
+	CalmAfter      = 2 * time.Hour
+)
+
+// quickInterval: the quick check's interval for this backend, given when a
+// check last found something missed.
+func quickInterval(backend watch.Backend, lastMissed, now time.Time) time.Duration {
+	if backend == watch.FSEvents && now.Sub(lastMissed) > CalmAfter {
+		return QuickCheckCalm
+	}
+	return QuickCheckEvery
+}
+
 // WatcherHealth is what the catch-ups found.
 type WatcherHealth struct {
 	// LastCatchUp: Unix seconds of the last catch-up (0: none yet).
@@ -58,6 +77,9 @@ type Watcher struct {
 	health  struct {
 		last, missed, restarts atomic.Int64
 	}
+	// lastMissed: when a check last found changes the events missed (the
+	// watcher goroutine only).
+	lastMissed time.Time
 }
 
 // Health reports the catch-ups.
@@ -187,7 +209,7 @@ func (w *Watcher) run(ev WatchEvents) {
 				report(w.ld.CheckPending())
 			}
 			full := time.Since(lastCatchUp) > CatchUpEvery
-			quick := time.Since(lastQuick) > QuickCheckEvery
+			quick := time.Since(lastQuick) > quickInterval(wt.Backend(), w.lastMissed, time.Now())
 			if (full || quick) && (ev.CanCatchUp == nil || ev.CanCatchUp()) {
 				lastQuick = time.Now()
 				var u UpdateStats
@@ -201,7 +223,9 @@ func (w *Watcher) run(ev WatchEvents) {
 				report(u, err)
 				w.health.last.Store(time.Now().Unix())
 				if n := u.Added + u.Removed + u.Renamed + u.Modified; err == nil && n > 0 {
-					// The events missed these: start watching afresh.
+					// The events missed these: start watching afresh, and
+					// check often again for a while.
+					w.lastMissed = time.Now()
 					w.health.missed.Add(int64(n))
 					w.health.restarts.Add(1)
 					if ev.Missed != nil {

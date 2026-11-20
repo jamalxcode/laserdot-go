@@ -469,3 +469,8 @@
 "drive.stopIndexing" = "إيقاف الفهرسة";
 "drive.continueIndexing" = "متابعة الفهرسة";
 "search.more" = "المزيد (تحديث، ترتيب، تثبيت، المرشحات)";
+"storage.trash.menu" = "نقل إلى سلة المهملات…";
+"storage.trash.title" = "نقل «%@» إلى سلة المهملات؟";
+"storage.trash.text" = "يحرّر ذلك نحو %@. لا يُحذف شيء: يمكنك إرجاعه من سلة المهملات أو بالتراجع (⌥⌘Z).";
+"storage.trash.confirm" = "نقل إلى سلة المهملات";
+"storage.trash.hint" = "انقر بزر الفأرة الأيمن على عنصر لإظهاره في Finder أو نقله إلى سلة المهملات.";

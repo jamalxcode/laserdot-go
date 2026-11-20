@@ -60,6 +60,15 @@ extension SelfTestRunner {
                 self.extra["storage_counts"] = StorageRow.counts(files: r.files, apps: r.apps, packages: r.packages)
                 self.extra["storage_apps"] = Int(r.apps)
             }
+            // Move to Trash from Storage (the confirmation is skipped here),
+            // then Undo puts it back.
+            let victim = self.folder + "/storage-victim.bin"
+            FileManager.default.createFile(atPath: victim, contents: Data(repeating: 7, count: 4096))
+            self.app.storageModel?.moveToTrash(path: victim, name: "storage-victim.bin", bytes: 4096, confirm: false) { moved in
+                self.extra["storage_trashed"] = moved && !FileManager.default.fileExists(atPath: victim)
+                self.extra["storage_untrashed"] = self.app.model?.undo() == true && FileManager.default.fileExists(atPath: victim)
+                try? FileManager.default.removeItem(atPath: victim)
+            }
             self.app.showDuplicates()
             self.app.duplicatesModel?.scan()
             self.waitFor(12, { self.app.duplicatesModel?.report != nil }) {

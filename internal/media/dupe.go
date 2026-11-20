@@ -233,15 +233,19 @@ func PortableImage(ext string) bool {
 	return false
 }
 
-// HashableImage: image types that have a perceptual hash here. HEIC, AVIF
-// and camera RAW need ImageIO (the Rust build on macOS) and have none in
-// this build.
-func HashableImage(ext string) bool { return PortableImage(ext) }
+// HashableImage: image types that have a perceptual hash here: the
+// portable ones everywhere, and on macOS also HEIC/HEIF, AVIF and camera RAW
+// through ImageIO (imageio_darwin.go). The portable types keep the pure-Go
+// decoder there too, so fingerprints saved before stay comparable.
+func HashableImage(ext string) bool { return PortableImage(ext) || (SystemImage(ext) && loadImageIO()) }
 
 // ImageGray is the upright 32×32 grayscale image; ok is false if it cannot
 // be decoded.
 func ImageGray(path, ext string) (Gray, bool) {
 	var none Gray
+	if SystemImage(ext) {
+		return imageIOGray(path) // upright already (the thumbnail has the transform applied)
+	}
 	if !PortableImage(ext) {
 		return none, false
 	}

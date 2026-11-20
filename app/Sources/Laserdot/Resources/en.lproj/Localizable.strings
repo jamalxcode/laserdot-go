@@ -469,3 +469,8 @@
 "drive.stopIndexing" = "Stop Indexing";
 "drive.continueIndexing" = "Continue Indexing";
 "search.more" = "More (refresh, order, pin, filters)";
+"storage.trash.menu" = "Move to Trash…";
+"storage.trash.title" = "Move “%@” to the Trash?";
+"storage.trash.text" = "This frees about %@. Nothing is deleted: you can put it back from the Trash, or with Undo (⌥⌘Z).";
+"storage.trash.confirm" = "Move to Trash";
+"storage.trash.hint" = "Right-click an item to show it in Finder or move it to the Trash.";
