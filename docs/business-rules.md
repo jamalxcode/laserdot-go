@@ -17,6 +17,17 @@ The engineering pillars behind them are in [`../CLAUDE.md`](../CLAUDE.md).
 5. **Drives are confidential.** A drive keeps its own index; an index kept on this Mac for a read-only drive is
    deleted as soon as the drive is gone. A drive's index can be encrypted with a passphrase that is never written
    down (unless the user ticks *Remember in my Keychain*). Any drive's index is treated as untrusted input.
+6. **A drive's index lives only on that drive**, its progress too: a first index that is cut short keeps its
+   checkpoints inside the drive's own index, never on this Mac (0.9.19). What searches are about is used to order the
+   work and kept in memory for 10 minutes only.
+
+## 1b. The Mac comes first
+
+1. **Laserdot's work never makes the Mac slow.** The engine runs as a background process (lower priority,
+   throttled disk access, like Spotlight's indexer) and opens only a few files at a time (0.9.20).
+2. **Indexing pauses for an install** and for battery or heat, and carries on afterwards.
+3. **Searching never waits for indexing**: a drive is searchable while it is indexed, and quitting, ejecting or
+   unplugging stops indexing at once, keeping what was read.
 
 ## 2. Files are never put at risk
 
@@ -46,8 +57,9 @@ The engineering pillars behind them are in [`../CLAUDE.md`](../CLAUDE.md).
 2. Each Mac then signs the update with **its own key**, so macOS keeps the user's "Allow" answers.
 3. Updates install on quit (instantly: prepared in the background) or from the prompt; the previous version is kept
    for **Go Back**.
-4. An update is never silent: checking, downloading and installing show their progress, and a download can be
-   cancelled.
+4. An update is never silent: checking, downloading and installing show their progress and each step's elapsed
+   time, and a download can be cancelled.
+5. **No step can hang:** every tool an install runs has a time limit; Save Diagnostics shows how long each step took.
 
 ## 5. Releases
 

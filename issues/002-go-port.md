@@ -107,6 +107,17 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Useful return, not time spent (0.9.17):** reminders only for tidying, off by default and counted from the last
   scan; outcomes (space cleared, lifetime total) instead of badges; tips drawn from the user's own files; "Show
   More" instead of endless loading; no streaks or resets.
+- **Big drives never freeze anything (0.9.18):** the index lock is held only while the in-memory index changes,
+  never while a disk is read; each drive has its own writer lock; searches have their own connection; quitting
+  never waits; the "index this drive?" prompt counts for 5 s at most.
+- **Drives index by streaming (0.9.19, the owner's algorithm, phases A and B):** searchable while indexed;
+  per-folder checkpoints inside the drive's own index (no new table); bounded memory; adaptive readers; shallow,
+  recently changed and searched-in folders first, with aging; unplug/eject/quit stop at once and resume; a folder
+  that does not answer is never saved as empty; returning APFS/HFS+ drives caught up by folder times (full read
+  weekly and on other file systems); broad searches ranked in stages.
+- **Background means background (0.9.20):** laserdotd runs at low priority with throttled disk access; few files
+  open at once; indexing pauses while an update installs; every update tool has a time limit, the window a clock,
+  and Save Diagnostics a log of step durations.
 - **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account), and more
   languages than English and Arabic for now.
 

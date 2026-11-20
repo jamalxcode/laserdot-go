@@ -78,6 +78,10 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 
 18. **Test a commit once.** CI ran every commit twice (branch, then `main`) while Mac machines were scarce; reusing the
     branch's result cut the wait for a release by about 25 minutes.
+18b. **CI capacity is a failure mode too.** A release job can wait for a Mac runner and be cancelled without running
+     a step; it is not a code failure: re-run it (the watchers now retry once).
+18c. **Code only CI can compile needs extra care.** The Swift app compiles only on CI's Macs; a test that referred to
+     another test class's helper cost a round trip. Keep new tests self-contained.
 19. **Simulated key presses can get lost on CI machines.** A flaky check is still worth keeping, but it should retry
     the key before failing, and a failure on a documents-only commit is a hint.
 20. **Wait for the tests before saying "done".** A commit pushed while a test failed (its output piped through

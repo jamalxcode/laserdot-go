@@ -503,7 +503,12 @@ drive cut short by 0.9.18, memory) was taken from everything else, the install i
 time limit and its window no clock. **Decided ("fix all 4"):** the engine is a background process (lower priority,
 throttled disk, like Spotlight's); old cut-short drive indexes restart with the streaming indexer; few files are open
 at once; the install pauses indexing, every tool has a time limit, the window shows the step's elapsed time, and
-Save Diagnostics shows each update step's duration.
+Save Diagnostics shows each update step's duration. **Meanwhile** the owner was told how to get the Mac back
+(Force Quit laserdotd in Activity Monitor, unplug the drive; nothing is lost) and to keep the drive unplugged until
+0.9.20 was installed, since 0.9.19 installs it. **Released** the same evening (19:30 Kuwait time) after two
+hiccups: a new Swift test referred to a helper of another test class (Swift compiles only on CI's Macs; fixed in a
+follow-up commit), and the release job waited 15 minutes for a GitHub Mac, got none and was cancelled; re-running
+it published the release.
 
 ## Chat conventions
 
@@ -525,3 +530,6 @@ Save Diagnostics shows each update step's duration.
   real bug on its first runs (an interrupted first index left a folder empty), fixed in 0.9.15.
 - Mistakes made along the way, and caught: a release started before `main` had the new commit (cancelled before
   publishing; the release step now checks), and a commit pushed while a test failed (fixed in the next commit).
+- In the 0.9.18–0.9.20 stretch: a background script meant to fast-forward `main` tried to switch branches over
+  uncommitted work and stopped (`main` was then moved by pushing the tested commit directly, no checkout needed); a
+  Swift test that only CI can compile failed there; a release job that never got a Mac runner was re-run.
