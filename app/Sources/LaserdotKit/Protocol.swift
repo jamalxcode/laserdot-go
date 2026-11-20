@@ -27,6 +27,8 @@ public enum DaemonRequest: Encodable, Sendable {
     case driveRebuild(mount: String, passphrase: String?)
     case driveDelete(mount: String)
     case driveEject(mount: String)
+    case driveStop(mount: String)
+    case driveContinue(mount: String)
     /// Find duplicates (spec §4).
     case dupes(options: Wire.DupeOptions)
     /// Stop the running duplicate scan early; it answers with what it found.
@@ -103,6 +105,8 @@ public enum DaemonRequest: Encodable, Sendable {
         case .driveRebuild: return "drive_rebuild"
         case .driveDelete: return "drive_delete"
         case .driveEject: return "drive_eject"
+        case .driveStop: return "drive_stop"
+        case .driveContinue: return "drive_continue"
         case .dupes: return "dupes"
         case .dupesStop: return "dupes_stop"
         case .cleanupPlan: return "cleanup_plan"
@@ -138,7 +142,8 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(typo, forKey: .typo)
         case let .index(path), let .forget(path), let .opened(path), let .exclude(path), let .include(path):
             try c.encode(path, forKey: .path)
-        case let .drivePlan(mount), let .driveDetach(mount), let .driveDelete(mount), let .driveEject(mount):
+        case let .drivePlan(mount), let .driveDetach(mount), let .driveDelete(mount), let .driveEject(mount),
+             let .driveStop(mount), let .driveContinue(mount):
             try c.encode(mount, forKey: .mount)
         case let .driveIndex(mount, passphrase), let .driveAttach(mount, passphrase), let .driveRebuild(mount, passphrase):
             try c.encode(mount, forKey: .mount)

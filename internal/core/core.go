@@ -130,6 +130,12 @@ type Laserdot struct {
 	demand demand
 	// pkgSizes: packages' measured sizes (the Storage window).
 	pkgSizes packageSizes
+	// releasedMounts: drives being let go (mount → true); see release.
+	releasedMounts sync.Map
+	// snapDirtySince, snapOverlay: CheckpointWhenQuiet's state (the
+	// daemon's checkpoint loop only).
+	snapDirtySince time.Time
+	snapOverlay    uint64
 	// paused: background work waits (an update being installed, battery,
 	// heat); drive indexing hands out no new folders meanwhile.
 	paused atomic.Bool
@@ -275,6 +281,35 @@ func (ld *Laserdot) Checkpoint() (bool, error) {
 		return false, err
 	}
 	return true, ld.db.SetSnapshotToken(token)
+}
+
+// SnapshotEvery: the longest a changed index waits for its snapshot while
+// files keep changing (a quiet index gets one at the next check).
+var SnapshotEvery = 30 * time.Minute
+
+// CheckpointWhenQuiet writes the snapshot when the index changed and has
+// since been quiet for a check (or SnapshotEvery passed), instead of every
+// minute while files churn: writing the whole snapshot is hundreds of MB on
+// a big index. Called every minute by laserdotd (and Checkpoint at quit).
+func (ld *Laserdot) CheckpointWhenQuiet(now time.Time) (bool, error) {
+	if token, err := ld.db.SnapshotToken(); err != nil || token != 0 {
+		ld.snapDirtySince = time.Time{}
+		return false, err
+	}
+	ld.mu.RLock()
+	n := ld.store.OverlaySize()
+	ld.mu.RUnlock()
+	if ld.snapDirtySince.IsZero() {
+		ld.snapDirtySince, ld.snapOverlay = now, n
+		return false, nil
+	}
+	quiet := n == ld.snapOverlay
+	ld.snapOverlay = n
+	if !quiet && now.Sub(ld.snapDirtySince) < SnapshotEvery {
+		return false, nil
+	}
+	ld.snapDirtySince = time.Time{}
+	return ld.Checkpoint()
 }
 
 // Remap serves this Mac's index from a current snapshot (writing one if
@@ -757,12 +792,20 @@ func (ld *Laserdot) Refresh() (UpdateStats, error) {
 	}
 	// First indexes that never finished start again (this runs when the
 	// daemon starts, so it heals by itself after a crash).
+	offline := []string{}
 	for _, p := range unfinished {
+		if fi, err := os.Stat(p); err != nil || !fi.IsDir() {
+			// Gone mid-index (a drive pulled out, a folder deleted): it
+			// goes on when it is back; the rest is refreshed meanwhile.
+			offline = append(offline, p)
+			continue
+		}
 		if _, err := ld.Index(p); err != nil {
 			return UpdateStats{OfflineRoots: []string{}}, err
 		}
 	}
 	u, err := ld.applyLocal(changes)
+	u.OfflineRoots = append(u.OfflineRoots, offline...)
 	if err != nil {
 		return u, err
 	}

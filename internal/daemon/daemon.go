@@ -379,6 +379,10 @@ func (s *Server) handle(req *ipc.Request) ipc.Response {
 	case ipc.OpDriveDelete:
 		defer s.rootsChanged()
 		return result(s.ld.DeleteDriveIndex(req.Mount))
+	case ipc.OpDriveStop:
+		return ok(s.ld.StopDriveIndex(req.Mount))
+	case ipc.OpDriveContinue:
+		return ok(s.ld.ContinueDriveIndex(req.Mount))
 	case ipc.OpDriveEject:
 		defer s.rootsChanged()
 		if err := s.ld.EjectDrive(req.Mount); err != nil {

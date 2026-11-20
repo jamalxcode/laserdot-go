@@ -370,10 +370,19 @@ struct DrivesSettings: View {
         Menu(L("keys.actions")) {
             switch d.state {
             case "attached":
+                // A first index can be stopped (the drive stays searchable with
+                // what was read) and continued later.
+                if d.indexing {
+                    Button(L("drive.stopIndexing")) { model.stopIndexing(d) }
+                } else if !d.complete {
+                    Button(L("drive.continueIndexing")) { model.continueIndexing(d) }
+                }
                 Button(L("drive.reveal")) { model.reveal(d) }
-                Button(L("drive.rebuild")) { model.promptIndex(d, rebuild: true) }
-                Button(L("drive.detach")) { model.detach(d) }
-                Button(L("drive.delete")) { model.delete(d) }
+                if !d.indexing {
+                    Button(L("drive.rebuild")) { model.promptIndex(d, rebuild: true) }
+                    Button(L("drive.detach")) { model.detach(d) }
+                    Button(L("drive.delete")) { model.delete(d) }
+                }
             case "detached":
                 Button(L("drive.attach")) { model.attach(d) }
                 Button(L("drive.delete")) { model.delete(d) }
@@ -389,7 +398,7 @@ struct DrivesSettings: View {
             Button(L("drive.eject")) { model.eject(d) }
         }
         .fixedSize()
-        .disabled(model.busy != nil)
+        .disabled(model.busy != nil && !d.indexing) // Stop Indexing stays reachable
     }
 }
 

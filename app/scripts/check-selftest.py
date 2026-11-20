@@ -97,6 +97,11 @@ check("modified:today" in pdft["hint"], f"the hint explains today (got {pdft['hi
 
 # The generic hint is not shown.
 check(steps["proj"]["visible_hint"] == "", f"no generic hint for a plain word (got {steps['proj']['visible_hint']!r})")
+# A plain word's meaning is explained the first few times, then left to the
+# choice row (the English run comes first: the count carries over).
+if lang == "en":
+    check(steps["jpg"]["visible_hint"] != "", f"the first jpg explains the word (got {steps['jpg']['visible_hint']!r})")
+    check(steps["space"]["visible_hint"] == "", f"after a few times it no longer does (got {steps['space']['visible_hint']!r})")
 
 # Commands with >.
 cmds = steps["commands"]["commands"]

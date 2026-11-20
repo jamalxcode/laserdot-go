@@ -43,6 +43,10 @@ const (
 	OpDriveRebuild = "drive_rebuild"
 	OpDriveDelete  = "drive_delete"
 	OpDriveEject   = "drive_eject"
+	// OpDriveStop / OpDriveContinue: stop a drive's first index (it stays
+	// attached and searchable) and go on with it later (Mount).
+	OpDriveStop     = "drive_stop"
+	OpDriveContinue = "drive_continue"
 	// Duplicates (§4).
 	OpDupes       = "dupes"
 	OpDupesStop   = "dupes_stop"

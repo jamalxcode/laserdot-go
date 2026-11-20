@@ -26,12 +26,13 @@ extension Wire {
         public var encrypted: Bool
         public var entries: UInt64
         public var complete: Bool
+        public var indexing: Bool
         public var lastScan: Int64?
 
         enum CodingKeys: String, CodingKey {
             case id, name, mount, fsType = "fs_type", readOnly = "read_only", totalBytes = "total_bytes",
                  freeBytes = "free_bytes", state, onDrive = "on_drive", indexPath = "index_path",
-                 indexBytes = "index_bytes", encrypted, entries, complete, lastScan = "last_scan"
+                 indexBytes = "index_bytes", encrypted, entries, complete, indexing, lastScan = "last_scan"
         }
 
         public init(from decoder: Decoder) throws {
@@ -50,6 +51,7 @@ extension Wire {
             encrypted = try c.value(.encrypted, or: false)
             entries = try c.value(.entries, or: 0)
             complete = try c.value(.complete, or: false)
+            indexing = try c.value(.indexing, or: false)
             lastScan = try c.decodeIfPresent(Int64.self, forKey: .lastScan)
         }
     }

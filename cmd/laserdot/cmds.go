@@ -69,7 +69,9 @@ func drivesCmd(t target, args []string) error {
 			extra := ""
 			if d.State.State == core.DriveAttached {
 				extra = fmt.Sprintf(", %d entries", d.Entries)
-				if !d.Complete {
+				if d.Indexing {
+					extra += ", indexing"
+				} else if !d.Complete {
 					extra += ", incomplete"
 				}
 			}

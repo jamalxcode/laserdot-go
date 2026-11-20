@@ -35,20 +35,12 @@ extension SearchView {
                 .help(L("search.clear"))
                 .accessibilityLabel(L("search.clear"))
             }
-            // Look at the folders again (deleted files leave the results).
-            Button { model.refreshIndex() } label: {
-                if model.refreshing {
-                    ProgressView().controlSize(.small).frame(width: 20, height: 20)
-                } else {
-                    Image(systemName: "arrow.clockwise").font(.title3)
-                }
+            if model.refreshing {
+                ProgressView().controlSize(.small).frame(width: 20, height: 20)
+                    .help(L("refresh.help"))
             }
-            .buttonStyle(.borderless)
-            .keyboardShortcut("r", modifiers: .command)
-            .disabled(model.refreshing)
-            .help(L("refresh.help") + " (⌘R)")
-            .accessibilityLabel(L("refresh.help"))
-            // Thumbnail size, as Finder's icon view (⌘+ ⌘−).
+            // Thumbnail size, as Finder's icon view (⌘+ ⌘−): only while
+            // thumbnails are shown.
             if model.viewMode == .grid {
                 Slider(value: $model.tileSize, in: SearchModel.tileSizes)
                     .frame(width: 90)
@@ -67,43 +59,48 @@ extension SearchView {
             .fixedSize()
             .help(L("view.title") + " (⌘J)")
             .accessibilityLabel(L("view.title"))
-            // Result order.
+            // Everything else in one menu, so the bar stays calm like
+            // Spotlight's (the owner's review): refresh, order, pin, the
+            // filter list. Their shortcuts work without opening it.
             Menu {
+                Button(L("refresh.help") + "  ⌘R") { model.refreshIndex() }
+                    .disabled(model.refreshing)
                 Picker(L("sort.title"), selection: $model.sort) {
                     ForEach(SortKey.allCases, id: \.self) { k in Text(L("sort.\(k.rawValue)")).tag(k) }
                 }
-                .pickerStyle(.inline)
                 Toggle(L("sort.reverse"), isOn: $model.reverse)
+                Divider()
+                Button(L(model.isPinned ? "pin.remove" : "pin.add") + "  ⌘D") { model.togglePin() }
+                    .disabled(model.isHome || model.isCommandMode)
+                Button(L("cheatsheet.help")) { model.showCheatSheet.toggle() }
             } label: {
-                Image(systemName: model.sort == .relevance ? "arrow.up.arrow.down" : "arrow.up.arrow.down.circle.fill")
+                Image(systemName: model.sort == .relevance && !model.isPinned ? "ellipsis.circle" : "ellipsis.circle.fill")
                     .font(.title3)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .help(L("sort.title"))
-            .accessibilityLabel(L("sort.title"))
-            // Pin the query (spec §8.6).
-            Button { model.togglePin() } label: {
-                Image(systemName: model.isPinned ? "pin.fill" : "pin").font(.title3)
-            }
-            .buttonStyle(.borderless)
-            .keyboardShortcut("d", modifiers: .command)
-            .help(L("pin.help"))
-            .accessibilityLabel(L(model.isPinned ? "pin.remove" : "pin.add"))
-            .disabled(model.isHome || model.isCommandMode)
-            // Cheat sheet button (spec §8.9); typing `?` stays a wildcard.
-            Button { model.showCheatSheet.toggle() } label: {
-                Image(systemName: model.showCheatSheet ? "questionmark.circle.fill" : "questionmark.circle")
-                    .font(.title2)
-            }
-            .buttonStyle(.borderless)
-            .keyboardShortcut("/", modifiers: .command)
-            .help(L("cheatsheet.help"))
-            .accessibilityLabel(L("cheatsheet.help"))
+            .help(L("search.more"))
+            .accessibilityLabel(L("search.more"))
+            .accessibilityIdentifier("search-more")
+            .background(shortcutKeys)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+
+    /// The menu's keyboard shortcuts, active without opening it (⌘R, ⌘D,
+    /// ⌘/): invisible buttons.
+    var shortcutKeys: some View {
+        ZStack {
+            Button("") { model.refreshIndex() }.keyboardShortcut("r", modifiers: .command).disabled(model.refreshing)
+            Button("") { model.togglePin() }.keyboardShortcut("d", modifiers: .command)
+                .disabled(model.isHome || model.isCommandMode)
+            Button("") { model.showCheatSheet.toggle() }.keyboardShortcut("/", modifiers: .command)
+        }
+        .opacity(0)
+        .frame(width: 0, height: 0)
+        .accessibilityHidden(true)
     }
 
     @ViewBuilder var hintLine: some View {
@@ -186,8 +183,10 @@ extension SearchView {
     @ViewBuilder var refinementChips: some View {
         let groups = model.visibleRefinements
         if model.showsRefinements {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 12) {
+            // Wraps to more lines instead of running off the edge (each
+            // group stays together), at most three lines' worth.
+            ScrollView(.vertical, showsIndicators: false) {
+                FlowLayout(spacing: 12, lineSpacing: 6) {
                     ForEach(groups, id: \.id) { g in
                         HStack(spacing: 4) {
                             Text(Self.refineTitle(g.id))
@@ -197,12 +196,15 @@ extension SearchView {
                                 refineChip(o, in: g)
                             }
                         }
+                        .fixedSize()
                     }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
                 .padding(.horizontal, 16)
             }
+            .frame(maxHeight: 74)
+            .fixedSize(horizontal: false, vertical: true)
             .padding(.bottom, 8)
             .accessibilityIdentifier("refinements")
         }

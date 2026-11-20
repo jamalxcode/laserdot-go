@@ -192,6 +192,43 @@ jobs:
           cat "$d/daemon.log"
           [ -n "$ok" ] || { echo "::error::the drive could not be ejected while laserdotd ran"; exit 1; }
           echo "ejected while laserdotd was running"
+      - name: Real situation — eject a drive from Finder while the app is indexing it
+        run: |
+          # The owner's case: the app runs, a drive is being indexed, and the
+          # drive is ejected the usual way (diskutil = Finder's eject). The app
+          # must let go (DiskArbitration approval) so the eject succeeds.
+          d=$(mktemp -d)
+          hdiutil create -type SPARSE -size 1g -fs APFS -volname LDBusy "$d/busy" >/dev/null
+          for i in 1 2 3 4 5; do hdiutil attach -nobrowse "$d/busy.sparseimage" && break; sleep $((i * 3)); done
+          vol=/Volumes/LDBusy
+          sudo mdutil -i off "$vol" >/dev/null 2>&1 || true
+          python3 -c "
+          import os
+          for a in range(60):
+              for b in range(10):
+                  p = '$vol/a%d/b%d' % (a, b)
+                  os.makedirs(p, exist_ok=True)
+                  for f in range(50):
+                      open('%s/file %d.txt' % (p, f), 'w').close()
+          "
+          db="$d/data/index.db"
+          LASERDOT_DB="$db" app/build/Laserdot.app/Contents/MacOS/Laserdot > "$d/app.log" 2>&1 &
+          app=$!
+          for i in $(seq 1 60); do app/build/go/laserdot --db "$db" status >/dev/null 2>&1 && break; sleep 0.5; done
+          app/build/go/laserdot --db "$db" drives index "$vol" > "$d/index.log" 2>&1 &
+          for i in $(seq 1 100); do app/build/go/laserdot --db "$db" drives | grep -q "LDBusy.*indexing" && break; sleep 0.1; done
+          app/build/go/laserdot --db "$db" drives || true
+          start=$(date +%s)
+          ok=""
+          for i in 1 2 3; do diskutil eject "$vol" && { ok=1; break; }; sleep 2; done
+          took=$(( $(date +%s) - start ))
+          kill -0 "$app" 2>/dev/null && alive=1 || alive=""
+          kill "$app" 2>/dev/null || true
+          pkill -f "$d/data" || true
+          tail -20 "$d/app.log"; cat "$d/index.log" || true
+          [ -n "$ok" ] || { echo "::error::the drive could not be ejected while the app indexed it"; exit 1; }
+          [ -n "$alive" ] || { echo "::error::the app did not survive the eject"; exit 1; }
+          echo "ejected mid-index in ${took}s, the app still running"
       - name: Self-test of the real app (types into the overlay; English and Arabic; screenshots)
         run: |
           fx="$(mktemp -d)/fixtures"

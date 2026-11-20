@@ -15,6 +15,7 @@ feature, read its code and tests there, and port the tests first.
 
 ## Key documents
 
+- `docs/how-it-works.md` — one page: how Laserdot works now (keep it current with every behaviour change).
 - `docs/design-conversation.md` — what the owner asked for while using the app, and what was decided and why.
   Read it before changing app behavior; Issue 002's "Design decision log (the app)" lists the binding rules.
 - `docs/spotlight-successor-spec.md` — full feature spec. Section numbers (§) below refer to it. Written for the

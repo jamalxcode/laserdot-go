@@ -466,3 +466,6 @@
 "storage.package" = "%@ package";
 "storage.empty" = "Empty";
 "storage.atLeast" = "at least %@";
+"drive.stopIndexing" = "Stop Indexing";
+"drive.continueIndexing" = "Continue Indexing";
+"search.more" = "More (refresh, order, pin, filters)";

@@ -324,3 +324,70 @@ func TestEjectingDuringACatchUpLetsGoAtOnce(t *testing.T) {
 		t.Fatalf("still open after detaching: %v", open)
 	}
 }
+
+// Stop keeps the drive attached and searchable with what was read; Continue
+// goes on from there and finishes; the hourly catch-up does not restart a
+// stopped index by itself.
+func TestStopAndContinueADriveIndex(t *testing.T) {
+	m := newMac(t)
+	drive := makeDrive(t, m.vols, "Movies")
+	slowDrive(t, drive, 150*time.Millisecond)
+	done := make(chan error, 1)
+	go func() { _, err := m.ld.CreateDriveIndex(drive, DriveOptions{}); done <- err }()
+	waitFor(t, "indexing to start", func() bool {
+		d := m.ld.Drives()
+		return len(d) > 0 && d[0].Entries > 0 && d[0].Indexing
+	})
+	if !m.ld.StopDriveIndex(drive) {
+		t.Fatal("a running index can be stopped")
+	}
+	if err := <-done; err != nil {
+		t.Fatalf("stopping is not an error: %v", err)
+	}
+	info := m.ld.Drives()[0]
+	if info.State.State != DriveAttached || info.Indexing || info.Complete {
+		t.Fatalf("stopped: attached, not indexing, not complete; got %+v", info)
+	}
+	if len(dnames(t, m.ld, "re:.")) == 0 {
+		t.Error("what was read stays searchable")
+	}
+	m.ld.CatchUpDrive(drive)
+	if m.ld.Drives()[0].Indexing || m.ld.Drives()[0].Complete {
+		t.Error("the catch-up does not continue a stopped index")
+	}
+	scan.SlowFoldersForTests(nil)
+	if !m.ld.ContinueDriveIndex(drive) {
+		t.Fatal("continue")
+	}
+	m.ld.streams.Wait()
+	if !m.ld.Drives()[0].Complete {
+		t.Error("continued to completion")
+	}
+	expect(t, dnames(t, m.ld, "codec:hevc"), "concert.mkv", "trip.mp4")
+}
+
+// A duplicate scan does not hold a drive being ejected: its files are not
+// read once the drive is let go.
+func TestDuplicatesLetGoOfADriveBeingEjected(t *testing.T) {
+	m := newMac(t)
+	drive := makeDrive(t, m.vols, "Backup")
+	writeAged(t, filepath.Join(drive, "Copies/a.bin"), []byte(strings.Repeat("same", 5000)))
+	writeAged(t, filepath.Join(drive, "Copies/b.bin"), []byte(strings.Repeat("same", 5000)))
+	if _, err := m.ld.CreateDriveIndex(drive, DriveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	opts := DefaultDupeOptions()
+	opts.Images, opts.Videos = false, false
+	before, err := m.ld.FindDuplicates(opts)
+	if err != nil || before.BytesRead == 0 {
+		t.Fatalf("the drive's copies are read normally: %+v %v", before, err)
+	}
+	m.ld.release(drive) // what detaching and ejecting do first
+	after, err := m.ld.FindDuplicates(opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.BytesRead != 0 {
+		t.Errorf("read %d bytes on a drive being ejected", after.BytesRead)
+	}
+}

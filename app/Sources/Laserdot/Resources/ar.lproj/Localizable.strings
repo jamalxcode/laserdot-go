@@ -466,3 +466,6 @@
 "storage.package" = "حزمة واحدة (%@)";
 "storage.empty" = "فارغ";
 "storage.atLeast" = "%@ على الأقل";
+"drive.stopIndexing" = "إيقاف الفهرسة";
+"drive.continueIndexing" = "متابعة الفهرسة";
+"search.more" = "المزيد (تحديث، ترتيب، تثبيت، المرشحات)";

@@ -357,6 +357,23 @@ Binding unless revisited deliberately; each is also in the spec.
   (`testNotesSinceTheLastVersionSkipQuietOnes`), SearchView/SelfTest split. Left out by the owner: VoiceOver checks
   and an Arabic review.
 
+- **0.9.26 (2026-11-20):** the owner's "review laserdot and critique it" and "fix it all". Done: drive Stop/Continue
+  (`StopDriveIndex`/`ContinueDriveIndex`, `drive.paused`, ops `drive_stop`/`drive_continue`, `DriveInfo.Indexing`,
+  menu items; the hourly catch-up leaves a stopped index alone); duplicate scans skip files on drives being let go
+  (`ld.release`/`released`, `dupeRun.released`); `CheckpointWhenQuiet` (snapshot once quiet or every 30 minutes);
+  daemon soft memory limit a quarter of RAM, at least 1.5 GiB; streaming fixes found on the way (a run ending on empty
+  folders waited for ever: batches with no rows were never flushed; hard links keep the alphabetically first path, as
+  a walk does; rows written 64 per statement; readers run further ahead; `ProbeLater`, `StartWorkers`, `Pause`
+  options); `Refresh` treats an unfinished root whose folder is gone as offline instead of failing; app: one "…" menu
+  (refresh, sort, pin, filters; ⌘R ⌘D ⌘/ via hidden buttons), `FlowLayout` for the choice row (at most ~3 lines),
+  type-word hints shown three times per word (`laserdot.hintsShown`), `RefineLogic` (pure, `RefineLogicTests`),
+  `EjectWatcher` on common run-loop modes; CI: the real app indexing a 30,000-file drive that is ejected with
+  `diskutil`; `docs/how-it-works.md`; business rule §5.6 (batched releases). **Tried and not kept:** streaming this
+  Mac's own first index — measured slower (4.9 s against 2.9 s at 400,000 files) and heavier (406 MB against 301 MB
+  peak) than the bulk path on a fast disk; the million-file slowdown it was meant to fix is the memory limit instead.
+  **Not done, and why:** one worker per index and Swift async/await (deep refactors; the new real-situation tests come
+  first), an automated "update arriving mid-index" CI scenario (the install pause is unit-level only), an early-updates
+  channel.
 - **0.9.25 (2026-11-20):** the owner's Storage screenshot (/Applications 25 KB in "4 files", /System/Applications
   "Zero KB", "173959 files") and "fix the storage screen and release 0.9.25". `core/storage.go`: packages found in a
   folder's subtree (`scan.IsOpaque`) are measured outside `mu` (`measurePackage`, 4 workers, `StorageBudget`) and

@@ -238,7 +238,7 @@ func (ld *Laserdot) FindDuplicates(opts DupeOptions) (*DupeReport, error) {
 	// that is quit, updated over or crashes keeps what it read.
 	var saved uint64
 	var saveErr error
-	run := &dupeRun{prog: prog, stop: stop, current: func(p string) { ld.dupeCurrent.Store(&p) }}
+	run := &dupeRun{prog: prog, stop: stop, current: func(p string) { ld.dupeCurrent.Store(&p) }, released: ld.released}
 	run.save = func(idx []int) {
 		var keys []string
 		var changed []index.Fingerprint
@@ -418,6 +418,9 @@ type dupeRun struct {
 	stop    func() bool
 	save    func(idx []int)
 	current func(path string)
+	// released: a file on a drive being ejected (or gone) is not read: the
+	// scan lets the drive go instead of holding it open.
+	released func(path string) bool
 }
 
 // saveEvery: fingerprints are saved while a scan runs, so quitting, an
@@ -457,6 +460,11 @@ func compute(cands []cand, fps []index.Fingerprint, which []int, rep *DupeReport
 			sem <- struct{}{}
 			go func() {
 				defer func() { <-sem; wg.Done() }()
+				if run.released != nil && run.released(cands[i].path) {
+					out[k] = computed{fp: fps[i], ok: true} // not read: its drive is being let go
+					finished <- k
+					return
+				}
 				run.current(cands[i].path)
 				out[k] = computeOne(&cands[i], fps[i], phase, limit, f)
 				finished <- k

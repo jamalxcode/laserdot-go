@@ -182,7 +182,9 @@ func run() error {
 		defer w.Stop()
 		srv.SetWatcher(w)
 	}
-	// Keep the snapshot current, so the next launch maps it.
+	// Keep the snapshot current, so the next launch maps it: written once the
+	// index has been quiet for a minute (or every 30 minutes of constant
+	// change), and at quit.
 	go func() {
 		for {
 			select {
@@ -191,7 +193,7 @@ func run() error {
 			case <-time.After(time.Minute):
 			}
 			purge("periodic check")
-			if wrote, err := ld.Checkpoint(); err != nil {
+			if wrote, err := ld.CheckpointWhenQuiet(time.Now()); err != nil {
 				fmt.Fprintln(os.Stderr, "laserdotd: could not write the snapshot:", err)
 			} else if wrote {
 				fmt.Fprintln(os.Stderr, "laserdotd: snapshot written")

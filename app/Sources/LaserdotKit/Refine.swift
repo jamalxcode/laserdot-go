@@ -44,3 +44,57 @@ extension Engine {
         return answer ?? []
     }
 }
+
+/// The choice row's rules, as plain functions (unit-tested in
+/// RefineLogicTests; the app's model only calls them).
+public enum RefineLogic {
+    /// The query after clicking `o` (in `group`): a chosen value leaves it;
+    /// another value of a group with a choice takes that choice's place (a
+    /// video has one resolution); otherwise it is added.
+    public static func applying(_ o: RefineOption, in group: RefineGroup?, to query: String) -> String {
+        var next: String
+        if o.isSelected {
+            next = removing(o.token, from: query)
+        } else if let current = group?.options.first(where: \.isSelected) {
+            next = removing(current.token, from: query) + " " + o.token
+        } else {
+            let q = query.trimmingCharacters(in: .whitespaces)
+            next = q.isEmpty ? o.token : q + " " + o.token
+        }
+        return next.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// The query without one token (as written in it), spaces tidied.
+    public static func removing(_ token: String, from q: String) -> String {
+        var words = q.components(separatedBy: " ")
+        if let i = words.firstIndex(of: token) {
+            words.remove(at: i)
+        } else if let r = q.range(of: token) {
+            words = q.replacingCharacters(in: r, with: "").components(separatedBy: " ")
+        }
+        return words.filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    /// The groups as shown: one with a choice shrinks to it and comes first;
+    /// every other group stays, to keep narrowing.
+    public static func visible(_ groups: [RefineGroup]) -> [RefineGroup] {
+        var chosen: [RefineGroup] = [], open: [RefineGroup] = []
+        for g in groups {
+            let picked = g.options.filter(\.isSelected)
+            if picked.isEmpty {
+                open.append(g)
+            } else {
+                chosen.append(RefineGroup(id: g.id, options: picked))
+            }
+        }
+        return chosen + open
+    }
+
+    /// The last word of a query when it is a plain word (not a filter, not
+    /// followed by a space): the one whose meaning the hint explains.
+    public static func plainWord(_ q: String) -> String? {
+        guard !q.hasSuffix(" "), let last = q.split(separator: " ").last.map(String.init)?.lowercased(),
+              !last.isEmpty, !last.contains(":") else { return nil }
+        return last
+    }
+}

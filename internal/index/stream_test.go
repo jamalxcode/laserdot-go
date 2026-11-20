@@ -235,3 +235,29 @@ func TestStreamingWaitsWhilePaused(t *testing.T) {
 		t.Error("finished after resuming")
 	}
 }
+
+// A run whose last folders are all empty still finishes (they were held
+// back, as batches with no rows, and the run waited for ever).
+func TestStreamingFinishesOnEmptyFolders(t *testing.T) {
+	root, _ := filepath.EvalSymlinks(t.TempDir())
+	for i := 0; i < 30; i++ {
+		os.MkdirAll(filepath.Join(root, fmt.Sprintf("empty%02d/deeper", i)), 0o755)
+	}
+	db := openTemp(t, "stream")
+	done := make(chan error, 1)
+	go func() {
+		_, err := IndexStreaming(db, root, scan.Options{}, StreamOptions{BatchRows: 1000})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("a tree of empty folders never finished")
+	}
+	if db.HasUnlisted(root) {
+		t.Error("every folder listed")
+	}
+}

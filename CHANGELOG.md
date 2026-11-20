@@ -3,6 +3,20 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.26
+
+- Drive indexing can be stopped and continued: Drives ▸ your drive ▸ Stop Indexing keeps what was read, and the
+  drive stays searchable; Continue Indexing goes on from there.
+- Ejecting a drive works even during a duplicate scan: the scan skips that drive's files instead of holding it.
+- A calmer search window: refresh, sort, pin and the filter list are in one "…" menu (⌘R, ⌘D and ⌘/ still work); the
+  thumbnail size slider shows only with thumbnails.
+- The choices under the search wrap onto more lines instead of running off the edge.
+- The hint line explains a word like "jpg" the first few times, then leaves it to the choices.
+- Faster first indexing of very big folders: Laserdot may use more memory while it builds the index (it hands it back
+  afterwards), instead of slowing down near its old limit.
+- Less disk writing: the saved copy of the index is written once things are quiet, not every minute while files
+  change.
+
 ## 0.9.25
 
 - The Storage window shows apps at their real size. Apps (and other packages, such as libraries) are one item in the

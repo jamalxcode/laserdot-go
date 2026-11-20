@@ -54,7 +54,29 @@ final class SearchModel: ObservableObject {
     var visibleHint: String? {
         if let note = refreshNote { return note }
         guard let h = hint, !isGenericHint(h, lang: appLang) else { return nil }
+        // A plain word's meaning ("jpg means ext:jpg…") is explained the
+        // first few times only; then the choice row teaches the rest. Help
+        // for a filter being typed (res: …) always shows.
+        if let word = Self.plainWord(query), Self.hintsShown[word, default: 0] > Self.hintRepeats { return nil }
         return h
+    }
+
+    /// How many times a plain word's meaning is explained.
+    static let hintRepeats = 3
+    static let hintsKey = "laserdot.hintsShown"
+    static var hintsShown: [String: Int] {
+        get { UserDefaults.standard.dictionary(forKey: hintsKey) as? [String: Int] ?? [:] }
+        set { UserDefaults.standard.set(newValue, forKey: hintsKey) }
+    }
+
+    static func plainWord(_ q: String) -> String? { RefineLogic.plainWord(q) }
+
+    /// Counts one explanation of the query's plain word (once per search).
+    func noteHintShown() {
+        guard let word = Self.plainWord(query), hint.map({ !isGenericHint($0, lang: appLang) }) == true else { return }
+        var seen = Self.hintsShown
+        seen[word, default: 0] += 1
+        Self.hintsShown = seen
     }
     /// Every result of the last answer, before sections were capped.
     var allHits: [Hit] = []
@@ -354,49 +376,20 @@ final class SearchModel: ObservableObject {
     /// narrowing (the owner: "the resolution attributes should go, but other
     /// choices remaining to allow further choices like location, modified,
     /// camera").
-    var visibleRefinements: [RefineGroup] {
-        var chosen: [RefineGroup] = [], open: [RefineGroup] = []
-        for g in refinements {
-            let picked = g.options.filter(\.isSelected)
-            if picked.isEmpty {
-                open.append(g)
-            } else {
-                chosen.append(RefineGroup(id: g.id, options: picked))
-            }
-        }
-        return chosen + open
-    }
+    var visibleRefinements: [RefineGroup] { RefineLogic.visible(refinements) }
 
     /// A refinement chip. Chosen already: it leaves the search. Another
     /// value of a group with a choice: it takes that choice's place (a video
     /// is one resolution). Otherwise it joins the search. Every other group
     /// stays available to add to.
     func applyRefinement(_ o: RefineOption, in group: RefineGroup? = nil) {
-        var next: String
-        if o.isSelected {
-            next = Self.removing(o.token, from: query)
-        } else if let current = group?.options.first(where: \.isSelected) {
-            next = Self.removing(current.token, from: query) + " " + o.token
-        } else {
-            let q = query.trimmingCharacters(in: .whitespaces)
-            next = q.isEmpty ? o.token : q + " " + o.token
-        }
-        next = next.trimmingCharacters(in: .whitespaces)
+        let next = RefineLogic.applying(o, in: group, to: query)
         choiceJustApplied = true
         query = next // one change: queryChanged sees the flag
         choiceJustApplied = false
     }
 
-    /// The query without one token (as written in it), spaces tidied.
-    static func removing(_ token: String, from q: String) -> String {
-        var words = q.components(separatedBy: " ")
-        if let i = words.firstIndex(of: token) {
-            words.remove(at: i)
-        } else if let r = q.range(of: token) {
-            words = q.replacingCharacters(in: r, with: "").components(separatedBy: " ")
-        }
-        return words.filter { !$0.isEmpty }.joined(separator: " ")
-    }
+    static func removing(_ token: String, from q: String) -> String { RefineLogic.removing(token, from: q) }
 
     func apply(_ outcome: Result<Results, Error>) {
         searching = false
@@ -413,6 +406,7 @@ final class SearchModel: ObservableObject {
             unavailable = nil
             if r.total == 0 { loadCoaching() }
             loadRefinements(total: r.total)
+            noteHintShown()
         case .failure(let error):
             results = []
             sections = []

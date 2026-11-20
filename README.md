@@ -231,6 +231,7 @@ Start with whichever sounds most interesting:
 - [`docs/design-conversation.md`](docs/design-conversation.md) — the story: what the owner asked for, release by
   release, and what was decided and why.
 - [`docs/lessons-learned.md`](docs/lessons-learned.md) — twenty-one things building it taught us, mostly the hard way.
+- [`docs/how-it-works.md`](docs/how-it-works.md) — one page: how Laserdot works now.
 - [`docs/business-rules.md`](docs/business-rules.md) — what Laserdot promises and will never do (privacy, files,
   duplicates, updates, reminders).
 - [`docs/interface-rules.md`](docs/interface-rules.md) — how it looks and behaves, and how it copies Spotlight.

@@ -210,3 +210,53 @@ func TestADamagedSnapshotIsRefused(t *testing.T) {
 		t.Error("the good snapshot maps again")
 	}
 }
+
+// The snapshot is written once the index is quiet (or after SnapshotEvery
+// of constant change), not every minute while files keep changing.
+func TestSnapshotWaitsForAQuietIndex(t *testing.T) {
+	dir, _ := filepath.EvalSymlinks(t.TempDir())
+	root := filepath.Join(dir, "home")
+	write(t, root, "a.txt", "a")
+	ld, err := Open(filepath.Join(dir, "data", "index.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld.Close()
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	ld.Checkpoint()
+	t0 := time.Unix(1_800_000_000, 0)
+	change := func(name string) {
+		write(t, root, name, "x")
+		if _, err := ld.ApplyChanges([]Change{{Path: root}}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	change("b.txt")
+	if wrote, _ := ld.CheckpointWhenQuiet(t0); wrote {
+		t.Fatal("not at the first sight of a change")
+	}
+	change("c.txt")
+	if wrote, _ := ld.CheckpointWhenQuiet(t0.Add(time.Minute)); wrote {
+		t.Fatal("not while files keep changing")
+	}
+	if wrote, _ := ld.CheckpointWhenQuiet(t0.Add(2 * time.Minute)); !wrote {
+		t.Fatal("once quiet for a check")
+	}
+	if wrote, _ := ld.CheckpointWhenQuiet(t0.Add(3 * time.Minute)); wrote {
+		t.Fatal("nothing changed since: nothing to write")
+	}
+	// Constant change still gets a snapshot after SnapshotEvery.
+	for i := 0; i <= 31; i++ {
+		change(fmt.Sprintf("n%d.txt", i))
+		wrote, _ := ld.CheckpointWhenQuiet(t0.Add(time.Duration(10+i) * time.Minute))
+		if wrote {
+			if i < 30 {
+				t.Fatalf("written after %d minutes of change, before SnapshotEvery", i)
+			}
+			return
+		}
+	}
+	t.Fatal("constant change never got a snapshot")
+}

@@ -32,7 +32,9 @@ final class DrivesModel: ObservableObject {
 
     func refresh() {
         let engine = self.engine
-        queue.async { [weak self] in
+        // Not on `queue`: a drive being indexed holds it for as long as that
+        // takes, and the list must stay current meanwhile (Stop Indexing).
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             let outcome = Result { try engine.drives() }
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -61,10 +63,14 @@ final class DrivesModel: ObservableObject {
 
     private func run(_ title: String, _ work: @escaping (Engine) throws -> Void) {
         busy = title
+        // While the job runs the drives' state is followed (an index being
+        // read shows Stop Indexing).
+        let ticker = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.refresh() }
         let engine = self.engine
         queue.async { [weak self] in
             let outcome = Result { try work(engine) }
             DispatchQueue.main.async {
+                ticker.invalidate()
                 self?.busy = nil
                 if case .failure(let e) = outcome {
                     let alert = NSAlert()
@@ -193,6 +199,22 @@ final class DrivesModel: ObservableObject {
         guard alert.runFront() == .alertFirstButtonReturn else { return }
         let mount = d.mount
         run(d.name) { engine in _ = try engine.driveDelete(mount: mount) }
+    }
+
+    /// Stop a drive's first index: it stays attached and searchable with what
+    /// was read; Continue goes on from there.
+    func stopIndexing(_ d: Drive) {
+        let (mount, engine) = (d.mount, self.engine)
+        // Its own line: the index job itself holds the drive queue.
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            _ = try? engine.driveStop(mount: mount)
+            DispatchQueue.main.async { self?.refresh() }
+        }
+    }
+
+    func continueIndexing(_ d: Drive) {
+        let mount = d.mount
+        run(d.name) { engine in _ = try engine.driveContinue(mount: mount) }
     }
 
     func eject(_ d: Drive) {

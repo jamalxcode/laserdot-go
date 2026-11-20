@@ -72,7 +72,10 @@ type DriveInfo struct {
 	Encrypted  bool       `json:"encrypted"`
 	Entries    uint64     `json:"entries"`
 	Complete   bool       `json:"complete"`
-	LastScan   *int64     `json:"last_scan"`
+	// Indexing: a first index is running now (it can be stopped and
+	// continued: StopDriveIndex, ContinueDriveIndex).
+	Indexing bool   `json:"indexing"`
+	LastScan *int64 `json:"last_scan"`
 }
 
 // DrivePlan estimates a drive's index before writing anything (§9.3).
@@ -155,6 +158,9 @@ type drive struct {
 	stop atomic.Bool
 	// indexing: a first index (or its resumption) is running.
 	indexing atomic.Bool
+	// paused: the user stopped the first index (Stop); the drive stays
+	// attached and searchable with what was read, until Continue.
+	paused atomic.Bool
 }
 
 func (d *drive) indexPath() string { return filepath.Join(d.dir, "index.db") }
@@ -365,7 +371,8 @@ func (ld *Laserdot) driveInfo(v scan.Volume) DriveInfo {
 		info.OnDrive, info.Encrypted = d.onDrive, d.encrypted
 		info.IndexBytes = dirBytes(d.dir)
 		info.Entries = d.store.LiveCount()
-		info.Complete = !d.indexing.Load()
+		info.Indexing = d.indexing.Load()
+		info.Complete = !info.Indexing
 		for _, r := range roots {
 			info.Complete = info.Complete && r.Complete
 			if info.LastScan == nil || r.LastVerified > *info.LastScan {
@@ -478,6 +485,7 @@ func (ld *Laserdot) CreateDriveIndex(mount string, opts DriveOptions) (IndexStat
 			return IndexStats{}, err
 		}
 	}
+	ld.releasedMounts.Delete(mount)
 	vf := volumeFile{Format: 1, ID: randomID(), Name: v.Name, Created: time.Now().Unix(), Encrypted: opts.Passphrase != ""}
 	b, _ := json.MarshalIndent(vf, "", "  ")
 	if err := os.WriteFile(filepath.Join(dir, "volume.json"), b, 0o644); err != nil {
@@ -536,7 +544,7 @@ func (ld *Laserdot) streamDrive(d *drive, so index.StreamOptions) (IndexStats, e
 		so.Pause = ld.paused.Load
 	}
 	userStop := so.Stop
-	so.Stop = func() bool { return d.stop.Load() || (userStop != nil && userStop()) }
+	so.Stop = func() bool { return d.stop.Load() || d.paused.Load() || (userStop != nil && userStop()) }
 	if so.Priority == nil {
 		so.Priority = ld.searchPriority
 		so.PriorityVersion = ld.demand.currentVersion
@@ -607,6 +615,12 @@ func (ld *Laserdot) streamDrive(d *drive, so index.StreamOptions) (IndexStats, e
 			ld.mu.Unlock()
 		}
 	}
+	if errors.Is(err, index.ErrInterrupted) && d.paused.Load() && !d.stop.Load() {
+		// Stopped by the user: the drive stays attached and searchable
+		// with what was read; Continue (or the next attach) goes on. Not
+		// an error: the user asked for it.
+		return st.IndexStats, nil
+	}
 	if err != nil {
 		// Stopped or failed: what was saved stays on the drive (§9.7); the
 		// drive is let go and the next attach resumes.
@@ -668,6 +682,7 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 		ld.wmu.Unlock()
 		return DriveInfo{}, err
 	}
+	ld.releasedMounts.Delete(mount) // attached again: its files may be read
 	d := &drive{id: vf.ID, mount: mount, name: v.Name, dir: dir, onDrive: onDrive, encrypted: vf.Encrypted,
 		pass: pass, db: db, work: work, scan: driveScanOptions(v)}
 	if err := d.reload(); err != nil {
@@ -708,6 +723,60 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 	ld.mu.RLock()
 	defer ld.mu.RUnlock()
 	return ld.driveInfo(v), nil
+}
+
+// StopDriveIndex stops a drive's first index (keeping what it read, the
+// drive staying attached and searchable). False: none was running.
+func (ld *Laserdot) StopDriveIndex(mount string) bool {
+	if c, err := canonical(mount); err == nil {
+		mount = c
+	}
+	ld.mu.RLock()
+	d := ld.driveAt(mount)
+	ld.mu.RUnlock()
+	if d == nil || !d.indexing.Load() {
+		return false
+	}
+	d.paused.Store(true)
+	return true
+}
+
+// ContinueDriveIndex goes on with a drive's first index that was stopped
+// (or cut short), in the background. False: nothing to continue.
+func (ld *Laserdot) ContinueDriveIndex(mount string) bool {
+	if c, err := canonical(mount); err == nil {
+		mount = c
+	}
+	ld.mu.RLock()
+	d := ld.driveAt(mount)
+	ld.mu.RUnlock()
+	if d == nil || d.indexing.Load() || d.complete() {
+		return false
+	}
+	d.paused.Store(false)
+	ld.streams.Add(1)
+	go func() {
+		defer ld.streams.Done()
+		ld.streamDrive(d, index.StreamOptions{})
+	}()
+	return true
+}
+
+// release marks a drive as being let go (detached or ejected): long jobs
+// (duplicate scans) stop reading files on it. Attaching it again clears it.
+func (ld *Laserdot) release(mount string) { ld.releasedMounts.Store(mount, true) }
+
+// released: path is on a drive being let go.
+func (ld *Laserdot) released(path string) bool {
+	found := false
+	ld.releasedMounts.Range(func(k, _ any) bool {
+		if within(path, k.(string)) {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 // RefreshDrive catches an attached drive's index up with the drive.
@@ -751,6 +820,9 @@ func (ld *Laserdot) CatchUpDrive(mount string) (UpdateStats, error) {
 	}
 	if d.indexing.Load() {
 		return UpdateStats{OfflineRoots: []string{}}, nil
+	}
+	if !d.complete() && d.paused.Load() {
+		return UpdateStats{OfflineRoots: []string{}}, nil // stopped by the user: waits for Continue
 	}
 	if !d.complete() {
 		// A first index not finished (a stuck folder, or cut short): it
@@ -850,8 +922,10 @@ func (ld *Laserdot) detach(mount string) bool {
 	if d == nil {
 		return false
 	}
-	// A first index running stops between batches; then the drive's
-	// writer lock (lock order: drive, then the index).
+	// A first index running stops between batches, a duplicate scan skips
+	// the drive's files; then the drive's writer lock (lock order: drive,
+	// then the index).
+	ld.release(mount)
 	d.stop.Store(true)
 	d.wmu.Lock()
 	defer d.wmu.Unlock()

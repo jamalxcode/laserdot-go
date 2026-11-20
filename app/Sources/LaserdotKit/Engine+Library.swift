@@ -10,7 +10,7 @@ extension Engine {
             Drive(
                 id: d.id, name: d.name, mount: d.mount, state: d.state.state, detail: d.state.detail, readOnly: d.readOnly,
                 encrypted: d.encrypted, onDrive: d.onDrive, complete: d.complete, entries: d.entries,
-                totalBytes: d.totalBytes, freeBytes: d.freeBytes, indexBytes: d.indexBytes)
+                totalBytes: d.totalBytes, freeBytes: d.freeBytes, indexBytes: d.indexBytes, indexing: d.indexing)
         }
     }
 
@@ -61,6 +61,17 @@ extension Engine {
     @discardableResult
     public func driveDelete(mount: String) throws -> Bool {
         try call(.driveDelete(mount: mount), as: Bool.self)
+    }
+
+    /// Stop a drive's first index (it stays attached and searchable with
+    /// what was read). False: none was running.
+    public func driveStop(mount: String) throws -> Bool {
+        try call(.driveStop(mount: mount), as: Bool.self)
+    }
+
+    /// Go on with a drive's first index that was stopped or cut short.
+    public func driveContinue(mount: String) throws -> Bool {
+        try call(.driveContinue(mount: mount), as: Bool.self)
     }
 
     public func driveEject(mount: String) throws {

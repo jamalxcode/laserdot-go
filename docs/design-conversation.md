@@ -576,6 +576,19 @@ counted 25 KB "in 4 files"; numbers were unformatted and empty folders said "Zer
 measured once from the disk and remembered until they change ("at least …" while measuring, filling in by itself);
 apps are counted as apps; numbers formatted, "Empty" for nothing.
 
+## 43. Critique, and "fix it all" (0.9.26)
+
+**Asked:** "review laserdot and critique it, how can it be made better", then "fix it all". **The critique:** two
+indexers doing one job; improvised stopping (Duplicates could block an eject, no drive Stop button); fragile locking;
+the owner as the tester; hand-made threading in the app; a busy search window; too many releases; long docs without a
+summary; smaller items (snapshot writes, HEIC duplicates, read-only Storage). **Done in 0.9.26:** drive Stop/Continue,
+Duplicates letting go of an ejected drive, snapshot written when quiet, a higher memory ceiling (the real cause of the
+million-file slowdown), a calmer window (one "…" menu, wrapping choices, quieter hints), app logic unit tests, a CI run
+that ejects a drive while the real app indexes it, a one-page "how it works", batched releases. **Measured and
+dropped:** streaming this Mac's own folders (slower and heavier than the bulk path on a fast disk). **Left for later,
+said so:** the per-index worker and async/await refactors, an automated update-mid-index test, an early-updates
+channel.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

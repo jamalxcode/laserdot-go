@@ -65,9 +65,11 @@ type StreamOptions struct {
 	MaxQueue int
 	// BatchRows: rows per transaction (default 5,000).
 	BatchRows int
-	// MaxWorkers: the most folders read at once (default 16; it starts at 2
-	// and adapts).
+	// MaxWorkers: the most folders read at once (default 16; it adapts).
 	MaxWorkers int
+	// StartWorkers: readers at the start (default 2, kind to a spinning
+	// disk; this Mac's SSD starts at its CPU count). It adapts from there.
+	StartWorkers int
 	// StopAfterBatches > 0: stop after that many batches (tests: an
 	// unplugged drive).
 	StopAfterBatches int
@@ -78,6 +80,10 @@ type StreamOptions struct {
 	Pause func() bool
 	// Errors receives what could not be read.
 	Errors *[]scan.Error
+	// ProbeLater: media headers are not read now; those files are saved as
+	// pending, for the caller's background pass (files are searchable as
+	// soon as they are listed: this Mac's folders, BulkOptions.ProbeLater).
+	ProbeLater bool
 	// OnStart runs once the root's row is saved (or an earlier run is found)
 	// and before any folder is read: the moment to load the index so far.
 	OnStart func() error
@@ -152,12 +158,12 @@ type streamRun struct {
 
 	mu       sync.Mutex
 	queue    dirHeap
-	inFlight map[int64]bool // folders handed to a worker, not yet written
-	failed   map[int64]bool // folders that did not answer this run (left unlisted)
-	more     bool           // unlisted folders may wait in the index beyond the queue
-	links    map[[2]uint64]bool
-	target   atomic.Int64  // workers wanted now
-	slots    chan struct{} // files open for their headers at once, all readers together
+	inFlight map[int64]bool         // folders handed to a worker, not yet written
+	failed   map[int64]bool         // folders that did not answer this run (left unlisted)
+	more     bool                   // unlisted folders may wait in the index beyond the queue
+	links    map[[2]uint64]linkKept // hard-linked files: the path kept
+	target   atomic.Int64           // workers wanted now
+	slots    chan struct{}          // files open for their headers at once, all readers together
 	saved    atomic.Uint64
 }
 
@@ -313,10 +319,14 @@ type listed struct {
 }
 
 func (r *streamRun) run() error {
-	r.links = map[[2]uint64]bool{}
-	r.target.Store(int64(min(2, r.so.MaxWorkers)))
+	r.links = map[[2]uint64]linkKept{}
+	start := r.so.StartWorkers
+	if start <= 0 {
+		start = 2
+	}
+	r.target.Store(int64(min(start, r.so.MaxWorkers)))
 	work := make(chan streamDir)
-	results := make(chan listed, 64)
+	results := make(chan listed, 512) // readers run ahead while a batch is written
 	stop := make(chan struct{})
 	var stopOnce sync.Once
 	halt := func() { stopOnce.Do(func() { close(stop) }) }
@@ -464,7 +474,7 @@ func (r *streamRun) run() error {
 				heap.Push(&r.queue, *next)
 				r.mu.Unlock()
 			}
-			if rows > 0 && !flush() {
+			if len(batch) > 0 && !flush() { // empty folders too: else they wait forever
 				break
 			}
 		}
@@ -485,7 +495,7 @@ func (r *streamRun) run() error {
 		}
 		// Every two seconds, tune the number of workers to the speed seen:
 		// one more while that helped, one fewer when it did not.
-		if time.Since(lastTune) >= 2*time.Second {
+		if time.Since(lastTune) >= time.Second {
 			saved := r.saved.Load()
 			rate := float64(saved-lastSaved) / time.Since(lastTune).Seconds()
 			t := r.target.Load()
@@ -563,6 +573,10 @@ func (r *streamRun) read(d streamDir) listed {
 		if !probeWanted(&e) {
 			return
 		}
+		if r.so.ProbeLater {
+			out.probes[i] = Probe{Later: true} // pending: read in the background
+			return
+		}
 		r.slots <- struct{}{}
 		out.probes[i] = streamProbe(&e)
 		<-r.slots
@@ -605,6 +619,29 @@ func (r *streamRun) write(batch []listed) error {
 		return err
 	}
 	defer ins.Close()
+	// Rows go batchRows at a time, one statement each (as InsertChunk): the
+	// per-call cost of database/sql dominated writing one row at a time.
+	multi, err := tx.Prepare(insertBatchSQL)
+	if err != nil {
+		return err
+	}
+	defer multi.Close()
+	args := make([]any, 0, batchRows*insertCols)
+	queued := 0
+	flushRows := func() error {
+		if queued == batchRows {
+			_, err := multi.Exec(args...)
+			args, queued = args[:0], 0
+			return err
+		}
+		for i := 0; i < queued; i++ {
+			if _, err := ins.Exec(args[i*insertCols : (i+1)*insertCols]...); err != nil {
+				return err
+			}
+		}
+		args, queued = args[:0], 0
+		return nil
+	}
 	done, err := tx.Prepare("UPDATE entries SET probe = ? WHERE id = ?")
 	if err != nil {
 		return err
@@ -616,15 +653,32 @@ func (r *streamRun) write(batch []listed) error {
 	for _, l := range batch {
 		for i := range l.entries {
 			e := &l.entries[i]
-			// Hard links are one file.
+			// Hard links are one file, listed at its alphabetically first
+			// path (as a walk keeps it, scan.dedupeHardLinks, so updates
+			// see the same choice): a later, smaller path replaces the one
+			// saved earlier.
+			id := r.nextID
 			if !e.IsDir && e.Nlink > 1 {
 				k := [2]uint64{e.Dev, e.Inode}
-				if r.links[k] {
-					continue
+				if kept, ok := r.links[k]; ok {
+					if e.Path >= kept.path {
+						continue
+					}
+					// Rows still queued go in first (the one replaced may
+					// be among them).
+					if err := flushRows(); err != nil {
+						r.mu.Unlock()
+						return err
+					}
+					if _, err := tx.Exec("DELETE FROM entries WHERE id = ?", kept.id); err != nil {
+						r.mu.Unlock()
+						return err
+					}
+					// The in-memory index keeps the other path until the
+					// run's end, when it is laid out afresh from the index.
 				}
-				r.links[k] = true
+				r.links[k] = linkKept{id, e.Path}
 			}
-			id := r.nextID
 			r.nextID++
 			p := l.probes[i]
 			code, w, h, blob := storedCode(e, p)
@@ -632,10 +686,13 @@ func (r *streamRun) write(batch []listed) error {
 			if descend {
 				code = codeUnlisted
 			}
-			if _, err := ins.Exec(id, r.rootID, l.dir.id, filepath.Base(e.Path), e.IsDir, e.IsSymlink, e.Dataless,
-				int64(e.Size), e.Modified, e.Created, int64(e.Inode), int64(e.Dev), code, w, h, blob, tagsText(e.Tags)); err != nil {
-				r.mu.Unlock()
-				return err
+			args = append(args, id, r.rootID, l.dir.id, filepath.Base(e.Path), e.IsDir, e.IsSymlink, e.Dataless,
+				int64(e.Size), e.Modified, e.Created, int64(e.Inode), int64(e.Dev), code, w, h, blob, tagsText(e.Tags))
+			if queued++; queued == batchRows {
+				if err := flushRows(); err != nil {
+					r.mu.Unlock()
+					return err
+				}
 			}
 			saved = append(saved, StreamRow{ID: id, Parent: l.dir.id, Raw: rawOf(e, p, id)})
 			if descend {
@@ -650,6 +707,8 @@ func (r *streamRun) write(batch []listed) error {
 		if l.keep {
 			r.failed[l.dir.id] = true
 		} else if _, err := done.Exec(codeSkipped, l.dir.id); err != nil {
+			// (The folder's own row was saved by an earlier batch, so the
+			// rows still queued do not matter to this update.)
 			r.mu.Unlock()
 			return err
 		}
@@ -657,6 +716,10 @@ func (r *streamRun) write(batch []listed) error {
 			*r.so.Errors = append(*r.so.Errors, l.errs...)
 		}
 		r.st.ScanErrors += uint64(len(l.errs))
+	}
+	if err := flushRows(); err != nil {
+		r.mu.Unlock()
+		return err
 	}
 	r.mu.Unlock()
 	if err := tx.Commit(); err != nil {
@@ -684,6 +747,11 @@ func (r *streamRun) write(batch []listed) error {
 		r.so.Progress(n)
 	}
 	return nil
+}
+
+type linkKept struct {
+	id   int64
+	path string
 }
 
 // dirHeap: waiting folders, highest priority first (waiting time added).

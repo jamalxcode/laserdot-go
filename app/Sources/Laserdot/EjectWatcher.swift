@@ -35,10 +35,12 @@ final class EjectWatcher {
             }
             return nil // approved: Laserdot never keeps a disk from being ejected
         }, context)
-        DASessionScheduleWithRunLoop(session, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
+        // Common modes: answered even while a dialog is open (the "index
+        // this drive?" prompt runs the main loop in its own mode).
+        DASessionScheduleWithRunLoop(session, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
     }
 
     deinit {
-        DASessionUnscheduleFromRunLoop(session, CFRunLoopGetMain(), CFRunLoopMode.defaultMode.rawValue)
+        DASessionUnscheduleFromRunLoop(session, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
     }
 }

@@ -195,6 +195,8 @@ public struct Drive: Hashable, Sendable {
     public var totalBytes: UInt64
     public var freeBytes: UInt64
     public var indexBytes: UInt64
+    /// A first index is running now (it can be stopped and continued).
+    public var indexing: Bool = false
 }
 
 /// What indexing a drive will take, for the prompt (spec §9.3).
