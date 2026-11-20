@@ -69,7 +69,7 @@ struct GeneralSettings: View {
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
         panel.prompt = L("settings.searchIn.choose")
-        if panel.runModal() == .OK, let url = panel.url {
+        if panel.runFront() == .OK, let url = panel.url {
             searchPlace = url.path
         }
     }

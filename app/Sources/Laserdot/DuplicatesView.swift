@@ -385,7 +385,7 @@ struct DuplicatesView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.prompt = L("settings.searchIn.choose")
-        if panel.runModal() == .OK, let url = panel.url { model.lookFolder = url.path }
+        if panel.runFront() == .OK, let url = panel.url { model.lookFolder = url.path }
     }
 
     /// A copy's details in plain words: "0.11 bpp" becomes high, good or low

@@ -163,6 +163,11 @@ func finish(_ s: UpdateStatus) -> Never {
         a.messageText = "Could not check for Laserdot updates"
         a.informativeText = m
         NSApp.activate(ignoringOtherApps: true)
+        a.layout()
+        a.window.hidesOnDeactivate = false
+        a.window.level = .modalPanel
+        a.window.collectionBehavior.insert([.canJoinAllSpaces, .fullScreenAuxiliary])
+        a.window.orderFrontRegardless()
         a.runModal()
     }
     exit(0)

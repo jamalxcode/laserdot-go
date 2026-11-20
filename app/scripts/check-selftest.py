@@ -317,6 +317,7 @@ check("IMG_1234.HEIC" in report.get("dupes_progress_file", ""), f"the duplicate 
 
 # The install prompt fits a laptop screen with very long notes (its buttons were pushed off it).
 h = report.get("install_prompt_height", 9999)
+check(report.get("install_prompt_stays") is True, "the update prompt stays in front of other apps and on every Space")
 check(0 < h < 650 and report.get("install_prompt_buttons") == 2, f"the install prompt fits the screen with its buttons (height {h}, buttons {report.get('install_prompt_buttons')})")
 
 # The watchdog: laserdotd killed outright is started again and answers.

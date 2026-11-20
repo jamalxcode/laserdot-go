@@ -133,8 +133,13 @@ extension SelfTestRunner {
         // and its buttons show.
         let longNotes = (1...300).map { "- Change number \($0): a line of what is new in this version" }.joined(separator: "\n")
         let prompt = UpdateController.installAlert(version: "9.9.9", current: "0.9.0", notes: longNotes)
-        prompt.layout()
+        prompt.prepareFront()
         extra["install_prompt_height"] = Double(prompt.window.frame.height)
+        // It stays in front: not hidden when another app is used, shown on
+        // every Space and over full-screen apps.
+        extra["install_prompt_stays"] = !prompt.window.hidesOnDeactivate
+            && prompt.window.collectionBehavior.contains(.canJoinAllSpaces)
+            && prompt.window.collectionBehavior.contains(.fullScreenAuxiliary)
         extra["install_prompt_buttons"] = prompt.buttons.count
         // The Duplicates window shows the step, a bar and the count.
         if let dm = app.duplicatesModel {

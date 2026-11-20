@@ -3,6 +3,11 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.29
+
+- Fixed: the update prompt (and every other Laserdot dialog) could vanish behind the browser and only came back
+  after closing other apps. Dialogs now stay in front, on every desktop and over full-screen apps.
+
 ## 0.9.28
 
 - Choose where to search: the choice row now offers **Drive** (This Mac or each attached drive) and **Folder** (the
