@@ -68,6 +68,7 @@
 "dupes.confirm.text" = "سيُنقل %lld ملف (%@) إلى %@. لن يُحذف أي شيء.";
 "dupes.confirm.move" = "نقل";
 "dupes.moved" = "نُقل %lld ملف (%@).";
+"results.inside" = "فيه %@";
 "results.inContents" = "في المحتوى";
 "menu.content" = "البحث في المحتوى";
 "content.status" = "%lld مستند قابل للبحث · %lld في الانتظار";
@@ -440,6 +441,14 @@
 "refine.group.drive" = "القرص";
 "refine.group.folder" = "المجلد";
 "refine.drive.local" = "هذا الماك";
+"place.searchingIn" = "البحث في %@";
+"place.everywhere" = "ابحث في كل مكان";
+"place.everywhere.help" = "ابحث في كل مكان هذه المرة (الإعدادات ▸ عام ▸ البحث في تحدد أين يبحث)";
+"settings.searchIn" = "البحث في";
+"settings.searchIn.everywhere" = "كل مكان";
+"settings.searchIn.folder" = "مجلد…";
+"settings.searchIn.choose" = "ابحث هنا";
+"settings.searchIn.help" = "أين يبحث Laserdot ما لم يحدد البحث مكانًا (in:، volume:). تعرضه نافذة البحث ويمكن البحث في كل مكان لمرة واحدة.";
 "refine.leaveOut" = "استبعد";
 "refine.leftOut.help" = "مستبعد من البحث: انقر لإرجاع %@";
 "refine.leftOut.spoken" = "%@ %@، مستبعد";

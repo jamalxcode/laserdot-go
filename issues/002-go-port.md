@@ -137,6 +137,11 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Search better (0.9.28):** a default search place is a word the app adds (`SearchPlace.effective`), never hidden
+  state in the daemon; leaving a choice out is a `-` word (`RefineOption.Excluded`); zip contents are names matched
+  by the same regexes (pillar 3) from the central directory only (`index.ArchiveIndex`, `archives.db`, this Mac
+  only); date phrases are parsed into `modified:` ranges (`query.PhraseAt`), a month alone stays a word; More Like
+  This is a query (`core.MoreLike`, op `more_like`, `laserdot like FILE`).
 - **Where is a choice (0.9.28):** the choice row offers Drive (`volume:`) and Folder (`in:`) groups, built from the
   results like every other group; a matching folder does not stop the descent (Trips for "trip").
 - **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account), and more
@@ -392,7 +397,13 @@ Binding unless revisited deliberately; each is also in the spec.
   `in:` tokens with `~` for home); `volume`/`in` are choice filters in `refineGroups`. Test:
   `TestResultsOfferTheDrivesAndFoldersTheyAreIn` (counts equal searches, switching keeps both). App: strings (en/ar);
   self-test steps `where`/`wherechosen` on `Trips/2023`, `Trips/2024`. Also: `index.migrate` under `BEGIN IMMEDIATE`
-  with a re-check and transient-error retry (`TestOpeningANewIndexTwiceAtOnce`).
+  with a re-check and transient-error retry (`TestOpeningANewIndexTwiceAtOnce`). Then "do 2 4 5 8 10": `query.PhraseAt`
+  (seasons, month + year, between/from…and/to, Arabic; `TestDatePhrases`, hint for 3–5-word phrases, cheat sheet);
+  `RefineOption.Excluded` + `RefineLogic.excluding` (⌥-click, Leave Out; `TestALeftOutChoiceShowsAsLeftOut`);
+  `index.ArchiveIndex` + `core.ArchiveJob` run by the daemon's content loop, `Hit.Inside`
+  (`TestAWordFindsTheZipHoldingAFileNamedWithIt`); `core.MoreLike` (`TestMoreLikeThisFindsSimilarFiles`);
+  `SearchPlace` in LaserdotKit (Settings ▸ General ▸ Search in, pill, Search Everywhere; `SearchPlaceTests`).
+  Self-test steps: leftout, leftoutshown, place, placeoff, zip, morelike.
 - **0.9.26 (2026-11-20):** the owner's "review laserdot and critique it" and "fix it all". Done: drive Stop/Continue
   (`StopDriveIndex`/`ContinueDriveIndex`, `drive.paused`, ops `drive_stop`/`drive_continue`, `DriveInfo.Indexing`,
   menu items; the hourly catch-up leaves a stopped index alone); duplicate scans skip files on drives being let go

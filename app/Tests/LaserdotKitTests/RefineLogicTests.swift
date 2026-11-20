@@ -79,3 +79,19 @@ final class RefineLogicTests: XCTestCase {
         XCTAssertTrue(decoded[0].options[0].isExcluded)
     }
 }
+
+final class SearchPlaceTests: XCTestCase {
+    // The owner chose a default search place: it joins each search as a
+    // word, unless turned off for this search or the search names a place.
+    func testThePlaceJoinsSearchesThatNameNone() {
+        XCTAssertEqual(SearchPlace.effective("invoice", place: "", off: false), "invoice")
+        XCTAssertEqual(SearchPlace.effective("invoice", place: "local", off: false), "invoice volume:local")
+        XCTAssertEqual(SearchPlace.effective("invoice", place: "/Users/j/Docs", off: false), "invoice in:\"/Users/j/Docs\"")
+        XCTAssertEqual(SearchPlace.effective("invoice", place: "local", off: true), "invoice")
+        XCTAssertEqual(SearchPlace.effective("invoice in:~/Work", place: "local", off: false), "invoice in:~/Work")
+        XCTAssertEqual(SearchPlace.effective("invoice -volume:archive", place: "local", off: false), "invoice -volume:archive")
+        XCTAssertEqual(SearchPlace.effective("", place: "local", off: false), "")
+        XCTAssertEqual(SearchPlace.effective(">dup", place: "local", off: false), ">dup")
+        XCTAssertEqual(SearchPlace.title("/Users/j/Docs", thisMac: "This Mac"), "Docs")
+    }
+}

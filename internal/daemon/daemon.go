@@ -96,6 +96,14 @@ func (s *Server) UpdateContent() (core.ContentStats, error) {
 	return s.ld.UpdateContent()
 }
 
+// UpdateArchives brings the zip listings up to date (with the content
+// update: one at a time).
+func (s *Server) UpdateArchives() (core.ArchiveStats, error) {
+	s.contentMu.Lock()
+	defer s.contentMu.Unlock()
+	return s.ld.UpdateArchives()
+}
+
 // RunBackground starts the content and mount loops until Stop. log may be
 // nil.
 func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
@@ -118,6 +126,12 @@ func (s *Server) RunBackground(volumeEvery time.Duration, log func(string)) {
 				log("content update failed: " + err.Error())
 			} else if st.Indexed+st.Skipped+st.Removed > 0 {
 				log(fmt.Sprintf("content: %d indexed, %d skipped, %d removed in %d ms", st.Indexed, st.Skipped, st.Removed, st.MS))
+			}
+			// The names inside zips change with the same file changes.
+			if as, err := s.UpdateArchives(); err != nil {
+				log("zip listing failed: " + err.Error())
+			} else if as.Listed+as.Unreadable+as.Removed > 0 {
+				log(fmt.Sprintf("zips: %d listed, %d unreadable, %d removed in %d ms", as.Listed, as.Unreadable, as.Removed, as.MS))
 			}
 		}
 	})

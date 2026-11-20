@@ -139,6 +139,17 @@ final class SelfTestRunner {
                     model.applyRefinement(o, in: g)
                 }
             }, until: { $0.refinements.contains { $0.id == "folder" } }, wait: 1.0),
+            // A default search place (Settings ▸ Search in): searches look
+            // only there, the pill says so, and its button searches everywhere.
+            Step(name: "place", typed: "trip", before: {
+                UserDefaults.standard.set(folder + "/Trips/2023", forKey: SearchPlace.key)
+            }, until: { $0.placeInEffect && $0.results.count == 1 }),
+            Step(name: "placeoff", typed: "trip", after: {
+                model.dropPlace()
+                UserDefaults.standard.removeObject(forKey: SearchPlace.key)
+            }, until: { $0.placeInEffect }, wait: 1.0),
+            // Inside a zip: a word finds the zip holding a file named with it.
+            Step(name: "zip", typed: "quokka", until: { !$0.results.isEmpty }),
             Step(name: "pdftoday", typed: "pdf today"),
             Step(name: "commands", typed: ">dup"),
             // As in Spotlight: the top hit's name completes inline, the rest

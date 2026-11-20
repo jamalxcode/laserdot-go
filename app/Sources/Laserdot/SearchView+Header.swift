@@ -175,6 +175,27 @@ extension SearchView {
         }
     }
 
+    /// The default search place, while it narrows this search ("Searching
+    /// in Documents ✕"); ✕ searches everywhere until the field is cleared.
+    @ViewBuilder var placePill: some View {
+        if model.placeInEffect && !model.isCommandMode {
+            HStack(spacing: 6) {
+                Image(systemName: "scope").foregroundStyle(.secondary).accessibilityHidden(true)
+                Text(String(format: L("place.searchingIn"), SearchPlace.title(model.searchPlace, thisMac: L("refine.drive.local"))))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button(L("place.everywhere")) { model.dropPlace() }
+                    .buttonStyle(.bordered)
+                    .controlSize(.mini)
+                    .help(L("place.everywhere.help"))
+                    .accessibilityIdentifier("placeEverywhere")
+                Spacer()
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 6)
+        }
+    }
+
     /// What the results have to choose from, by attribute ("Resolution:
     /// 4K 3 · 1080p 12   Sound: With sound 14 · No sound 1"). A choice joins
     /// the query, so the hint line explains it and it can be removed by

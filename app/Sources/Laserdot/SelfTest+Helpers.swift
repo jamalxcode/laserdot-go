@@ -142,6 +142,8 @@ extension SelfTestRunner {
         r["hint"] = model.hint ?? ""
         r["sections"] = model.sections.map { s -> [String: Any] in ["title": s.title, "count": s.range.count] }
         r["results"] = model.results.map(\.name)
+        r["inside"] = model.results.flatMap(\.inside)
+        r["place_pill"] = model.placeInEffect
         r["selected"] = model.selected?.name ?? ""
         let chips: [String] = model.completionChips.map(\.label) + model.kindChips.map(\.title)
         r["chips"] = chips

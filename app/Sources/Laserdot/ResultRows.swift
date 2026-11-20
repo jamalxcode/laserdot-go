@@ -113,7 +113,8 @@ struct ResultRow: View {
     private var subtitle: String { shortPath(hit.path) + " · " + friendlyDate(hit.modified) }
     private var spoken: String {
         let size = ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file)
-        let parts: [String] = [hit.name, hit.kind, size] + hit.badges + (hit.content ? [L("results.inContents")] : []) + [hit.path]
+        let parts: [String] = [hit.name, hit.kind, size] + hit.badges + (hit.content ? [L("results.inContents")] : [])
+            + (hit.inside.isEmpty ? [] : [String(format: L("results.inside"), hit.inside.joined(separator: ", "))]) + [hit.path]
         return parts.joined(separator: ", ")
     }
 
@@ -147,6 +148,14 @@ struct ResultRow: View {
     }
 
     @ViewBuilder private var trailing: some View {
+        if let first = hit.inside.first {
+            // A zip found by a file inside it: which one.
+            Label(String(format: L("results.inside"), (first as NSString).lastPathComponent), systemImage: "doc.zipper")
+                .font(.caption2)
+                .foregroundStyle(subColor)
+                .lineLimit(1)
+                .help(hit.inside.joined(separator: "\n"))
+        }
         if hit.content {
             Label(L("results.inContents"), systemImage: "doc.text.magnifyingglass")
                 .font(.caption2)

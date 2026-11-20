@@ -57,9 +57,22 @@ struct GeneralSettings: View {
     @State private var openAtLogin = SMAppService.mainApp.status == .enabled
     @State private var loginNote: String?
     @AppStorage(PowerWatcher.batteryKey) private var pauseOnBattery = true
+    @AppStorage(SearchPlace.key) private var searchPlace = ""
 
     @State private var tidyInterval = Reminders.shared.tidy
     @State private var lowDiskReminder = Reminders.shared.lowDisk
+
+    /// A folder for "Search in" (searches look only there).
+    private func chooseSearchFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = L("settings.searchIn.choose")
+        if panel.runModal() == .OK, let url = panel.url {
+            searchPlace = url.path
+        }
+    }
 
     var body: some View {
         Form {
@@ -72,6 +85,23 @@ struct GeneralSettings: View {
                 )) {
                     ForEach(HotKeyChoice.all, id: \.label) { Text($0.label).tag($0.label) }
                 }
+                // Where searches look unless they name a place (in:, volume:).
+                Picker(L("settings.searchIn"), selection: Binding(
+                    get: { searchPlace == "" || searchPlace == "local" ? searchPlace : "folder" },
+                    set: { choice in
+                        switch choice {
+                        case "folder": chooseSearchFolder()
+                        default: searchPlace = choice
+                        }
+                    }
+                )) {
+                    Text(L("settings.searchIn.everywhere")).tag("")
+                    Text(L("refine.drive.local")).tag("local")
+                    Text(searchPlace == "" || searchPlace == "local"
+                         ? L("settings.searchIn.folder")
+                         : (searchPlace as NSString).lastPathComponent).tag("folder")
+                }
+                .help(L("settings.searchIn.help"))
                 Toggle(L("settings.openAtLogin"), isOn: Binding(get: { openAtLogin }, set: setOpenAtLogin))
                 Toggle(L("settings.pauseOnBattery"), isOn: $pauseOnBattery)
                 if let loginNote {

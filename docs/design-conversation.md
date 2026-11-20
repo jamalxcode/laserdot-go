@@ -612,6 +612,14 @@ so a choice is a word in the search like every other choice, and the other group
 folders: under each indexed folder, down while one folder holds every result (home → Work), then its subfolders
 (2024, 2025). Folders to index stay in Settings ▸ Folders; this chooses where one search looks.
 
+**Then asked:** "what other features can we do to make search better, give me 10 suggestions", and chose "do 2 4 5 8
+10". **Done:** (2) a default search place in Settings (Everywhere, This Mac, a folder), shown as a pill with Search
+Everywhere; (4) ⌥-click or Leave Out on a choice adds a `-` word, shown struck through; (5) names inside zip files
+are searchable (central directory only; the zip is the result, "Contains …"); (8) seasons, month + year and month
+spans as date words in English and Arabic; (10) More Like This builds a type + size + date search from a result.
+**Not done:** "similar-looking pictures" in More Like This: it needs every picture fingerprinted at search time; Find
+Duplicates already finds look-alike pictures.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

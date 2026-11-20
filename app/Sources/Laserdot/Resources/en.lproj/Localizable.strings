@@ -68,6 +68,7 @@
 "dupes.confirm.text" = "%lld files (%@) will be moved to %@. Nothing is deleted.";
 "dupes.confirm.move" = "Move";
 "dupes.moved" = "Moved %lld files (%@).";
+"results.inside" = "Contains %@";
 "results.inContents" = "in contents";
 "menu.content" = "Content Search";
 "content.status" = "%lld documents searchable · %lld waiting";
@@ -440,6 +441,14 @@
 "refine.group.drive" = "Drive";
 "refine.group.folder" = "Folder";
 "refine.drive.local" = "This Mac";
+"place.searchingIn" = "Searching in %@";
+"place.everywhere" = "Search Everywhere";
+"place.everywhere.help" = "Search everywhere this time (Settings ▸ General ▸ Search in sets where searches look)";
+"settings.searchIn" = "Search in";
+"settings.searchIn.everywhere" = "Everywhere";
+"settings.searchIn.folder" = "A Folder…";
+"settings.searchIn.choose" = "Search Here";
+"settings.searchIn.help" = "Where searches look unless they name a place (in:, volume:). The search window shows it and can search everywhere for one search.";
 "refine.leaveOut" = "Leave Out";
 "refine.leftOut.help" = "Left out of the search: click to bring %@ back";
 "refine.leftOut.spoken" = "%@ %@, left out";

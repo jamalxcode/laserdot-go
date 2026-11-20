@@ -331,10 +331,12 @@ public enum Wire {
         public var content: Bool
         /// Last opened from Laserdot (Unix seconds; 0 never).
         public var opened: Int64
+        /// A zip found by the names of files inside it (those, paths inside).
+        public var inside: [String]
 
         enum CodingKeys: String, CodingKey {
             case path, name, kind, isDir = "is_dir", size, modified, created, width, height, typo, media, volume, content
-            case opened
+            case opened, inside
         }
 
         public init(from decoder: Decoder) throws {
@@ -353,6 +355,7 @@ public enum Wire {
             volume = try c.decodeIfPresent(String.self, forKey: .volume)
             content = try c.value(.content, or: false)
             opened = try c.value(.opened, or: 0)
+            inside = try c.value(.inside, or: [])
         }
     }
 

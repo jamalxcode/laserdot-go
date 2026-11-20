@@ -35,6 +35,15 @@ One page, kept current: what is true today. The history and the reasons are in
   size…), with counts; a choice is added to the search as a word, its group shrinks to it, the others stay. It also
   offers where: **Drive** (`volume:local` or a drive, when one is attached) and **Folder** (`in:` the folders holding
   the results: under each indexed folder it goes down while one folder holds them all, then offers its subfolders).
+  ⌥-click (or right-click ▸ Leave Out) leaves a value out: a `-` word (`-ext:pdf`), shown struck through.
+- **Default place:** Settings ▸ General ▸ Search in (Everywhere, This Mac, a folder) adds `volume:local` or `in:"…"`
+  to every search that names no place; a pill shows it, and Search Everywhere drops it until the field is cleared.
+- **Inside zips:** the daemon lists the names inside this Mac's `.zip` files (the central directory only) into
+  `archives.db`; plain words match those names with the same regexes, and the zip is a result after name and content
+  matches, with "Contains …". Filters apply to the zip itself.
+- **Date words:** "march 2024", seasons ("last summer", "summer 2023"), "between jan and mar [2024]" and their Arabic
+  forms become one `modified:` range; a month alone stays a word.
+- **More Like This** (⌘K): `ext:` + `fsize:` half to twice + `modified:` ±30 days of the file, put in the field.
 - Speed: about 1–2 ms on 100,000 files, under 10 ms on a million; plain words and simple wildcards are matched
   without the regex engine (same answers, proved by test).
 

@@ -22,6 +22,8 @@ public struct Hit: Hashable, Sendable {
     public var volume: String?
     /// Found by its contents, not its name (spec §2.4.2).
     public var content: Bool
+    /// A zip found by the names of files inside it (paths inside the zip).
+    public var inside: [String] = []
 
     init(_ h: Wire.Hit) {
         var badges: [String] = []
@@ -49,6 +51,7 @@ public struct Hit: Hashable, Sendable {
         typo = h.typo
         volume = h.volume
         content = h.content
+        inside = h.inside
     }
 }
 

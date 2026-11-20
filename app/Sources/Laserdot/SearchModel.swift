@@ -35,6 +35,22 @@ final class SearchModel: ObservableObject {
     @Published private(set) var completionChips: [Completion] = []
     /// What the results have to choose from (resolutions, sound, type…).
     @Published private(set) var refinements: [RefineGroup] = []
+    /// The default search place is off for this search (its ✕ or its chip
+    /// was clicked); back on once the search field is cleared.
+    @Published var placeOff = false
+
+    /// Settings ▸ General ▸ Search in ("" everywhere, "local", or a folder).
+    var searchPlace: String { UserDefaults.standard.string(forKey: SearchPlace.key) ?? "" }
+    /// The search actually sent: the query with the default place.
+    var effectiveQuery: String { SearchPlace.effective(query, place: searchPlace, off: placeOff) }
+    /// The default place is narrowing this search (its pill shows).
+    var placeInEffect: Bool { effectiveQuery != query }
+
+    /// Search everywhere for this search (the place pill's ✕).
+    func dropPlace() {
+        placeOff = true
+        queryChanged()
+    }
     @Published private(set) var total: UInt64 = 0
     @Published private(set) var elapsedMs: Double = 0
     /// The results on screen are for an earlier query; the current one is
@@ -276,6 +292,8 @@ final class SearchModel: ObservableObject {
         generationShared = gen
         generationLock.unlock()
         let q = query
+        if q.trimmingCharacters(in: .whitespaces).isEmpty { placeOff = false }
+        let sent = effectiveQuery // with the default search place
         let (engine, caret) = (self.engine, cursor)
         selection = 0
         extraSelection = []
@@ -328,7 +346,7 @@ final class SearchModel: ObservableObject {
             // A newer keystroke came while this one waited: its search
             // replaces this one, which would only be thrown away.
             guard let self, gen == self.currentGeneration() else { return }
-            let outcome = Result { try engine.search(query: q, limit: 100, sort: sort, reverse: reverse) }
+            let outcome = Result { try engine.search(query: sent, limit: 100, sort: sort, reverse: reverse) }
             DispatchQueue.main.async {
                 guard gen == self.generation else { return }
                 self.apply(outcome)
@@ -343,7 +361,7 @@ final class SearchModel: ObservableObject {
     /// engine answers nothing when the search itself has nothing to choose
     /// between).
     func loadRefinements(total: UInt64) {
-        let (gen, q, engine) = (generation, query, self.engine)
+        let (gen, q, engine) = (generation, effectiveQuery, self.engine)
         guideQueue.async { [weak self] in
             guard let self, gen == self.currentGeneration() else { return }
             let groups = engine.refinements(query: q)
@@ -384,6 +402,12 @@ final class SearchModel: ObservableObject {
     /// is one resolution). Otherwise it joins the search. Every other group
     /// stays available to add to.
     func applyRefinement(_ o: RefineOption, in group: RefineGroup? = nil) {
+        // The default place's chip (chosen, but not in the field): clicking
+        // it searches everywhere, like the pill's ✕.
+        if o.isSelected, o.token == SearchPlace.token(searchPlace), !query.contains(o.token) {
+            dropPlace()
+            return
+        }
         let next = RefineLogic.applying(o, in: group, to: query)
         choiceJustApplied = true
         query = next // one change: queryChanged sees the flag
@@ -531,7 +555,7 @@ final class SearchModel: ObservableObject {
     func loadMore() {
         guard canLoadMore, !loadingMore else { return }
         loadingMore = true
-        let (engine, q, gen, offset, sort, reverse) = (self.engine, self.query, self.generation, allHits.count, self.sort, self.reverse)
+        let (engine, q, gen, offset, sort, reverse) = (self.engine, self.effectiveQuery, self.generation, allHits.count, self.sort, self.reverse)
         queue.async { [weak self] in
             let more = (try? engine.search(query: q, limit: 100, offset: offset, sort: sort, reverse: reverse).hits) ?? []
             DispatchQueue.main.async {

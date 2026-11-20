@@ -74,6 +74,9 @@ type Hit struct {
 	Volume *string `json:"volume"`
 	// Content: matched by its contents, not its name (§2.4.2).
 	Content bool `json:"content"`
+	// Inside: a zip matched by the names of files inside it (those, up to
+	// a few, as paths inside the zip).
+	Inside []string `json:"inside,omitempty"`
 	// Opened: when it was last opened from Laserdot (Unix seconds; absent
 	// when never). The open history is this Mac's only.
 	Opened int64 `json:"opened,omitempty"`
@@ -162,7 +165,9 @@ type Laserdot struct {
 	loadMS      uint64
 	report      OpenReport
 	// content: file contents (§2.4), in its own file next to the index.
-	content         *index.ContentIndex
+	content *index.ContentIndex
+	// archives: the names inside this Mac's zip files, in their own file.
+	archives        *index.ArchiveIndex
 	contentSettings ContentSettings
 	// Attached drive indexes (§9), their mount folder, and passphrases
 	// entered this session (by drive id). Guarded by mu.
@@ -208,6 +213,11 @@ func OpenAt(dbPath string, now time.Time) (*Laserdot, error) {
 		db.Close()
 		return nil, err
 	}
+	if ld.archives, err = index.OpenArchives(archivesPath(dbPath)); err != nil {
+		ld.content.Close()
+		db.Close()
+		return nil, err
+	}
 	ld.loadContentSettings()
 	if rep.Quarantined != "" {
 		ld.report.Quarantined = &rep.Quarantined
@@ -236,6 +246,7 @@ func (ld *Laserdot) Close() error {
 	ld.closeDrives()
 	ld.streams.Wait()
 	ld.content.Close()
+	ld.archives.Close()
 	return ld.db.Close()
 }
 
@@ -378,7 +389,7 @@ func (ld *Laserdot) ScanOptions() scan.Options {
 	if c, err := canonical(dir); err == nil {
 		dir = c
 	}
-	for _, b := range []string{base, "content.db"} {
+	for _, b := range []string{base, "content.db", "archives.db"} {
 		for _, suffix := range []string{"", "-wal", "-shm", "-journal", ".roots", ".snapshot", ".snapshot.tmp"} {
 			opts.ExcludedPaths = append(opts.ExcludedPaths, filepath.Join(dir, b+suffix))
 		}
@@ -1050,7 +1061,7 @@ func (ld *Laserdot) search(q string, opts SearchOptions) (*SearchResults, error)
 		opts.Page.Opened = ld.openTimes(ld.store)
 	}
 	if len(ld.drives) == 0 {
-		r, _, err := searchStoreKeyed(ld.store, ld.content, q, opts)
+		r, _, err := searchStoreKeyed(ld.store, ld.content, ld.archives, q, opts)
 		return r, err
 	}
 	// This Mac's index and every attached drive's, merged into one ranking.
@@ -1068,17 +1079,17 @@ func (ld *Laserdot) search(q string, opts SearchOptions) (*SearchResults, error)
 	var firstErr error
 	ok := false
 	for n := 0; n <= len(ld.drives); n++ {
-		s, content := ld.store, ld.content
+		s, content, archives := ld.store, ld.content, ld.archives
 		var volume *string
 		if n > 0 {
 			d := ld.drives[n-1]
-			s, content, volume = d.store, nil, &d.name // content search covers this Mac only
+			s, content, archives, volume = d.store, nil, nil, &d.name // content and zip search cover this Mac only
 		}
 		sub.Page.Boost, sub.Page.Opened = nil, nil // the open history is this Mac's (ids of its store)
 		if n == 0 {
 			sub.Page.Boost, sub.Page.Opened = opts.Page.Boost, opts.Page.Opened
 		}
-		r, keys, err := searchStoreKeyed(s, content, q, sub)
+		r, keys, err := searchStoreKeyed(s, content, archives, q, sub)
 		if err != nil {
 			// e.g. an in: folder only one index has
 			if firstErr == nil {
@@ -1118,7 +1129,7 @@ func (ld *Laserdot) search(q string, opts SearchOptions) (*SearchResults, error)
 
 // SearchStore runs a query against any store (also used by benchmarks).
 func SearchStore(s *index.Store, q string, opts SearchOptions) (*SearchResults, error) {
-	r, _, err := searchStoreKeyed(s, nil, q, opts)
+	r, _, err := searchStoreKeyed(s, nil, nil, q, opts)
 	return r, err
 }
 
@@ -1128,7 +1139,7 @@ const contentRankBase = 1 << 60 // above every exact name key (< 2^56), below ty
 
 // searchStoreKeyed is a search plus each hit's sort key, for merging
 // across indexes. content may be nil (a drive's index has none).
-func searchStoreKeyed(s *index.Store, content *index.ContentIndex, q string, opts SearchOptions) (*SearchResults, []index.RankKey, error) {
+func searchStoreKeyed(s *index.Store, content *index.ContentIndex, archives *index.ArchiveIndex, q string, opts SearchOptions) (*SearchResults, []index.RankKey, error) {
 	t := time.Now()
 	parsed, err := query.Parse(q)
 	if err != nil {
@@ -1261,10 +1272,25 @@ func searchStoreKeyed(s *index.Store, content *index.ContentIndex, q string, opt
 			}
 		}
 	}
+	// Plain words also match the names inside zip files: the zip is a
+	// result, after the name and content matches, with what it contains.
+	inside := map[uint32][]string{}
+	if archives != nil && len(parts.words) > 0 {
+		add, total, err := archiveMatches(s, archives, parts, restrict, nameHits, contentHit, p, int(res.Total), inside)
+		if err != nil {
+			return nil, nil, err
+		}
+		res.Total += total
+		ranked = append(ranked, add...)
+		if len(ranked) > p.Limit {
+			ranked = ranked[:p.Limit]
+		}
+	}
 	keys := make([]index.RankKey, 0, len(ranked))
 	for _, r := range ranked {
 		h := hitOf(s, r.ID, typoIDs.Contains(r.ID))
 		h.Content = contentHit.Contains(r.ID)
+		h.Inside = inside[r.ID]
 		res.Hits = append(res.Hits, h)
 		keys = append(keys, r.Key)
 	}

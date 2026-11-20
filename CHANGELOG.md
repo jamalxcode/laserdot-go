@@ -8,6 +8,16 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 - Choose where to search: the choice row now offers **Drive** (This Mac or each attached drive) and **Folder** (the
   folders your results are in, with how many in each). Click one to search only there; click it again to search
   everywhere.
+- Leave a choice out: ⌥-click a choice (or right-click ▸ Leave Out) to drop it from the results, such as "not in
+  Downloads" or "not PDF". It shows struck through; click it to bring it back.
+- Searches find files inside zip archives: a word matching a file inside a zip finds the zip, marked "Contains …".
+  Only the zip's list of contents is read; nothing is unpacked.
+- More date words: "march 2024", "last summer", "summer 2023", "between jan and mar", and in Arabic "مارس 2024",
+  "الصيف الماضي", "بين يناير ومارس".
+- More Like This (⌘K on a result): searches for files of the same type, a similar size and a near date, as words you
+  can change.
+- Settings ▸ General ▸ Search in: Everywhere, This Mac, or one folder. The search window says where it is searching,
+  and Search Everywhere widens one search.
 - Fixed: the app and the command line opening a brand-new index at the same moment could fail. <!-- quiet -->
 
 ## 0.9.27
