@@ -3,6 +3,7 @@ package core
 import (
 	"cmp"
 	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -119,6 +120,11 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 		}
 	}
 	base := strings.Join(baseToks, " ")
+	if strings.TrimSpace(base) == "" && len(selected["kind"]) > 0 && len(selected) > 1 {
+		// Only choices: the kind ("kind:video res:4k") is what the others narrow.
+		base = strings.Join(selected["kind"], " ")
+		delete(selected, "kind")
+	}
 	if strings.TrimSpace(base) == "" {
 		base, selected = q, map[string][]string{} // only choices: nothing set apart
 	}
@@ -279,6 +285,11 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	// Where (the owner: "choose the drives and possibly directories it
 	// searches, have it as a choice"): this Mac or a drive, when a drive is
 	// attached; and the folders the results are in.
+	// What the results are (videos, documents, folders…): the first choice
+	// (it was a row of its own; one row of choices is calmer).
+	for _, k := range query.Kinds {
+		add("kind", RefineOption{Token: "kind:" + k, Key: "kind." + k})
+	}
 	if len(ld.drives) > 0 {
 		add("drive", RefineOption{Token: "volume:local", Key: "drive.local"})
 		for _, d := range ld.drives {
@@ -332,6 +343,9 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 			label := t
 			if i := strings.Index(t, ":"); i >= 0 {
 				label = strings.Trim(t[i+1:], `"`)
+			}
+			if g == "folder" {
+				label = filepath.Base(label) // a folder by its name, not its whole path
 			}
 			add(g, RefineOption{Token: t, Label: label})
 		}
@@ -421,7 +435,7 @@ var refineGroups = map[string]string{
 	"res": "resolution", "a.count": "sound", "orientation": "shape", "duration": "length", "codec": "codec",
 	"hdr": "hdr", "camera": "camera", "gps": "place", "screenshot": "picture", "live": "picture", "raw": "picture",
 	"artist": "artist", "album": "album", "genre": "genre", "ext": "type", "modified": "modified", "since": "modified",
-	"fsize": "size", "volume": "drive", "in": "folder",
+	"fsize": "size", "volume": "drive", "in": "folder", "kind": "kind",
 }
 
 // refineGroupOf: the group of a token that is a choice ("" when it is not:

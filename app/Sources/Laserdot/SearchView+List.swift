@@ -237,16 +237,18 @@ extension SearchView {
     @ViewBuilder var tipLine: some View {
         if let t = model.tip {
             Button {
-                model.query = t.query
+                model.query = t.query + " " // its filters become pills
                 model.focusSearch()
             } label: {
+                // In words, not query language ("See this month’s pictures").
                 HStack(spacing: 4) {
                     Image(systemName: "lightbulb")
-                    Text(String(format: L("tip.\(t.id)"), SearchModel.number(t.count))) + Text("  ") + Text(t.query).font(.caption.monospaced())
+                    Text(String(format: L("tip.\(t.id)"), SearchModel.number(t.count)))
                 }
                 .font(.caption)
             }
             .buttonStyle(.link)
+            .help(t.query)
             .accessibilityIdentifier("home-tip")
         }
     }

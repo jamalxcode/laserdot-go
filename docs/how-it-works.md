@@ -36,6 +36,10 @@ One page, kept current: what is true today. The history and the reasons are in
   offers where: **Drive** (`volume:local` or a drive, when one is attached) and **Folder** (`in:` the folders holding
   the results: under each indexed folder it goes down while one folder holds them all, then offers its subfolders).
   ⌥-click (or right-click ▸ Leave Out) leaves a value out: a `-` word (`-ext:pdf`), shown struck through.
+- **Pills:** the query is one string; the field shows its typed words and its filter words as pills before them
+  (`Pills.split`/`join` in LaserdotKit). A filter becomes a pill once a space follows it; choices are added in front,
+  so typing goes on at the end. A chosen group leaves the choice row (its pill stands for it).
+- **Place menu:** the magnifying glass sets Settings ▸ Search in (Everywhere, This Mac, recent folders, a folder).
 - **Default place:** Settings ▸ General ▸ Search in (Everywhere, This Mac, a folder) adds `volume:local` or `in:"…"`
   to every search that names no place; a pill shows it, and Search Everywhere drops it until the field is cleared.
 - **Inside zips:** the daemon lists the names inside this Mac's `.zip` files (the central directory only) into

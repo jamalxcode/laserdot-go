@@ -21,6 +21,8 @@ struct ActionItem: Identifiable {
     var shortcut: String? = nil
     /// An app's own icon (Open with…), shown instead of the symbol.
     var image: NSImage? = nil
+    /// Running it keeps the actions open (Open With…, More Actions…).
+    var keepsOpen = false
     let run: () -> Void
 }
 

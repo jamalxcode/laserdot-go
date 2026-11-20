@@ -192,7 +192,14 @@ struct StorageRow: View {
             Image(nsImage: NSWorkspace.shared.icon(forFile: item.path)).resizable().frame(width: 22, height: 22)
             VStack(alignment: .leading, spacing: 3) {
                 HStack {
-                    Text(item.name).lineLimit(1)
+                    // An indexed folder by its name and where it is, not its
+                    // whole path (the path is in the tooltip).
+                    Text(item.name.contains("/") ? (item.name as NSString).lastPathComponent : item.name)
+                        .lineLimit(1)
+                        .help(item.path)
+                    if item.name.contains("/") {
+                        Text(shortPath(item.path)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    }
                     Spacer()
                     Text(Self.size(item.bytes, partial: item.partial, isDir: item.isDir))
                         .font(.callout.monospacedDigit())

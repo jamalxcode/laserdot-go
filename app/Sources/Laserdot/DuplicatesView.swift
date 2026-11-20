@@ -6,8 +6,29 @@ import SwiftUI
 /// chosen copies to the Trash or a folder after a dry-run preview (§4.4).
 final class DuplicatesModel: ObservableObject {
     // What to look at is remembered between scans and launches.
+    /// Advanced: a search to look in (query language), besides the pickers.
     @Published var scope = UserDefaults.standard.string(forKey: "laserdot.dupes.scope") ?? "" {
         didSet { UserDefaults.standard.set(scope, forKey: "laserdot.dupes.scope") }
+    }
+    /// What to look at, chosen without the query language (the owner's
+    /// review): a kind ("" everything) and a folder ("" everywhere).
+    @Published var lookKind = UserDefaults.standard.string(forKey: "laserdot.dupes.kind") ?? "" {
+        didSet { UserDefaults.standard.set(lookKind, forKey: "laserdot.dupes.kind") }
+    }
+    @Published var lookFolder = UserDefaults.standard.string(forKey: "laserdot.dupes.folder") ?? "" {
+        didSet { UserDefaults.standard.set(lookFolder, forKey: "laserdot.dupes.folder") }
+    }
+    /// The search the scan looks in: the pickers' words, then Advanced.
+    var effectiveScope: String {
+        var words: [String] = []
+        if !lookKind.isEmpty { words.append("kind:" + lookKind) }
+        if !lookFolder.isEmpty {
+            let escaped = lookFolder.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            words.append("in:\"\(escaped)\"")
+        }
+        let adv = scope.trimmingCharacters(in: .whitespaces)
+        if !adv.isEmpty { words.append(adv) }
+        return words.joined(separator: " ")
     }
     @Published var exactOnly = UserDefaults.standard.bool(forKey: "laserdot.dupes.exactOnly") {
         didSet { UserDefaults.standard.set(exactOnly, forKey: "laserdot.dupes.exactOnly") }
@@ -65,7 +86,7 @@ final class DuplicatesModel: ObservableObject {
         progress = nil
         started = Date()
         startProgress()
-        let (engine, scope, exact) = (self.engine, self.scope, self.exactOnly)
+        let (engine, scope, exact) = (self.engine, self.effectiveScope, self.exactOnly)
         queue.async { [weak self] in
             let outcome = Result { try engine.findDuplicates(scope: scope, exactOnly: exact) }
             DispatchQueue.main.async {
@@ -353,9 +374,30 @@ final class DuplicatesModel: ObservableObject {
 
 struct DuplicatesView: View {
     @ObservedObject var model: DuplicatesModel
+    @State private var showAdvanced = !(UserDefaults.standard.string(forKey: "laserdot.dupes.scope") ?? "").isEmpty
 
     private func bytes(_ n: UInt64) -> String {
         ByteCountFormatter.string(fromByteCount: Int64(n), countStyle: .file)
+    }
+
+    private func chooseLookFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.prompt = L("settings.searchIn.choose")
+        if panel.runModal() == .OK, let url = panel.url { model.lookFolder = url.path }
+    }
+
+    /// A copy's details in plain words: "0.11 bpp" becomes high, good or low
+    /// quality (bits per pixel compared within videos, or within pictures).
+    static func friendlySummary(_ f: DuplicateFile) -> String {
+        var parts = f.summary.components(separatedBy: " · ").filter { !$0.hasSuffix(" bpp") }
+        if let b = f.bpp {
+            let video = f.timed
+            let level = video ? (b >= 0.15 ? "high" : b >= 0.07 ? "good" : "low") : (b >= 3 ? "high" : b >= 1 ? "good" : "low")
+            parts.append(L("quality." + level))
+        }
+        return parts.joined(separator: " · ")
     }
 
     private func kindTitle(_ kind: String) -> String {
@@ -368,14 +410,38 @@ struct DuplicatesView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack {
-                TextField(L("dupes.scope"), text: $model.scope)
-                    .textFieldStyle(.roundedBorder)
-                    .onSubmit { model.scan() }
-                Toggle(L("dupes.exactOnly"), isOn: $model.exactOnly)
-                Button(model.scanTitle) { model.scan() }
-                    .keyboardShortcut(.defaultAction)
-                    .disabled(model.scanning)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    // What and where, in plain words; the query is Advanced.
+                    Picker(L("dupes.look.kind"), selection: $model.lookKind) {
+                        Text(L("dupes.look.all")).tag("")
+                        Text(L("refine.kind.video")).tag("video")
+                        Text(L("refine.kind.image")).tag("image")
+                        Text(L("refine.kind.audio")).tag("audio")
+                        Text(L("refine.kind.document")).tag("document")
+                    }
+                    .fixedSize()
+                    Menu {
+                        Button(L("dupes.look.everywhere")) { model.lookFolder = "" }
+                        Button(L("place.choose")) { chooseLookFolder() }
+                    } label: {
+                        Label(model.lookFolder.isEmpty ? L("dupes.look.everywhere") : (model.lookFolder as NSString).lastPathComponent,
+                              systemImage: "folder")
+                    }
+                    .fixedSize()
+                    .help(model.lookFolder.isEmpty ? L("dupes.look.everywhere") : model.lookFolder)
+                    Toggle(L("dupes.exactOnly"), isOn: $model.exactOnly)
+                    Spacer()
+                    Button(model.scanTitle) { model.scan() }
+                        .keyboardShortcut(.defaultAction)
+                        .disabled(model.scanning)
+                }
+                DisclosureGroup(L("dupes.advanced"), isExpanded: $showAdvanced) {
+                    TextField(L("dupes.scope"), text: $model.scope)
+                        .textFieldStyle(.roundedBorder)
+                        .onSubmit { model.scan() }
+                }
+                .font(.callout)
             }
             .padding(10)
             Divider()
@@ -567,7 +633,7 @@ struct DuplicatesView: View {
             }
             Text(URL(fileURLWithPath: f.path).lastPathComponent)
                 .font(.callout.weight(f.keep ? .semibold : .regular)).lineLimit(2)
-            Text(f.summary).font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
+            Text(Self.friendlySummary(f)).font(.caption.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
             Text(bytes(f.size) + " · " + friendlyDate(f.modified)).font(.caption).foregroundStyle(.secondary)
             Text(shortPath(f.path)).font(.caption2).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
                 .help(f.path)
@@ -618,7 +684,7 @@ struct DuplicatesView: View {
                 Text(f.path).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             }
             Spacer()
-            Text(f.summary).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+            Text(Self.friendlySummary(f)).font(.caption.monospacedDigit()).foregroundStyle(.secondary)
             Text(bytes(f.size)).font(.caption.monospacedDigit()).frame(width: 70, alignment: .trailing)
         }
         .contextMenu {

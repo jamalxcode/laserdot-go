@@ -18,6 +18,17 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
   can change.
 - Settings ▸ General ▸ Search in: Everywhere, This Mac, or one folder. The search window says where it is searching,
   and Search Everywhere widens one search.
+- An easier search window, with every feature kept:
+  - Choices show as pills in the search box ("PDF ✕", "not PDF", "in 2023") instead of query words; Delete with
+    nothing typed removes the last one. Typing `ext:pdf` and a space still works and becomes a pill.
+  - The magnifying glass is a menu for where to search: Everywhere, This Mac, recent folders, or Choose Folder…
+  - One row of choices: what the results are (Videos, Documents, Folders…) is now its first group.
+  - Hover over a choice for a "−" that leaves it out.
+  - ⌘K shows the common actions first, with Open With… and More Actions… for the rest.
+  - The home screen has one-click starts: Recent Downloads, Photos This Month, Videos, Documents This Week, Big Files.
+  - Plainer words: tips say "See your 4K videos", Duplicates says "high quality" instead of "bpp" and looks in a
+    kind and folder you pick (the query box is under Advanced), and folders read "Home › Trips › 2023".
+  - The preview's Open and Show in Finder buttons always stay in view.
 - Fixed: the app and the command line opening a brand-new index at the same moment could fail. <!-- quiet -->
 
 ## 0.9.27

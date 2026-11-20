@@ -9,10 +9,14 @@ extension SearchView {
 
     var header: some View {
         HStack(spacing: 10) {
-            Image(systemName: model.isCommandMode ? "chevron.right.2" : "magnifyingglass")
-                .font(.title2).foregroundStyle(.secondary)
+            if model.isCommandMode {
+                Image(systemName: "chevron.right.2").font(.title2).foregroundStyle(.secondary)
+            } else {
+                placeMenu
+            }
+            pillRow
             SearchField(
-                text: $model.query,
+                text: $model.fieldText,
                 placeholder: L("search.placeholder"),
                 focusToken: model.focusRequest,
                 onMove: { d in model.showCheatSheet ? model.moveCheat(d) : model.move(d) },
@@ -24,7 +28,8 @@ extension SearchView {
                 inlineSuffix: model.inlineSuffix,
                 selectAllToken: model.selectAllRequest,
                 onJump: { d in model.jumpSection(d) },
-                onCopy: { model.copyFiles() }
+                onCopy: { model.copyFiles() },
+                onDeleteEmpty: { model.removeLastPill() }
             )
             .frame(height: 30)
             if !model.query.isEmpty {
@@ -89,6 +94,83 @@ extension SearchView {
         .padding(.vertical, 12)
     }
 
+    /// Where searches look, as Finder's "Search: This Mac": the magnifying
+    /// glass is a menu (Everywhere, This Mac, recent folders, Choose Folder…),
+    /// and the place's name shows beside it while it narrows the search. The
+    /// same setting as Settings ▸ General ▸ Search in.
+    var placeMenu: some View {
+        let place = model.searchPlace
+        let shown = model.placeInEffect ? SearchPlace.title(place, thisMac: L("refine.drive.local")) : ""
+        return Menu {
+            Button { model.setPlace("") } label: { checked(L("settings.searchIn.everywhere"), place == "") }
+            Button { model.setPlace("local") } label: { checked(L("refine.drive.local"), place == "local") }
+            let recent = model.recentPlaces
+            if !recent.isEmpty {
+                Divider()
+                ForEach(recent, id: \.self) { p in
+                    Button { model.setPlace(p) } label: { checked((p as NSString).lastPathComponent, place == p) }
+                        .help(p)
+                }
+            }
+            Divider()
+            Button(L("place.choose")) { model.choosePlaceFolder() }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "magnifyingglass").font(.title2)
+                if !shown.isEmpty {
+                    Text(shown).font(.callout).lineLimit(1)
+                }
+            }
+            .foregroundStyle(shown.isEmpty ? Color.secondary : Color.accentColor)
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(shown.isEmpty ? L("place.help.everywhere") : String(format: L("place.searchingIn"), shown))
+        .accessibilityLabel(shown.isEmpty ? L("place.help.everywhere") : String(format: L("place.searchingIn"), shown))
+        .accessibilityIdentifier("placeMenu")
+        .id(model.placeVersion)
+    }
+
+    @ViewBuilder func checked(_ title: String, _ on: Bool) -> some View {
+        if on { Label(title, systemImage: "checkmark") } else { Text(title) }
+    }
+
+    /// The filters of the search as pills before the typed words ("PDF ✕",
+    /// "not PDF ✕", "in Work ✕"); ✕ (or Delete with nothing typed) removes one.
+    @ViewBuilder var pillRow: some View {
+        let pills = model.pills
+        if !pills.isEmpty && !model.isCommandMode {
+            HStack(spacing: 4) {
+                ForEach(Array(pills.prefix(4)), id: \.self) { p in
+                    let label = model.pillLabel(p)
+                    HStack(spacing: 3) {
+                        Text(label).font(.callout).lineLimit(1)
+                        Button { model.removePill(p) } label: {
+                            Image(systemName: "xmark").font(.caption2.weight(.bold))
+                        }
+                        .buttonStyle(.borderless)
+                        .help(String(format: L("pill.remove"), label))
+                        .accessibilityLabel(String(format: L("pill.remove"), label))
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(Color.accentColor.opacity(p.hasPrefix("-") ? 0.08 : 0.16)))
+                    .overlay(Capsule().strokeBorder(Color.accentColor.opacity(0.35), lineWidth: p.hasPrefix("-") ? 1 : 0))
+                    .help(p)
+                }
+                if pills.count > 4 {
+                    Text("+\(pills.count - 4)")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .help(pills.dropFirst(4).map { model.pillLabel($0) }.joined(separator: ", "))
+                }
+            }
+            .fixedSize()
+            .accessibilityIdentifier("pills")
+        }
+    }
+
     /// The menu's keyboard shortcuts, active without opening it (⌘R, ⌘D,
     /// ⌘/): invisible buttons.
     var shortcutKeys: some View {
@@ -139,9 +221,9 @@ extension SearchView {
     /// kinds a mixed result list contains, or the pinned searches.
     @ViewBuilder var chips: some View {
         let completions = model.completionChips
-        let kinds = model.kindChips
         let pins = model.isHome ? model.pinned : []
-        if !completions.isEmpty || !kinds.isEmpty || !pins.isEmpty {
+        let starts = model.isHome ? SearchModel.quickStarts : []
+        if !completions.isEmpty || !pins.isEmpty || !starts.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     // ⌥1–⌥9 press a chip without the mouse (shown in its tooltip).
@@ -151,19 +233,25 @@ extension SearchView {
                                 .help(c.detail + Self.chipKey(i))
                                 .modifier(ChipKey(index: i))
                         }
-                    } else if !kinds.isEmpty {
-                        ForEach(Array(kinds.enumerated()), id: \.element.id) { i, k in
-                            Button("\(k.title) (\(k.total))") { model.narrow(to: k) }
-                                .help((k.filter ?? "") + Self.chipKey(i))
-                                .modifier(ChipKey(index: i))
-                        }
                     } else {
-                        Image(systemName: "pin").foregroundStyle(.secondary).accessibilityHidden(true)
-                        ForEach(Array(pins.enumerated()), id: \.element) { i, q in
-                            Button(q) { model.query = q }
-                                .help(Self.chipKey(i).trimmingCharacters(in: .whitespaces))
-                                .modifier(ChipKey(index: i))
-                                .contextMenu { Button(String(format: L("pin.unpin"), q)) { model.togglePin(q) } }
+                        // One click to a common search (its filters become pills).
+                        ForEach(Array(starts.enumerated()), id: \.element.id) { i, st in
+                            Button { model.query = st.query + " " } label: {
+                                Label(L("start." + st.id), systemImage: st.symbol)
+                            }
+                            .help(L("start." + st.id) + Self.chipKey(i))
+                            .modifier(ChipKey(index: i))
+                            .accessibilityIdentifier("start-" + st.id)
+                        }
+                        if !pins.isEmpty {
+                            Divider().frame(height: 16)
+                            Image(systemName: "pin").foregroundStyle(.secondary).accessibilityHidden(true)
+                            ForEach(Array(pins.enumerated()), id: \.element) { i, q in
+                                Button(q) { model.query = q }
+                                    .help(Self.chipKey(starts.count + i).trimmingCharacters(in: .whitespaces))
+                                    .modifier(ChipKey(index: starts.count + i))
+                                    .contextMenu { Button(String(format: L("pin.unpin"), q)) { model.togglePin(q) } }
+                            }
                         }
                     }
                 }
@@ -172,27 +260,6 @@ extension SearchView {
                 .padding(.horizontal, 16)
             }
             .padding(.bottom, 8)
-        }
-    }
-
-    /// The default search place, while it narrows this search ("Searching
-    /// in Documents ✕"); ✕ searches everywhere until the field is cleared.
-    @ViewBuilder var placePill: some View {
-        if model.placeInEffect && !model.isCommandMode {
-            HStack(spacing: 6) {
-                Image(systemName: "scope").foregroundStyle(.secondary).accessibilityHidden(true)
-                Text(String(format: L("place.searchingIn"), SearchPlace.title(model.searchPlace, thisMac: L("refine.drive.local"))))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Button(L("place.everywhere")) { model.dropPlace() }
-                    .buttonStyle(.bordered)
-                    .controlSize(.mini)
-                    .help(L("place.everywhere.help"))
-                    .accessibilityIdentifier("placeEverywhere")
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 6)
         }
     }
 
@@ -233,19 +300,22 @@ extension SearchView {
 
     /// One choice: chosen ones are filled with a check (click: take it out);
     /// one that no longer matches anything is greyed out.
-    @ViewBuilder func refineChip(_ o: RefineOption, in g: RefineGroup) -> some View {
-        if o.isExcluded {
-            // Left out: struck through; a click brings it back.
-            Button { model.applyRefinement(o, in: g) } label: {
-                Text("− " + Self.refineLabel(o)).font(.caption).strikethrough()
-            }
-            .help(String(format: L("refine.leftOut.help"), Self.refineLabel(o)))
-            .accessibilityLabel(String(format: L("refine.leftOut.spoken"), Self.refineTitle(g.id), Self.refineLabel(o)))
-        } else {
-            refineChoiceChip(o, in: g)
-                .contextMenu {
-                    Button(L("refine.leaveOut")) { model.excludeRefinement(o) }
-                }
+    /// One choice of the row (what is chosen is a pill in the field, so the
+    /// row holds open choices only). Click: search only this; the "−" shown
+    /// on hover (or ⌥-click, or right-click ▸ Leave Out): leave it out.
+    func refineChip(_ o: RefineOption, in g: RefineGroup) -> some View {
+        ChoiceChip(
+            label: Self.refineLabel(o),
+            count: Self.count(o.count),
+            enabled: o.count > 0,
+            spoken: "\(Self.refineTitle(g.id)) \(Self.refineLabel(o)), \(Self.count(o.count))",
+            help: String(format: L("refine.choose.help"), Self.refineLabel(o)),
+            leaveOutHelp: String(format: L("refine.leaveOut.help"), Self.refineLabel(o)),
+            onChoose: { refineClick(o, in: g) },
+            onLeaveOut: { model.excludeRefinement(o) }
+        )
+        .contextMenu {
+            Button(L("refine.leaveOut")) { model.excludeRefinement(o) }
         }
     }
 
@@ -255,25 +325,6 @@ extension SearchView {
             model.excludeRefinement(o)
         } else {
             model.applyRefinement(o, in: g)
-        }
-    }
-
-    @ViewBuilder func refineChoiceChip(_ o: RefineOption, in g: RefineGroup) -> some View {
-        let label = (o.isSelected ? "✓ " : "") + Self.refineLabel(o)
-        let content = Text("\(label) ").font(.caption)
-            + Text(Self.count(o.count)).font(.caption).foregroundColor(o.isSelected ? .white.opacity(0.85) : .secondary)
-        let spoken = "\(Self.refineTitle(g.id)) \(Self.refineLabel(o)), \(Self.count(o.count))"
-        if o.isSelected {
-            Button { model.applyRefinement(o, in: g) } label: { content }
-                .buttonStyle(.borderedProminent)
-                .help(String(format: L("refine.remove"), o.token))
-                .accessibilityLabel(spoken)
-                .accessibilityAddTraits(.isSelected)
-        } else {
-            Button { refineClick(o, in: g) } label: { content }
-                .disabled(o.count == 0)
-                .help(String(format: L("refine.choose.help"), o.token))
-                .accessibilityLabel(spoken)
         }
     }
 
@@ -291,4 +342,38 @@ extension SearchView {
     }
 
     static func chipKey(_ i: Int) -> String { i < 9 ? "  (⌥\(i + 1))" : "" }
+}
+
+/// A choice chip: the value and its count; while the pointer is over it, a
+/// "−" to leave the value out of the results.
+struct ChoiceChip: View {
+    let label: String
+    let count: String
+    let enabled: Bool
+    let spoken: String
+    let help: String
+    let leaveOutHelp: String
+    let onChoose: () -> Void
+    let onLeaveOut: () -> Void
+    @State private var hovering = false
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Button(action: onChoose) {
+                Text("\(label) ").font(.caption) + Text(count).font(.caption).foregroundColor(.secondary)
+            }
+            .disabled(!enabled)
+            .help(help)
+            .accessibilityLabel(spoken)
+            if hovering && enabled {
+                Button(action: onLeaveOut) {
+                    Image(systemName: "minus.circle").font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .help(leaveOutHelp)
+                .accessibilityLabel(leaveOutHelp)
+            }
+        }
+        .onHover { hovering = $0 }
+    }
 }

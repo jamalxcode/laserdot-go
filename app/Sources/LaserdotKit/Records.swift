@@ -129,6 +129,10 @@ public struct DuplicateFile: Hashable, Sendable {
     public var summary: String
     /// The recommended copy to keep.
     public var keep: Bool
+    /// Bits per pixel (per frame for a video): how much detail was kept.
+    public var bpp: Double? = nil
+    /// A video or song (bpp is then per frame).
+    public var timed: Bool = false
 }
 
 public struct DuplicateGroup: Sendable {

@@ -1,29 +1,29 @@
 import AppKit
 import Foundation
+import LaserdotKit
 
 // MARK: text helpers
 
 /// "~ › Documents › AI Code": the folder a result is in, short. Long paths
 /// keep their last three folders; drives start with the drive's name.
 func shortPath(_ path: String) -> String {
-    var dir = (path as NSString).deletingLastPathComponent
+    let dir = (path as NSString).deletingLastPathComponent
     let home = FileManager.default.homeDirectoryForCurrentUser.path
-    var parts: [String] = []
-    if dir == home || dir.hasPrefix(home + "/") {
-        parts = ["~"]
-        dir = String(dir.dropFirst(home.count))
-    } else if dir.hasPrefix("/Volumes/") {
-        dir = String(dir.dropFirst("/Volumes/".count))
+    let parts = PathText.parts(dir, home: home) { root in
+        switch root {
+        case .home: return L("path.home")
+        case .iCloud: return L("path.icloud")
+        case .temporary: return L("path.temporary")
+        case let .drive(name): return name
+        case .computer: return L("path.computer")
+        }
     }
-    parts += dir.split(separator: "/").map(String.init)
-    if parts.count > 4 { parts = [parts[0], "…"] + parts.suffix(3) }
     // › is a mirrored character: right to left it turns into ‹, so Arabic
     // uses a plain slash.
     let separator = appLayoutDirection == .rightToLeft ? " / " : " › "
-    let text = parts.isEmpty ? "/" : parts.joined(separator: separator)
     // Paths read left to right in every language: isolate them, or the
     // Arabic layout mirrors › into ‹.
-    return "\u{2066}" + text + "\u{2069}"
+    return "\u{2066}" + parts.joined(separator: separator) + "\u{2069}"
 }
 
 private let relativeFormatter: RelativeDateTimeFormatter = {

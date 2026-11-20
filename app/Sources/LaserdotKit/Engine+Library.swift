@@ -218,7 +218,7 @@ extension Engine {
                     files: g.members.map {
                         DuplicateFile(
                             path: $0.path, size: $0.size, modified: $0.modified, volume: $0.volume,
-                            summary: $0.summary, keep: $0.keep)
+                            summary: $0.summary, keep: $0.keep, bpp: $0.bpp, timed: $0.durationMs != nil)
                     },
                     reclaimable: g.reclaimable)
             },

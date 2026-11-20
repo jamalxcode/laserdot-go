@@ -144,6 +144,9 @@ extension SelfTestRunner {
         r["results"] = model.results.map(\.name)
         r["inside"] = model.results.flatMap(\.inside)
         r["place_pill"] = model.placeInEffect
+        r["pills"] = model.pills
+        r["pill_labels"] = model.pills.map { model.pillLabel($0) }
+        r["field_text"] = model.fieldText
         r["selected"] = model.selected?.name ?? ""
         let chips: [String] = model.completionChips.map(\.label) + model.kindChips.map(\.title)
         r["chips"] = chips
@@ -182,7 +185,8 @@ extension SelfTestRunner {
         r["undo"] = model.undoStep?.title ?? ""
         r["undo_banner"] = model.undoBannerVisible
         r["snippet"] = model.snippet ?? ""
-        r["action_ids"] = model.selected == nil ? [String]() : model.actions.map(\.id)
+        r["action_ids"] = model.selected == nil ? [String]() : model.allActions.map(\.id)
+        r["action_shown_ids"] = model.selected == nil ? [String]() : model.actions.map(\.id)
         r["refinements"] = model.refinements.flatMap { $0.options.map(\.token) }
         r["refine_groups"] = model.refinements.map(\.id)
         r["refine_row"] = model.showsRefinements

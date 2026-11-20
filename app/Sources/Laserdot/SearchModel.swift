@@ -46,10 +46,85 @@ final class SearchModel: ObservableObject {
     /// The default place is narrowing this search (its pill shows).
     var placeInEffect: Bool { effectiveQuery != query }
 
-    /// Search everywhere for this search (the place pill's ✕).
+    /// Search everywhere for this search (the place chip's click).
     func dropPlace() {
         placeOff = true
         queryChanged()
+    }
+
+    /// Bumped when the place changes (the place menu redraws).
+    @Published private(set) var placeVersion = 0
+
+    /// The place menu: where searches look from now on (the same setting as
+    /// Settings ▸ General ▸ Search in). A folder joins the recent places.
+    func setPlace(_ place: String) {
+        UserDefaults.standard.set(place, forKey: SearchPlace.key)
+        if place != "" && place != "local" {
+            var recent = recentPlaces.filter { $0 != place }
+            recent.insert(place, at: 0)
+            UserDefaults.standard.set(Array(recent.prefix(5)), forKey: "laserdot.recentPlaces")
+        }
+        placeOff = false
+        placeVersion += 1
+        queryChanged()
+    }
+
+    /// Folders chosen as places before (newest first).
+    var recentPlaces: [String] { UserDefaults.standard.stringArray(forKey: "laserdot.recentPlaces") ?? [] }
+
+    // MARK: pills
+
+    /// The query as the field last set it (its last word may be a filter
+    /// still being typed: it stays text until a space follows).
+    private var fieldEditQuery: String?
+
+    /// Filters shown as pills in the field, and the words typed.
+    var fieldParts: (pills: [String], text: String) { Pills.split(query, typing: query == fieldEditQuery) }
+    var pills: [String] { fieldParts.pills }
+
+    /// What the search field shows and edits: the query without its pills.
+    var fieldText: String {
+        get { fieldParts.text }
+        set {
+            let q = Pills.join(fieldParts.pills, newValue)
+            fieldEditQuery = q
+            query = q
+        }
+    }
+
+    /// A pill's ✕ (or Delete in an empty field for the last one).
+    func removePill(_ pill: String) {
+        query = Pills.removing(pill, from: query)
+        focusSearch()
+    }
+
+    func removeLastPill() -> Bool {
+        guard let last = pills.last else { return false }
+        removePill(last)
+        return true
+    }
+
+    /// A pill's words: the choice row's label when the pill came from it,
+    /// else read from the filter ("PDF", "not PDF", "in Work").
+    func pillLabel(_ pill: String) -> String {
+        let bare = pill.hasPrefix("-") ? String(pill.drop(while: { $0 == "-" })) : pill
+        for g in refinements {
+            if let o = g.options.first(where: { $0.token == pill || $0.token == bare }) {
+                let words = o.key.map { L("refine." + $0) } ?? o.label
+                return pill.hasPrefix("-") ? String(format: L("pill.not"), words) : words
+            }
+        }
+        return Pills.label(pill) { k in
+            switch k {
+            case "not": return L("pill.not")
+            case "in": return L("pill.in")
+            case "on": return L("pill.on")
+            case "thisMac": return L("refine.drive.local")
+            default:
+                if k.hasPrefix("kind.") { return L("refine." + k) }
+                return ""
+            }
+        }
     }
     @Published private(set) var total: UInt64 = 0
     @Published private(set) var elapsedMs: Double = 0
@@ -107,8 +182,10 @@ final class SearchModel: ObservableObject {
     var anchor = 0
     /// ⌘K: the actions for the selected result(s).
     @Published var showActions = false {
-        didSet { actionIndex = 0; updateCompact() }
+        didSet { actionIndex = 0; actionsExpanded = []; updateCompact() }
     }
+    /// ⌘K groups opened (Open With…, More Actions…).
+    @Published var actionsExpanded: Set<String> = []
     @Published var actionIndex = 0
     /// `>` at the start of the query: commands instead of a search.
     @Published var commandIndex = 0
@@ -387,7 +464,7 @@ final class SearchModel: ObservableObject {
 
     /// The choice row shows whenever there are choices (completions for a
     /// word being typed show above it; they never hide it).
-    var showsRefinements: Bool { !refinements.isEmpty && !isCommandMode }
+    var showsRefinements: Bool { !visibleRefinements.isEmpty && !isCommandMode }
 
     /// The choices as shown: a group with a choice shrinks to that choice
     /// (its other values go; click it to take it out and they come back),
@@ -395,7 +472,9 @@ final class SearchModel: ObservableObject {
     /// narrowing (the owner: "the resolution attributes should go, but other
     /// choices remaining to allow further choices like location, modified,
     /// camera").
-    var visibleRefinements: [RefineGroup] { RefineLogic.visible(refinements) }
+    var visibleRefinements: [RefineGroup] {
+        RefineLogic.visible(refinements, hiding: Set([SearchPlace.token(searchPlace)].compactMap { $0 }))
+    }
 
     /// A refinement chip. Chosen already: it leaves the search. Another
     /// value of a group with a choice: it takes that choice's place (a video
@@ -536,6 +615,20 @@ final class SearchModel: ObservableObject {
         query += sep + filter
         focusSearch()
     }
+
+    /// One-click starts on the home screen: common searches as filters.
+    struct QuickStart: Identifiable, Hashable {
+        let id: String
+        let symbol: String
+        let query: String
+    }
+    static let quickStarts: [QuickStart] = [
+        QuickStart(id: "downloads", symbol: "arrow.down.circle", query: "in:~/Downloads since:30d"),
+        QuickStart(id: "photos", symbol: "photo", query: "kind:image since:30d"),
+        QuickStart(id: "videos", symbol: "film", query: "kind:video"),
+        QuickStart(id: "documents", symbol: "doc.text", query: "kind:document since:7d"),
+        QuickStart(id: "big", symbol: "externaldrive", query: "fsize:>1gb"),
+    ]
 
     /// Chips that narrow the results to one kind, when they mix kinds and
     /// the query does not already name one.

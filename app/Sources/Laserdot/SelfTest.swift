@@ -129,7 +129,7 @@ final class SelfTestRunner {
                     model.excludeRefinement(pdf)
                 }
             }, until: { $0.refinements.flatMap(\.options).contains { $0.token == "ext:pdf" } }, wait: 1.0),
-            Step(name: "leftoutshown", typed: "proj -ext:pdf",
+            Step(name: "leftoutshown", typed: "-ext:pdf proj",
                  until: { $0.refinements.flatMap(\.options).contains(where: \.isExcluded) }),
             // Where: the folders the results are in are choices too (the
             // owner: "choose the drives and possibly directories it searches").
@@ -148,6 +148,15 @@ final class SelfTestRunner {
                 model.dropPlace()
                 UserDefaults.standard.removeObject(forKey: SearchPlace.key)
             }, until: { $0.placeInEffect }, wait: 1.0),
+            // A one-click start from the home screen: its filter is a pill;
+            // Delete with nothing typed takes the pill away.
+            Step(name: "quickstart", typed: "", after: {
+                model.query = SearchModel.quickStarts.first { $0.id == "videos" }!.query + " "
+            }, until: { $0.isHome }, wait: 1.5),
+            Step(name: "pillback", typed: "", after: {
+                model.query = "kind:video "
+                _ = model.removeLastPill()
+            }, until: { $0.isHome }, wait: 0.5),
             // Inside a zip: a word finds the zip holding a file named with it.
             Step(name: "zip", typed: "quokka", until: { !$0.results.isEmpty }),
             Step(name: "pdftoday", typed: "pdf today"),
@@ -229,7 +238,7 @@ final class SelfTestRunner {
             }, after: { model.extend(1) }),
             // ⌘K ▸ Move to Trash removes a file; a new search no longer finds it.
             Step(name: "trash", typed: "trashme", after: {
-                model.actions.first { $0.id == "trash" }?.run()
+                model.allActions.first { $0.id == "trash" }?.run()
             }),
             Step(name: "trashed", typed: "trashme", until: { $0.results.isEmpty }),
             // Undo (the banner's button, ⌥⌘Z) brings it back from the Trash.

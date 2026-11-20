@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -64,7 +64,7 @@ check({"Projects", "project.pdf", "project plan.txt"} <= set(proj["results"]), f
 titles = [s["title"] for s in proj["sections"]]
 check(len(titles) >= 3, f"proj results come in sections (got {titles})")
 check(proj["results"][0] != "Projects", "a file, not the folder, is the top hit")
-check(len(proj["chips"]) >= 2, f"kind chips offered for mixed results (got {proj['chips']})")
+check("kind" in steps["refine"].get("refine_groups", []), f"what mixed results are is a Kind choice (got {steps['refine'].get('refine_groups')})")
 
 # Apps are one result; their contents are not indexed.
 tool = steps["tool"]
@@ -76,24 +76,33 @@ ref = steps["refine"]
 check({"ext:pdf", "ext:txt"} <= set(ref.get("refinements", [])), f"the results' types are offered to choose from (got {ref.get('refinements')})")
 check("type" in ref.get("refine_groups", []), f"grouped under Type (got {ref.get('refine_groups')})")
 rd = steps["refined"]
-check(rd["query"] == "proj ext:pdf", f"choosing PDF adds it to the search (got {rd['query']!r})")
+check(rd["query"] == "ext:pdf proj", f"choosing PDF adds it to the search, in front (got {rd['query']!r})")
+check(rd.get("pills") == ["ext:pdf"] and rd.get("field_text") == "proj" and rd.get("pill_labels") == ["PDF"],
+      f"the choice is a PDF pill and the field keeps the word (got {rd.get('pills')}, {rd.get('pill_labels')}, {rd.get('field_text')!r})")
 check(rd["results"] == ["project.pdf"], f"and narrows the results to the PDF (got {rd['results']})")
 check(rd.get("refine_row") is True, "after a choice the choice row is still shown")
 check(rd.get("completion_chips") == [], f"no completions for the choice just clicked (got {rd.get('completion_chips')})")
 shown = steps["chosen"].get("refine_shown", [])
-check(shown[:1] == ["type:*ext:pdf"], f"after choosing PDF its group shows only the choice, first (got {shown})")
-check(any(g.startswith("size:") for g in shown), f"and the other groups stay to keep narrowing (got {shown})")
+check(not any(g.startswith("type:") for g in shown), f"after choosing PDF its group leaves the row for the pill (got {shown})")
+check(any(g.startswith("size:") or g.startswith("kind:") for g in shown), f"and the other groups stay to keep narrowing (got {shown})")
 un = steps["unrefined"]
 check(un["query"] == "proj", f"clicking a chosen choice takes it out again (got {un['query']!r})")
 
 lo = steps["leftout"]
-check(lo["query"] == "proj -ext:pdf" and "project.pdf" not in lo["results"] and lo["results"], f"leaving PDF out drops the PDF (got {lo['query']!r}, {lo['results']})")
-los = steps["leftoutshown"].get("refine_shown", [])
-check(any("*-ext:pdf" in g for g in los), f"the left-out PDF shows, to bring it back (got {los})")
+check(lo["query"] == "-ext:pdf proj" and "project.pdf" not in lo["results"] and lo["results"], f"leaving PDF out drops the PDF (got {lo['query']!r}, {lo['results']})")
+los = steps["leftoutshown"]
+check(los.get("pills") == ["-ext:pdf"] and any(("not" in l or "ليس" in l) and "PDF" in l for l in los.get("pill_labels", [])),
+      f"the left-out PDF is a 'not PDF' pill, to bring it back (got {los.get('pills')}, {los.get('pill_labels')})")
 
 pl, po = steps["place"], steps["placeoff"]
 check(pl["results"] == ["rome trip.txt"] and pl.get("place_pill") is True, f"a default search place narrows searches and says so (got {pl['results']}, pill {pl.get('place_pill')})")
 check(len(po["results"]) >= 3 and po.get("place_pill") is False, f"Search Everywhere drops it for this search (got {po['results']}, pill {po.get('place_pill')})")
+
+qs = steps["quickstart"]
+check(qs.get("pills") == ["kind:video"] and qs.get("field_text") == "" and "clip.mp4" in qs["results"],
+      f"a home start runs its search as a pill (got {qs.get('pills')}, {qs.get('field_text')!r}, {qs['results']})")
+bk = steps["pillback"]
+check(bk.get("pills") == [] and bk["query"] == "", f"Delete in an empty field takes the last pill away (got {bk.get('pills')}, {bk['query']!r})")
 
 zp = steps["zip"]
 check(zp["results"] == ["archive-2023.zip"] and zp.get("inside") == ["2023/quokka-receipt.pdf"], f"a word finds the zip holding a file named with it (got {zp['results']}, {zp.get('inside')})")
@@ -103,7 +112,7 @@ folders = [t for t in wh.get("refinements", []) if t.startswith("in:")]
 check("folder" in wh.get("refine_groups", []) and any(t.endswith("2023") for t in folders) and any(t.endswith("2024") for t in folders),
       f"the folders the results are in are offered (got {wh.get('refine_groups')}, {folders})")
 wc = steps["wherechosen"]
-check(wc["query"].startswith("trip in:") and len(wc["results"]) == 1, f"choosing a folder searches only there (got {wc['query']!r}, {wc['results']})")
+check(wc["query"].startswith("in:") and wc["query"].endswith("trip") and len(wc["results"]) == 1, f"choosing a folder searches only there (got {wc['query']!r}, {wc['results']})")
 
 # The overlay starts as a slim bar (nothing typed, nothing opened yet).
 check(steps.get("start", {}).get("compact") is True, "the overlay starts slim")
@@ -192,6 +201,8 @@ check(steps["trashed"]["undo_banner"], "the Undo banner is offered after Move to
 check(steps["untrashed"]["results"] == ["trashme.txt"], f"Undo brings it back (got {steps['untrashed']['results']})")
 
 # ⌘K lists every action for one file.
+shown_ids = steps["actions"].get("action_shown_ids", [])
+check(0 < len(shown_ids) <= 10 and "group:more" in shown_ids, f"⌘K shows a short list with More Actions… (got {shown_ids})")
 ids = steps["actions"]["action_ids"]
 for a in ("open", "reveal", "copyPath", "terminal", "searchIn", "moreLike", "compress", "moveTo", "rename", "trash"):
     check(a in ids, f"⌘K offers {a} (got {ids})")
@@ -283,6 +294,9 @@ check(report.get("storage_apps", 0) >= 1, f"Storage counts apps as apps (got {re
 check(report.get("duplicate_groups", -1) >= 1, f"the Duplicates window found the copied clip (got {report.get('duplicate_groups')})")
 # Cleaning up duplicates: its own button, Select None / All, a dry run that answers.
 check("Move" in report.get("dupes_button", "") or "نقل" in report.get("dupes_button", ""), f"a clear Move Duplicates button (got {report.get('dupes_button')!r})")
+sums = report.get("dupes_summaries", [])
+check(sums and not any("bpp" in s for s in sums), f"duplicates describe copies in plain words (got {sums})")
+check(report.get("dupes_scope") == "kind:video", f"the Duplicates pickers make the scope (got {report.get('dupes_scope')!r})")
 check(report.get("dupes_none") == 0 and report.get("dupes_all", 0) >= 1, f"Select None and Select All Extras work (got {report.get('dupes_none')}, {report.get('dupes_all')})")
 check(report.get("dupes_preview_files", -1) >= 1, f"the dry run before moving answers (got {report.get('dupes_preview_files')}, {report.get('dupes_preview_error')!r})")
 for shot in ("storage.png", "duplicates.png", "settings-folders.png", "settings-drives.png", "settings-privacy.png"):

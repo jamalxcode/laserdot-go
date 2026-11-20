@@ -74,8 +74,9 @@ extension SearchModel {
     func submit() {
         if showActions {
             let a = actions
-            if a.indices.contains(actionIndex) { a[actionIndex].run() }
-            showActions = false
+            let item = a.indices.contains(actionIndex) ? a[actionIndex] : nil
+            item?.run()
+            if item?.keepsOpen != true { showActions = false }
         } else if isCommandMode {
             runCommand()
         } else if extraSelection.count > 1 {
@@ -104,9 +105,10 @@ extension SearchModel {
     /// when the name begins with it (case and accents aside). Not for queries
     /// with filters, commands, or while browsing the results.
     var inlineSuffix: String? {
-        guard !query.isEmpty, !isCommandMode, !browsing, !showCheatSheet, !showActions,
-              !query.contains(":"), !query.hasSuffix(" "), let top = results.first,
-              let r = top.name.range(of: query, options: [.anchored, .caseInsensitive, .diacriticInsensitive]),
+        let typed = fieldText // the words typed (pills aside)
+        guard !typed.isEmpty, !isCommandMode, !browsing, !showCheatSheet, !showActions,
+              !typed.contains(":"), !typed.hasSuffix(" "), let top = results.first,
+              let r = top.name.range(of: typed, options: [.anchored, .caseInsensitive, .diacriticInsensitive]),
               r.upperBound < top.name.endIndex else { return nil }
         return String(top.name[r.upperBound...])
     }

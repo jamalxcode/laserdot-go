@@ -137,6 +137,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Easier window (0.9.28):** the query string stays the only state; pills are a view of its filter words
+  (`Pills`), never separate state, so history, pins, URLs and the CLI keep working; choices are prepended. Kind is a
+  choice group (`refine.go`), replacing the app's kind-chip row; when only choices remain, the kind is the base.
 - **Search better (0.9.28):** a default search place is a word the app adds (`SearchPlace.effective`), never hidden
   state in the daemon; leaving a choice out is a `-` word (`RefineOption.Excluded`); zip contents are names matched
   by the same regexes (pillar 3) from the central directory only (`index.ArchiveIndex`, `archives.db`, this Mac
@@ -403,7 +406,10 @@ Binding unless revisited deliberately; each is also in the spec.
   `index.ArchiveIndex` + `core.ArchiveJob` run by the daemon's content loop, `Hit.Inside`
   (`TestAWordFindsTheZipHoldingAFileNamedWithIt`); `core.MoreLike` (`TestMoreLikeThisFindsSimilarFiles`);
   `SearchPlace` in LaserdotKit (Settings ▸ General ▸ Search in, pill, Search Everywhere; `SearchPlaceTests`).
-  Self-test steps: leftout, leftoutshown, place, placeoff, zip, morelike.
+  Self-test steps: leftout, leftoutshown, place, placeoff, zip, morelike. Then the UI review ("do all 10"): `Pills`,
+  `PathText`, place menu, Kind group, `ChoiceChip` (hover −), grouped ⌘K (`allActions`/`actions`), Duplicates
+  pickers + `friendlySummary`, pinned preview buttons, `quickStarts`; tests `PillsTests`, `PathTextTests`,
+  self-test steps quickstart/pillback and checks for pills, ⌘K length, Duplicates words and scope.
 - **0.9.26 (2026-11-20):** the owner's "review laserdot and critique it" and "fix it all". Done: drive Stop/Continue
   (`StopDriveIndex`/`ContinueDriveIndex`, `drive.paused`, ops `drive_stop`/`drive_continue`, `DriveInfo.Indexing`,
   menu items; the hourly catch-up leaves a stopped index alone); duplicate scans skip files on drives being let go

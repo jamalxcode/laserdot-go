@@ -4,7 +4,47 @@ import LaserdotKit
 /// ⌘K: what can be done with the selected result(s), and the file
 /// operations behind it (each one undoable from the banner or ⌥⌘Z).
 extension SearchModel {
+    /// ⌘K as shown: the common actions first, then "Open With…" and "More
+    /// Actions…", which open in place (the owner's review: a shorter list,
+    /// nothing taken away). Every action keeps its shortcut.
     var actions: [ActionItem] {
+        let all = allActions
+        let primary: Set<String> = ["open", "quicklook", "reveal", "copyPath", "moreLike", "searchIn", "trash"]
+        let withApps = all.filter { $0.id.hasPrefix("with:") }
+        var out: [ActionItem] = []
+        for a in all where a.id == "open" { out.append(a) }
+        if !withApps.isEmpty {
+            if actionsExpanded.contains("openWith") {
+                out += withApps
+            } else {
+                out.append(ActionItem(id: "group:openWith", title: L("action.openWithMenu"), symbol: "square.grid.2x2", keepsOpen: true) { [weak self] in
+                    self?.expandActions("openWith")
+                })
+            }
+        }
+        out += all.filter { primary.contains($0.id) && $0.id != "open" }
+        let rest = all.filter { !primary.contains($0.id) && !$0.id.hasPrefix("with:") }
+        if !rest.isEmpty {
+            if actionsExpanded.contains("more") {
+                out += rest
+            } else {
+                out.append(ActionItem(id: "group:more", title: L("action.moreMenu"), symbol: "ellipsis.circle", keepsOpen: true) { [weak self] in
+                    self?.expandActions("more")
+                })
+            }
+        }
+        return out
+    }
+
+    /// Opens a ⌘K group in place, its first action highlighted.
+    func expandActions(_ group: String) {
+        let before = actions.firstIndex { $0.id == "group:" + group } ?? actionIndex
+        actionsExpanded.insert(group)
+        actionIndex = before
+    }
+
+    /// Every action for the selection (⌘K shows them grouped).
+    var allActions: [ActionItem] {
         let hits = selectedHits
         guard let first = hits.first else { return [] }
         let urls = hits.map { URL(fileURLWithPath: $0.path) }
@@ -142,6 +182,18 @@ extension SearchModel {
             }
         }
         do { try p.run() } catch { done(nil) }
+    }
+
+    /// The place menu's Choose Folder…: searches look there from now on.
+    func choosePlaceFolder() {
+        NSApp.activate(ignoringOtherApps: true)
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.prompt = L("settings.searchIn.choose")
+        guard panel.runFront() == .OK, let folder = panel.url else { return }
+        setPlace(folder.path)
+        focusSearch()
     }
 
     /// Move to a folder chosen in a panel.

@@ -30,6 +30,8 @@ struct SearchField: NSViewRepresentable {
     var onJump: (Int) -> Void = { _ in }
     /// ⌘C with no text selected: copy the selected file(s); true if done.
     var onCopy: () -> Bool = { false }
+    /// Delete in an empty field: remove the last pill; true if one was.
+    var onDeleteEmpty: () -> Bool = { false }
 
     func makeNSView(context: Context) -> NSTextField {
         let f = NSTextField(string: text)
@@ -193,6 +195,9 @@ struct SearchField: NSViewRepresentable {
                 if let f = control as? NSTextField, acceptInline(f) { return true }
                 parent.onTab()
             case #selector(NSResponder.insertNewline(_:)): parent.onSubmit()
+            case #selector(NSResponder.deleteBackward(_:)):
+                // Delete with nothing typed takes the last pill away.
+                guard let f = control as? NSTextField, f.stringValue.isEmpty, parent.onDeleteEmpty() else { return false }
             case #selector(NSResponder.cancelOperation(_:)):
                 shownSuffix = nil
                 parent.onEscape()

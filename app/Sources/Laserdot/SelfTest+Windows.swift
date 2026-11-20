@@ -80,6 +80,12 @@ extension SelfTestRunner {
                 // chosen copies, Select None / All, then the dry run.
                 if let dm = self.app.duplicatesModel {
                     self.extra["dupes_button"] = dm.moveButtonTitle
+                    // Plain words: quality, not "bpp"; the pickers make the scope.
+                    self.extra["dupes_summaries"] = (dm.report?.groups ?? []).flatMap(\.files).map { DuplicatesView.friendlySummary($0) }
+                    let kind = dm.lookKind
+                    dm.lookKind = "video"
+                    self.extra["dupes_scope"] = dm.effectiveScope
+                    dm.lookKind = kind
                     dm.selectNone()
                     self.extra["dupes_none"] = dm.selectedCount
                     dm.selectAllExtras()

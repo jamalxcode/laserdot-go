@@ -620,6 +620,17 @@ spans as date words in English and Arabic; (10) More Like This builds a type + s
 **Not done:** "similar-looking pictures" in More Like This: it needs every picture fingerprinted at search time; Find
 Duplicates already finds look-alike pictures.
 
+## 46. "How can the UI be made more easy and natural" (0.9.28)
+
+**Asked:** "review what we have so far, how can the ui be made more easy and natural to use without losing
+features", then "do all 10 and release 0.9.28". The review used the self-test's screenshots. **Done:** pills for
+filters in the search box; a place menu on the magnifying glass; Kind as the first choice group (one row); a "−" on
+hover to leave a choice out; plain words in tips, Duplicates (quality, Look at / Everywhere pickers, query under
+Advanced) and the preview ("Details"); a short ⌘K list with Open With… and More Actions…; readable paths (Home,
+iCloud Drive, a drive's name, Temporary Items); the preview's buttons pinned; one-click starts on the home screen.
+Two bugs found on the screenshots were fixed: a folder choice labelled with its whole path, and clipped preview
+buttons. Nothing was removed: every filter can still be typed, every action is still in ⌘K.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

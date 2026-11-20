@@ -12,17 +12,17 @@ final class RefineLogicTests: XCTestCase {
     func testChoosingAddsSwitchesAndRemoves() {
         let res = RefineGroup(id: "resolution", options: [opt("res:4k"), opt("res:1440p"), opt("res:1080p")])
         // "mov" → 1440p: added.
-        XCTAssertEqual(RefineLogic.applying(opt("res:1440p"), in: res, to: "mov"), "mov res:1440p")
+        XCTAssertEqual(RefineLogic.applying(opt("res:1440p"), in: res, to: "mov"), "res:1440p mov")
         // With 1440p chosen, 4K takes its place (a video has one resolution).
         let chosen = RefineGroup(id: "resolution", options: [opt("res:4k"), opt("res:1440p", selected: true)])
         XCTAssertEqual(RefineLogic.applying(opt("res:4k"), in: chosen, to: "mov res:1440p a.count:>=1"),
-                       "mov a.count:>=1 res:4k")
+                       "res:4k mov a.count:>=1")
         // Clicking the chosen one takes it out, tidying spaces.
         XCTAssertEqual(RefineLogic.applying(opt("res:1440p", selected: true), in: chosen, to: "mov  res:1440p a.count:>=1"),
                        "mov a.count:>=1")
         // A choice from another group is added alongside.
         XCTAssertEqual(RefineLogic.applying(opt("orientation:portrait"), in: nil, to: "mov res:1440p"),
-                       "mov res:1440p orientation:portrait")
+                       "orientation:portrait mov res:1440p")
         // On an empty query the token alone.
         XCTAssertEqual(RefineLogic.applying(opt("ext:pdf"), in: nil, to: "  "), "ext:pdf")
     }
@@ -34,17 +34,16 @@ final class RefineLogicTests: XCTestCase {
         XCTAssertEqual(RefineLogic.removing("res:8k", from: "mov res:4k"), "mov res:4k", "absent: unchanged")
     }
 
-    func testAChosenGroupShrinksToItsChoiceAndComesFirst() {
+    func testAChosenGroupLeavesTheRowForItsPill() {
         let groups = [
             RefineGroup(id: "resolution", options: [opt("res:4k"), opt("res:1440p", selected: true), opt("res:sd")]),
             RefineGroup(id: "sound", options: [opt("a.count:>=1"), opt("a.count:0")]),
-            RefineGroup(id: "type", options: [opt("ext:pdf"), opt("ext:txt", selected: true)]),
+            RefineGroup(id: "folder", options: [opt("in:\"/Users/j/Docs\"", selected: true), opt("in:~/Docs/Work")]),
         ]
-        let shown = RefineLogic.visible(groups)
-        XCTAssertEqual(shown.map(\.id), ["resolution", "type", "sound"])
-        XCTAssertEqual(shown[0].options.map(\.token), ["res:1440p"])
-        XCTAssertEqual(shown[1].options.map(\.token), ["ext:txt"])
-        XCTAssertEqual(shown[2].options.count, 2, "other groups keep every value")
+        let shown = RefineLogic.visible(groups, hiding: ["in:\"/Users/j/Docs\""])
+        XCTAssertEqual(shown.map(\.id), ["sound", "folder"], "the chosen resolution is a pill; the default place does not close Folder")
+        XCTAssertEqual(shown[0].options.count, 2, "other groups keep every value")
+        XCTAssertEqual(shown[1].options.map(\.token), ["in:~/Docs/Work"])
     }
 
     func testPlainWordIsTheLastWordWhenNotAFilter() {
@@ -67,13 +66,13 @@ final class RefineLogicTests: XCTestCase {
     // stays open for more.
     func testLeavingAChoiceOutAndBringingItBack() throws {
         let pdf = RefineOption(token: "ext:pdf", label: "PDF", key: nil, count: 2)
-        XCTAssertEqual(RefineLogic.excluding(pdf, to: "report"), "report -ext:pdf")
+        XCTAssertEqual(RefineLogic.excluding(pdf, to: "report"), "-ext:pdf report")
         let chosen = RefineOption(token: "ext:pdf", label: "PDF", key: nil, count: 2, selected: true)
-        XCTAssertEqual(RefineLogic.excluding(chosen, to: "report ext:pdf"), "report -ext:pdf")
+        XCTAssertEqual(RefineLogic.excluding(chosen, to: "report ext:pdf"), "-ext:pdf report")
         let out = RefineOption(token: "-ext:pdf", label: "PDF", key: nil, count: 0, selected: true, excluded: true)
         XCTAssertEqual(RefineLogic.applying(out, in: nil, to: "report -ext:pdf"), "report")
         let groups = [RefineGroup(id: "type", options: [RefineOption(token: "ext:txt", label: "TXT", key: nil, count: 1), out])]
-        XCTAssertEqual(RefineLogic.visible(groups)[0].options.count, 2, "TXT stays to choose")
+        XCTAssertEqual(RefineLogic.visible(groups)[0].options.map(\.token), ["ext:txt"], "TXT stays to choose; PDF is a pill")
         let json = #"[{"id":"type","options":[{"token":"-ext:pdf","label":"PDF","count":0,"selected":true,"excluded":true}]}]"#
         let decoded = try JSONDecoder().decode([RefineGroup].self, from: Data(json.utf8))
         XCTAssertTrue(decoded[0].options[0].isExcluded)
@@ -93,5 +92,61 @@ final class SearchPlaceTests: XCTestCase {
         XCTAssertEqual(SearchPlace.effective("", place: "local", off: false), "")
         XCTAssertEqual(SearchPlace.effective(">dup", place: "local", off: false), ">dup")
         XCTAssertEqual(SearchPlace.title("/Users/j/Docs", thisMac: "This Mac"), "Docs")
+    }
+}
+
+final class PillsTests: XCTestCase {
+    // The owner's review: filters show as pills, the field keeps the words.
+    func testFiltersBecomePillsAndWordsStay() {
+        let s = Pills.split("ext:pdf -in:~/Downloads proj", typing: true)
+        XCTAssertEqual(s.pills, ["ext:pdf", "-in:~/Downloads"])
+        XCTAssertEqual(s.text, "proj")
+        // The last word being typed stays text until a space follows.
+        XCTAssertEqual(Pills.split("proj ext:pd", typing: true).text, "proj ext:pd")
+        XCTAssertEqual(Pills.split("proj ext:pdf ", typing: true).pills, ["ext:pdf"])
+        XCTAssertEqual(Pills.split("proj ext:pdf", typing: false).pills, ["ext:pdf"])
+        // Quoted values and track groups stay whole; "ext:" alone is no pill.
+        XCTAssertEqual(Pills.split(#"camera:"canon eos" trip ext:"#, typing: false).pills, [#"camera:"canon eos""#])
+        XCTAssertTrue(Pills.isPill("a.count:0"))
+        XCTAssertTrue(Pills.isPill("v.codec:hevc"))
+        XCTAssertFalse(Pills.isPill("note:this"), "not a filter: a word")
+        XCTAssertEqual(Pills.join(["ext:pdf"], "proj "), "ext:pdf proj ")
+        XCTAssertEqual(Pills.join([], "proj"), "proj")
+        XCTAssertEqual(Pills.removing("ext:pdf", from: "ext:pdf proj"), "proj")
+    }
+
+    func testPillsReadAsWords() {
+        let w: (String) -> String = { k in
+            ["not": "not %@", "in": "in %@", "on": "on %@", "thisMac": "This Mac", "kind.video": "Videos"][k] ?? ""
+        }
+        XCTAssertEqual(Pills.label("ext:pdf", words: w), "PDF")
+        XCTAssertEqual(Pills.label("-ext:pdf", words: w), "not PDF")
+        XCTAssertEqual(Pills.label(#"in:"/Users/j/Trips/2023""#, words: w), "in 2023")
+        XCTAssertEqual(Pills.label("volume:local", words: w), "This Mac")
+        XCTAssertEqual(Pills.label("kind:video", words: w), "Videos")
+        XCTAssertEqual(Pills.label("res:4k", words: w), "4K")
+    }
+}
+
+final class PathTextTests: XCTestCase {
+    func testPathsReadAsPlaces() {
+        let home = "/Users/j"
+        XCTAssertEqual(PathText.components("/Users/j/Trips/2023", home: home).root, .home)
+        XCTAssertEqual(PathText.components("/Users/j/Trips/2023", home: home).folders, ["Trips", "2023"])
+        XCTAssertEqual(PathText.components("/Users/j/Library/Mobile Documents/com~apple~CloudDocs/Notes", home: home).root, .iCloud)
+        XCTAssertEqual(PathText.components("/Volumes/Archive/Films", home: home).root, .drive("Archive"))
+        let tmp = PathText.components("/private/var/folders/q2/abc123/T/tmp.X/fixtures", home: home)
+        XCTAssertEqual(tmp.root, .temporary)
+        XCTAssertEqual(tmp.folders, ["tmp.X", "fixtures"])
+        let name: (PathText.Root) -> String = { r in
+            switch r {
+            case .home: return "Home"
+            case .iCloud: return "iCloud Drive"
+            case .temporary: return "Temporary"
+            case let .drive(n): return n
+            case .computer: return "Mac"
+            }
+        }
+        XCTAssertEqual(PathText.parts("/Users/j/a/b/c/d", home: home, rootName: name), ["Home", "…", "b", "c", "d"])
     }
 }

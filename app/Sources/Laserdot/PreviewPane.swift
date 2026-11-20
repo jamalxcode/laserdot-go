@@ -15,51 +15,58 @@ struct PreviewPane: View {
     private var ext: String { (hit.name as NSString).pathExtension.lowercased() }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                visual
-                Text(highlighted(hit.name, model.highlightWords))
-                    .font(.headline)
-                    .lineLimit(3)
-                    .textSelection(.enabled)
-                if let found = model.snippet {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(L("preview.foundInside")).font(.caption).foregroundStyle(.secondary)
-                        Text(highlighted(found, model.highlightWords))
-                            .font(.callout)
-                            .lineLimit(6)
-                            .textSelection(.enabled)
-                            .padding(8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    visual
+                    Text(highlighted(hit.name, model.highlightWords))
+                        .font(.headline)
+                        .lineLimit(3)
+                        .textSelection(.enabled)
+                    if let found = model.snippet {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(L("preview.foundInside")).font(.caption).foregroundStyle(.secondary)
+                            Text(highlighted(found, model.highlightWords))
+                                .font(.callout)
+                                .lineLimit(6)
+                                .textSelection(.enabled)
+                                .padding(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 6))
+                        }
+                        .accessibilityElement(children: .combine)
                     }
-                    .accessibilityElement(children: .combine)
+                    Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 8, verticalSpacing: 4) {
+                        detail(L("preview.kind"), Self.kindText(hit))
+                        if !hit.isDir {
+                            detail(L("preview.size"), ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file))
+                        }
+                        detail(L("preview.modified"), friendlyDate(hit.modified, long: true))
+                        if !hit.badges.isEmpty {
+                            detail(L("preview.media"), hit.badges.joined(separator: " · "))
+                        }
+                        if let v = hit.volume {
+                            detail(L("preview.drive"), v)
+                        }
+                        detail(L("preview.where"), shortPath(hit.path))
+                    }
+                    .font(.callout)
                 }
-                Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 8, verticalSpacing: 4) {
-                    detail(L("preview.kind"), Self.kindText(hit))
-                    if !hit.isDir {
-                        detail(L("preview.size"), ByteCountFormatter.string(fromByteCount: Int64(hit.size), countStyle: .file))
-                    }
-                    detail(L("preview.modified"), friendlyDate(hit.modified, long: true))
-                    if !hit.badges.isEmpty {
-                        detail(L("preview.media"), hit.badges.joined(separator: " · "))
-                    }
-                    if let v = hit.volume {
-                        detail(L("preview.drive"), v)
-                    }
-                    detail(L("preview.where"), shortPath(hit.path))
-                }
-                .font(.callout)
-                HStack {
-                    Button(L("action.open")) { model.open(hit) }
-                    Button(L("action.reveal")) { model.reveal(hit) }
-                    Button { model.toggleActions() } label: { Image(systemName: "ellipsis.circle") }
-                        .help(L("keys.actions") + " (⌘K)")
-                        .accessibilityLabel(L("keys.actions"))
-                }
-                .controlSize(.small)
+                .padding(14)
             }
-            .padding(14)
+            // Always in view, whatever the details' length (they scroll above).
+            HStack {
+                Button(L("action.open")) { model.open(hit) }
+                Button(L("action.reveal")) { model.reveal(hit) }
+                Button { model.toggleActions() } label: { Image(systemName: "ellipsis.circle") }
+                    .help(L("keys.actions") + " (⌘K)")
+                    .accessibilityLabel(L("keys.actions"))
+                Spacer()
+            }
+            .controlSize(.small)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .accessibilityIdentifier("previewButtons")
         }
         .task(id: hit.path) { model.loadSnippet(for: hit) }
     }

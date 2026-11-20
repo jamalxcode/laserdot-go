@@ -61,18 +61,24 @@ extension Engine {
 public enum RefineLogic {
     /// The query after clicking `o` (in `group`): a chosen value leaves it;
     /// another value of a group with a choice takes that choice's place (a
-    /// video has one resolution); otherwise it is added.
+    /// video has one resolution); otherwise it is added. Choices go in front
+    /// of the typed words (they show as pills; the words stay where typing
+    /// goes on).
     public static func applying(_ o: RefineOption, in group: RefineGroup?, to query: String) -> String {
-        var next: String
+        var q = query
         if o.isSelected {
-            next = removing(o.token, from: query)
-        } else if let current = group?.options.first(where: \.isSelected) {
-            next = removing(current.token, from: query) + " " + o.token
-        } else {
-            let q = query.trimmingCharacters(in: .whitespaces)
-            next = q.isEmpty ? o.token : q + " " + o.token
+            return removing(o.token, from: q).trimmingCharacters(in: .whitespaces)
         }
-        return next.trimmingCharacters(in: .whitespaces)
+        if let current = group?.options.first(where: { $0.isSelected && !$0.isExcluded }) {
+            q = removing(current.token, from: q)
+        }
+        return prepending(o.token, to: q)
+    }
+
+    /// `token` in front of the query (the choices come first).
+    public static func prepending(_ token: String, to query: String) -> String {
+        let q = query.trimmingCharacters(in: .whitespaces)
+        return q.isEmpty ? token : token + " " + q
     }
 
     /// The query after leaving `o` out (⌥-click, or Leave Out): the choice
@@ -82,9 +88,7 @@ public enum RefineLogic {
         if o.isExcluded { return removing(o.token, from: query) }
         var q = query
         if o.isSelected { q = removing(o.token, from: q) }
-        q = q.trimmingCharacters(in: .whitespaces)
-        let word = "-" + o.token
-        return (q.isEmpty ? word : q + " " + word)
+        return prepending("-" + o.token, to: q)
     }
 
     /// The query without one token (as written in it), spaces tidied.
@@ -98,21 +102,21 @@ public enum RefineLogic {
         return words.filter { !$0.isEmpty }.joined(separator: " ")
     }
 
-    /// The groups as shown: one with a choice shrinks to it and comes first;
-    /// every other group stays, to keep narrowing.
-    public static func visible(_ groups: [RefineGroup]) -> [RefineGroup] {
-        var chosen: [RefineGroup] = [], open: [RefineGroup] = []
+    /// The groups as shown in the choice row. What is chosen shows as a pill
+    /// in the search field, so a group with a choice leaves the row (remove
+    /// the pill and it comes back, to choose again); a value left out leaves
+    /// its group (its pill says "not …") while the other values stay. Tokens
+    /// in `hiding` (the default search place, shown by the place menu) are
+    /// dropped without closing their group.
+    public static func visible(_ groups: [RefineGroup], hiding: Set<String> = []) -> [RefineGroup] {
+        var out: [RefineGroup] = []
         for g in groups {
-            // A left-out value does not close its group: the others stay
-            // to choose or leave out too.
-            let picked = g.options.filter { $0.isSelected && !$0.isExcluded }
-            if picked.isEmpty {
-                open.append(g)
-            } else {
-                chosen.append(RefineGroup(id: g.id, options: picked + g.options.filter(\.isExcluded)))
-            }
+            let options = g.options.filter { !hiding.contains($0.token) }
+            if options.contains(where: { $0.isSelected && !$0.isExcluded }) { continue }
+            let open = options.filter { !$0.isSelected }
+            if !open.isEmpty { out.append(RefineGroup(id: g.id, options: open)) }
         }
-        return chosen + open
+        return out
     }
 
     /// The last word of a query when it is a plain word (not a filter, not

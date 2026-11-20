@@ -104,4 +104,8 @@ func TestResultsOfferTheDrivesAndFoldersTheyAreIn(t *testing.T) {
 	if !slices.Equal(l4, []string{"2023", "2024"}) {
 		t.Errorf("inside trips: %v", l4)
 	}
+	// What the results are is the first choice (folders and documents here).
+	if len(g4) == 0 || g4[0].ID != "kind" || !slices.Contains(tokens(g4[0].Options), "kind:folder") || !slices.Contains(tokens(g4[0].Options), "kind:document") {
+		t.Errorf("a Kind group first: %+v", g4)
+	}
 }
