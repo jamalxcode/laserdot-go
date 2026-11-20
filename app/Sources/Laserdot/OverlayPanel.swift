@@ -22,6 +22,12 @@ final class OverlayController: NSObject, NSWindowDelegate {
             defer: false
         )
         super.init()
+        // Opening a result hides the window (it floats above other apps,
+        // so it would stay over the file just opened).
+        model.onOpened = { [weak self] in
+            guard !SelfTest.active else { return } // the robot keeps typing into it
+            self?.hide()
+        }
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.hidesOnDeactivate = false

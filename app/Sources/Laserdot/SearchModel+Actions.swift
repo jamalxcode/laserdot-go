@@ -63,13 +63,15 @@ extension SearchModel {
                     image: NSWorkspace.shared.icon(forFile: app.path)) { [weak self] in
                     self?.noteOpened(first)
                     NSWorkspace.shared.open(urls, withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration())
+                    self?.onOpened?()
                 })
             }
         }
         list += [
             ActionItem(id: "quicklook", title: L("action.quickLook"), symbol: "eye", shortcut: "⌘Y") { [weak self] in self?.quickLook(first) },
-            ActionItem(id: "reveal", title: L("action.reveal"), symbol: "folder", shortcut: "⌘↩") {
+            ActionItem(id: "reveal", title: L("action.reveal"), symbol: "folder", shortcut: "⌘↩") { [weak self] in
                 NSWorkspace.shared.activateFileViewerSelecting(urls)
+                self?.onOpened?()
             },
             ActionItem(id: "copyFile", title: L(many ? "action.copyFiles" : "action.copyFile"), symbol: "doc.on.doc") {
                 NSPasteboard.general.clearContents()
@@ -87,12 +89,13 @@ extension SearchModel {
             },
         ]
         list += [
-            ActionItem(id: "terminal", title: L("action.terminal"), symbol: "terminal") {
+            ActionItem(id: "terminal", title: L("action.terminal"), symbol: "terminal") { [weak self] in
                 // The folder itself, or the folder a file is in.
                 let dir = first.isDir && first.kind != "app" ? urls[0] : urls[0].deletingLastPathComponent()
                 if let terminal = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") {
                     NSWorkspace.shared.open([dir], withApplicationAt: terminal, configuration: NSWorkspace.OpenConfiguration())
                 }
+                self?.onOpened?()
             },
             ActionItem(id: "searchIn", title: L("action.searchIn"), symbol: "magnifyingglass") { [weak self] in
                 let dir = first.isDir && first.kind != "app" ? first.path : (first.path as NSString).deletingLastPathComponent
@@ -117,7 +120,7 @@ extension SearchModel {
         return list
     }
 
-    private func rename(_ h: Hit) {
+    func rename(_ h: Hit) {
         let a = NSAlert()
         a.messageText = String(format: L("rename.title"), h.name)
         let field = NSTextField(string: h.name)
@@ -231,7 +234,7 @@ extension SearchModel {
     }
 
     /// Move to the Trash (Finder's ⌘⌫; recoverable from the Trash, or Undo).
-    private func trash(_ hits: [Hit]) {
+    func trash(_ hits: [Hit]) {
         trashFiles(hits) { error in
             if let error { NSAlert(error: error).runFront() }
         }

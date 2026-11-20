@@ -196,9 +196,20 @@ struct PDFOrIcon: View {
             }
         }
         .task(id: path) {
+            // Read off the main thread: a big PDF, or one iCloud would have
+            // to download first, froze the window (the owner saw the
+            // beachball). Over 80 MB or not on this Mac: the icon instead.
             let p = path
-            let doc = PDFDocument(url: URL(fileURLWithPath: p))
-            document = (doc?.pageCount ?? 0) > 0 ? doc : nil
+            let doc = await Task.detached(priority: .userInitiated) { () -> PDFDocument? in
+                let url = URL(fileURLWithPath: p)
+                let v = try? url.resourceValues(forKeys: [.fileSizeKey, .ubiquitousItemDownloadingStatusKey])
+                if let status = v?.ubiquitousItemDownloadingStatus, status != .current { return nil }
+                if let size = v?.fileSize, size > 80_000_000 { return nil }
+                let d = PDFDocument(url: url)
+                return (d?.pageCount ?? 0) > 0 ? d : nil
+            }.value
+            guard !Task.isCancelled else { return }
+            document = doc
             loadedFor = p
         }
     }

@@ -349,8 +349,8 @@ extension SearchView {
     static func chipKey(_ i: Int) -> String { i < 9 ? "  (⌥\(i + 1))" : "" }
 }
 
-/// A choice chip: the value and its count; while the pointer is over it, a
-/// "−" to leave the value out of the results.
+/// A choice chip: the value and its count, and a "−" beside it to leave the
+/// value out of the results (faint until the pointer is over the chip).
 struct ChoiceChip: View {
     let label: String
     let count: String
@@ -370,11 +370,14 @@ struct ChoiceChip: View {
             .disabled(!enabled)
             .help(help)
             .accessibilityLabel(spoken)
-            if hovering && enabled {
+            // Always there (faint until pointed at): appearing on hover it
+            // moved the chips, and slipped away from the pointer (the owner).
+            if enabled {
                 Button(action: onLeaveOut) {
                     Image(systemName: "minus.circle").font(.caption)
                 }
                 .buttonStyle(.borderless)
+                .opacity(hovering ? 1 : 0.35)
                 .help(leaveOutHelp)
                 .accessibilityLabel(leaveOutHelp)
             }

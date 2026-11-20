@@ -672,6 +672,19 @@ Videos start, which the round button repeats, is gone. **Done (3, quiet risks):*
 the background instead of holding the start up, and a drive's index is cleared of junk each time it is attached.
 **Left for later:** a week of use before new features (1), weekly releases (4), a rewritten spec (5), notarization (6).
 
+## 51. Close on open, beachball, Rename, the slipping "−" (0.9.33)
+
+**Reported:** "when a file is selected laserdot needs to go away"; "beachball is showing a lot, not sure if its from
+laserdot … had to restart"; "right click on a file should have a rename function"; "the (-) … disappears as soon as i
+leave the search word". **Causes and fixes:** the window floats above other apps and nothing hid it after opening —
+opening, Show in Finder, Open With and Open in Terminal now hide it. The preview read PDFs on the main thread (a big
+PDF, or an iCloud one that had to download, froze the window) — now in the background, with the icon for PDFs over
+80 MB or not on the Mac; the zip pass reads 8 files at a time instead of 64; and a freeze monitor writes down any
+time the window stops answering for 2 s or more (Save Diagnostics shows it), since a beachball that needed a restart
+may not have been Laserdot's. Right-click on a result has Rename…, More Like This and Move to Trash (one menu for
+rows, columns and thumbnails). The "−" appeared on hover and pushed the chips aside, so it moved away from the
+pointer; it is now always there, faint until the chip is pointed at.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

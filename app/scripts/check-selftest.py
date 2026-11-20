@@ -124,6 +124,7 @@ check(sn.get("pills") == ["kind:video"] and "clip.mp4" in sn["results"], f"⌘2 
 np_, npo = steps["noneplace"], steps["noneplaceoff"]
 check(np_["results"] == [] and np_.get("place_pill") is True, f"nothing in the place: an empty list with Search Everywhere (got {np_['results']}, {np_.get('place_pill')})")
 check("archive-2023.zip" in npo["results"] and npo.get("place_pill") is False, f"Search Everywhere finds it elsewhere (got {npo['results']})")
+check(steps["start"].get("dismiss_on_open") is True, "opening a result closes the search window (it is wired to)")
 sv = steps["startvideos"]
 check(sv.get("pills") == ["kind:video"] and "clip.mp4" in sv["results"] and not sv["compact"], f"the Videos button searches videos (got {sv.get('pills')}, {sv['results']})")
 check(not jpg["compact"], "the overlay grows for results")

@@ -94,6 +94,11 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
      one view and the full window's field in another; typing the first letter switched views, and the new field
      never saw that letter ("pg" for "jpg"). The self-test caught it before release. The field is now one view in
      one place, and only what is around it changes.
+17g. **Nothing slow on the main thread, not even "just opening a PDF".** PDFKit read the whole file on the main
+     thread; a large or iCloud PDF froze the window. And when a freeze is reported, know whose it was: the app now
+     writes down every time its window stops answering.
+17h. **Things that appear on hover must not move anything.** The "−" grew the chip, the row reflowed, and the
+     button slid away from the pointer that summoned it.
 17d. **A menu-bar app's dialogs need to be told to stay.** Dialog panels hide when their app is not in front and
      open on one desktop; for an app that is never in front, that meant an update prompt lost behind the browser.
 17e. **Read only what people would look for.** Reading every file's words found an Obsidian plugin's bundled code

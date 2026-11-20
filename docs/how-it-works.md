@@ -41,6 +41,10 @@ One page, kept current: what is true today. The history and the reasons are in
   while one is attached, Index a Folder, Settings — the `>` commands' actions). The window grows on typing, ↓ or a
   button; the tools, then all buttons, give way when the window is narrow. ⌘1–⌘9 press the buttons; the empty box
   says "↓ for recent files"; a search limited to a place that finds nothing offers Search Everywhere.
+- **Opening** a result (Return, double-click, Open With, Show in Finder, Open in Terminal) hides the ⌥Space window.
+  Right-click on a result: Open, Quick Look, Show in Finder, Copy Path, Rename…, More Like This, Move to Trash, More.
+- **Freezes** of the app's window (2 s or more) are written to `~/Library/Logs/Laserdot/app-hangs.log` with what it
+  showed (never a search or path); Save Diagnostics includes them. PDF previews are read off the main thread.
 - **Pills:** the query is one string; the field shows its typed words and its filter words as pills before them
   (`Pills.split`/`join` in LaserdotKit). A filter becomes a pill once a space follows it; choices are added in front,
   so typing goes on at the end. A chosen group leaves the choice row (its pill stands for it).

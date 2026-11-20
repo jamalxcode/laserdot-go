@@ -80,6 +80,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         LaunchTimer.mark("launched")
+        // Freezes are written down (Save Diagnostics shows them).
+        HangMonitor.shared.context = { [weak self] in self?.hangContext() ?? "" }
+        HangMonitor.shared.start()
         let db = Paths.defaultDbPath
         // Safe start: two launches in a row that did not get going offer a
         // fresh index on the third (nothing else is touched).

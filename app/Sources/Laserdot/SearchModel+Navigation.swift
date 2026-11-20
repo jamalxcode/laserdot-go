@@ -181,6 +181,7 @@ extension SearchModel {
         remember()
         noteOpened(h)
         DiskAccessPrompt.shared.open(URL(fileURLWithPath: h.path))
+        onOpened?()
     }
 
     func reveal(_ hit: Hit? = nil) {
@@ -188,6 +189,7 @@ extension SearchModel {
         remember()
         noteOpened(h)
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: h.path)])
+        onOpened?()
     }
 
     func copyPath(_ hit: Hit? = nil) {

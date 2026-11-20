@@ -137,6 +137,10 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Close on open (0.9.33):** `SearchModel.onOpened`, set by the overlay to hide it (not during the self-test),
+  called by open, reveal, Open With, Show in Finder and Open in Terminal. `PDFOrIcon` reads on a detached task (no
+  download for an iCloud placeholder, nothing over 80 MB). `HangMonitor` (a utility queue pinging the main thread
+  every 0.5 s; a 2 s gap is logged with `hangContext`). `resultMenu` is the one right-click menu. `ArchiveReaders` = 8.
 - **Tidy and quiet (0.9.32):** `openNumbered` presses the start's buttons while `compact`; the placeholder at the
   start mentions ↓ (`SearchField` now updates its placeholder); an empty result with `placeInEffect` shows Search
   Everywhere (`dropPlace`); `quickStarts` loses `videos`. `dropSystemJunk` runs on `ld.background` after open;

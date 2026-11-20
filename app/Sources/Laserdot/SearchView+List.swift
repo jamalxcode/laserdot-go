@@ -135,20 +135,31 @@ extension SearchView {
         .id(hit.path)
         .onTapGesture(count: 2) { model.open(hit) }
         .onTapGesture { model.click(i) }
-        .contextMenu {
-            Button(L("action.open")) { model.open(hit) }
-            Button(L("action.quickLook")) { model.quickLook(hit) }
-            Button(L("action.reveal")) { model.reveal(hit) }
-            Button(L("action.copy")) { model.copyPath(hit) }
-            Divider()
-            Button(L("action.more")) {
-                if !model.isSelected(i) { model.click(i) }
-                model.toggleActions()
-            }
-        }
+        .contextMenu { resultMenu(i, hit) }
         .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
+    }
+
+    /// Right-click on a result (rows, columns and thumbnails alike): the
+    /// common actions, Rename (the owner asked for it here), and the rest in
+    /// ⌘K's list.
+    @ViewBuilder func resultMenu(_ i: Int, _ hit: Hit) -> some View {
+        Button(L("action.open")) { model.open(hit) }
+        Button(L("action.quickLook")) { model.quickLook(hit) }
+        Button(L("action.reveal")) { model.reveal(hit) }
+        Button(L("action.copy")) { model.copyPath(hit) }
+        if hit.volume == nil {
+            Divider()
+            Button(L("action.rename")) { model.rename(hit) }
+        }
+        Button(L("action.moreLike")) { model.moreLike(path: hit.path) }
+        Divider()
+        Button(L("action.trash")) { model.trash([hit]) }
+        Button(L("action.more")) {
+            if !model.isSelected(i) { model.click(i) }
+            model.toggleActions()
+        }
     }
 
     /// A tile is the thumbnail (the size slider, ⌘+ ⌘−) plus a margin.
@@ -184,17 +195,7 @@ extension SearchView {
         .id(hit.path)
         .onTapGesture(count: 2) { model.open(hit) }
         .onTapGesture { model.click(i) }
-        .contextMenu {
-            Button(L("action.open")) { model.open(hit) }
-            Button(L("action.quickLook")) { model.quickLook(hit) }
-            Button(L("action.reveal")) { model.reveal(hit) }
-            Button(L("action.copy")) { model.copyPath(hit) }
-            Divider()
-            Button(L("action.more")) {
-                if !model.isSelected(i) { model.click(i) }
-                model.toggleActions()
-            }
-        }
+        .contextMenu { resultMenu(i, hit) }
         .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
@@ -207,17 +208,7 @@ extension SearchView {
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { model.open(hit) }
             .onTapGesture { model.click(i) }
-            .contextMenu {
-                Button(L("action.open")) { model.open(hit) }
-                Button(L("action.quickLook")) { model.quickLook(hit) }
-                Button(L("action.reveal")) { model.reveal(hit) }
-                Button(L("action.copy")) { model.copyPath(hit) }
-                Divider()
-                Button(L("action.more")) {
-                    if !model.isSelected(i) { model.click(i) }
-                    model.toggleActions()
-                }
-            }
+            .contextMenu { resultMenu(i, hit) }
             .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
     }
 

@@ -127,6 +127,11 @@ extension AppDelegate {
                 lines += ["", "Recent updates (steps and how long each took):"]
                 lines += updateLog
             }
+            let hangs = HangMonitor.tail()
+            if !hangs.isEmpty {
+                lines += ["", "Times Laserdot's window stopped answering (the beachball):"]
+                lines += hangs
+            }
             let crashes = CrashLog.tail(db: engine.dbPath)
             if !crashes.isEmpty {
                 lines += ["", "Bugs laserdotd caught and kept running (paths removed):"]
@@ -137,6 +142,17 @@ extension AppDelegate {
         }
     }
 
+
+    /// What the window showed, for the freeze log: never a search or a path.
+    func hangContext() -> String {
+        guard let m = model else { return "" }
+        var parts: [String] = []
+        if overlayForTests?.panel.isVisible == true { parts.append("search window") }
+        if m.compact { parts.append("start") } else if m.isHome { parts.append("recent files") } else { parts.append("\(m.results.count) results") }
+        if let h = m.selected, !m.compact { parts.append("preview: " + h.kind) }
+        if m.showActions { parts.append("actions") }
+        return parts.joined(separator: ", ")
+    }
 
     /// Settings, in front and active — also from the menu-bar icon, when
     /// Laserdot is not the active app (it would open behind other windows).

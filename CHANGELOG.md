@@ -3,6 +3,17 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.33
+
+- Opening a file (or showing it in Finder) closes the search window, as Spotlight does.
+- Right-click a result for **Rename…**, More Like This and Move to Trash.
+- The "−" beside a choice stays put: it used to appear only while pointing at the choice and slip away when you
+  reached for it. It is now always there, faint until you point at the choice.
+- Fixed: previewing a big PDF, or one in iCloud that was not on the Mac, could freeze the window (the beachball).
+  Laserdot now reads it in the background and shows the icon for very large or not-downloaded PDFs.
+- Laserdot reads fewer zip files at once in the background, and notes any time its window stops answering, so
+  **Help ▸ Save Diagnostics** can show whether a beachball was Laserdot's.
+
 ## 0.9.32
 
 - ⌘1–⌘9 press the start's round buttons (⌘2 is Videos), so the start works without the mouse.

@@ -38,6 +38,10 @@ final class SearchModel: ObservableObject {
     /// The default search place is off for this search (its ✕ or its chip
     /// was clicked); back on once the search field is cleared.
     @Published var placeOff = false
+    /// A result was opened (or shown in Finder): the ⌥Space window goes
+    /// away, as Spotlight's does (the owner: "when a file is selected
+    /// laserdot needs to go away"). Set by the overlay.
+    var onOpened: (() -> Void)?
     /// The empty box's list (recently opened, new downloads, tips) is shown:
     /// ↓ or the Recently Opened button; the bar alone otherwise.
     @Published var showHomeList = false {

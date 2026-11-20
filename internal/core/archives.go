@@ -24,6 +24,9 @@ import (
 // archiveRankBase: zips found by their contents rank after content hits.
 const archiveRankBase = contentRankBase + 1<<59
 
+// ArchiveReaders: zips read at once.
+const ArchiveReaders = 8
+
 // InsideShown: matching names reported per zip.
 const InsideShown = 3
 
@@ -92,11 +95,15 @@ func (j *ArchiveJob) Run() (ArchiveStats, error) {
 	st.Removed = uint64(len(j.remove))
 	for start := 0; start < len(j.todo); start += 64 {
 		batch := j.todo[start:min(start+64, len(j.todo))]
+		// A few at a time: gentle on the disk while the Mac is in use.
 		var wg sync.WaitGroup
+		sem := make(chan struct{}, ArchiveReaders)
 		for i := range batch {
 			wg.Add(1)
+			sem <- struct{}{}
 			go func() {
 				defer wg.Done()
+				defer func() { <-sem }()
 				defer crash.Guard("listing a zip")
 				names, ok := index.ListArchive(batch[i].Path)
 				if ok {
