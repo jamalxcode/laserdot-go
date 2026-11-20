@@ -587,7 +587,11 @@ million-file slowdown), a calmer window (one "…" menu, wrapping choices, quiet
 that ejects a drive while the real app indexes it, a one-page "how it works", batched releases. **Measured and
 dropped:** streaming this Mac's own folders (slower and heavier than the bulk path on a fast disk). **Left for later,
 said so:** the per-index worker and async/await refactors, an automated update-mid-index test, an early-updates
-channel.
+channel. **Released** at 13:24 Kuwait time after one retry: the first CI run passed the new eject test (ejected
+mid-index, app still running) but caught two things — the hint counter counted before the hint arrived, and the eject
+test, run just before the self-test, stalled the English self-test's start by about 10 seconds; the counter now counts
+when the hint arrives, and the eject test runs after the self-test. The owner then asked for the repo and README to
+be brought up to date (this section and the README's new parts: choices, drives that let go, never in your way).
 
 ## Chat conventions
 

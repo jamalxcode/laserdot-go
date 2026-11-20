@@ -18,12 +18,18 @@ file search should be, and a robot that types into it on every change to prove i
   you (*“last week means since:7d”*), so you pick up the precise language for free.
 - 🎬 **Knows your media without opening it.** Resolution, codecs, HDR, frame rate, audio channels, track languages,
   subtitles, camera EXIF, music tags: `res:4k codec:hevc`, `lang:ar channels:5.1`.
+- 🎚️ **Narrow it down with a click.** Search `mov` and a row of choices shows what your results actually have —
+  4K 11 · 1080p 15 · With sound 82 · Portrait 45 · Under 1 min 47… Pick one, it joins your search, and the other
+  kinds of choices stay so you can keep going, like the filters in a good shop.
 - ⚡ **Fast and live.** Its own index; a million files are searchable about 10 seconds after a first look, searches
   take milliseconds, and a file you delete in Finder leaves the results right away.
 - ⌨️ **Types like Spotlight.** The top result's name completes as you type, Esc clears then closes, your last search
   comes back selected — everything your fingers already know, plus Quick Look on Space and ⌘K actions.
-- 💽 **Drives that remember.** An external drive keeps its own index, so it's searchable on any Mac, and can be
-  encrypted with a passphrase that's never written down.
+- 💽 **Drives that remember — and let go.** An external drive keeps its own index, so it's searchable on any Mac
+  (encrypted if you like). A huge drive is searchable while it's being indexed, can be paused and continued, and
+  always ejects: Laserdot holds nothing open on it and steps aside when you eject.
+- 🐢 **Never in your way.** The engine works as a background task, like Spotlight's: your apps get the disk first,
+  and indexing pauses while an update installs.
 - 🧹 **Duplicates by quality.** Identical files, similar pictures and re-encoded videos; it recommends the best copy
   and **never deletes** — files go to the Trash after a clear confirmation. It tells you what you freed, too.
 - 🛟 **Fixes itself.** Bugs are caught and logged, a stuck engine is restarted, a dead drive is skipped, an
@@ -90,10 +96,18 @@ downloads.
 | → or Tab | take the completed name; Tab also completes a filter / ⌥1–⌥9 press a suggestion chip |
 | Esc | close actions or the cheat sheet, then clear the search, then close the window |
 
+**Choices under the search.** After a search, the row under the hint shows what your results have to choose from,
+with counts: for videos the resolutions, with sound or without, portrait or landscape, length and codec; for
+pictures shape, camera, location, screenshots and Live Photos; for music artist, album and genre; for documents
+their type; and date and size for everything. Click one and it is added to your search as a word (so you can see and
+edit it); its group shrinks to your pick (click it again to take it out) and every other kind of choice stays, each
+count saying what it gives with your other picks.
+
 Results can also be shown as **columns** like Finder's list (Name, Date Modified, Size, Kind, Last Opened, Date
 Created — click one to sort, again to reverse, drag the line before it to resize) or as **thumbnails** (the slider or
 ⌘+ ⌘− change their size) — the view switch at the top, or ⌘J. A file deleted in Finder disappears from the results right away;
-**⌘R** (the circular arrow) looks at every indexed folder again.
+**⌘R** looks at every indexed folder again. Refresh, the result order, pinning and the filter list are in the
+**…** menu next to the view switch.
 
 The preview pane on the right shows a large thumbnail, plays videos and songs, pages through PDFs, and for a
 document found by its words, the passage where they are. Drop a folder on the window to search inside it.
@@ -107,8 +121,9 @@ be stopped at any point (**Stop and Show What's Found**) and picks up where it l
 what it has read every 30 seconds. Cleaning up is one button — **Move N Duplicates to Trash (size)…** — then a
 confirmation; nothing is ever deleted, and Laserdot keeps a running total of the space it has helped clear.
 
-**Library ▸ Storage** (⇧⌘S) shows what fills your disk, folder by folder, and the largest files. The sort menu
-(arrows next to the pin) orders results by name, size or date. `laserdot://search?q=…` links open a search (use them
+**Library ▸ Storage** (⇧⌘S) shows what fills your disk, folder by folder, and the largest files — apps and other
+packages at their real size (measured once and remembered), counted as apps rather than files. The **…** menu orders
+results by name, size or date. `laserdot://search?q=…` links open a search (use them
 in Shortcuts with **Open URL**).
 
 **Settings** (⌘,): the search shortcut, open at login, pausing background work on battery, optional **Reminders**
@@ -146,7 +161,10 @@ Finder**):
 a drive and can encrypt the index with a passphrase that is never written down (unless you tick **Remember in my
 Keychain**: then macOS's Keychain keeps it and the drive unlocks by itself). A big drive is searchable while it is
 being indexed (top folders, recently changed ones and the folders you search in come first), uses little memory
-whatever its size, and if you unplug or eject it halfway, it picks up where it stopped next time. When the drive
+whatever its size, and if you unplug or eject it halfway, it picks up where it stopped next time. **Drives ▸ your
+drive ▸ Stop Indexing** pauses it (the drive stays searchable with what was read); **Continue Indexing** goes on.
+Laserdot never keeps a drive from ejecting: its index file on the drive is open only while it works on it, and when
+you eject, Laserdot stops what it is doing there and lets go. When the drive
 comes back, only new or changed files are read again (on Mac-formatted drives, just the folders that changed). A **read-only** drive cannot hold its index, so it is kept on this Mac in
 `…/laserdot/drives/` — and deleted as soon as that drive is no longer connected (checked at start, every minute,
 when a drive leaves, and on quit).
@@ -173,6 +191,8 @@ A few things that make this project unusual:
   screenshots into the job log.
 - **It gets killed on purpose.** A crash test kills a real Laserdot process at random moments while it indexes and
   scans, then checks the index comes back exactly right. On its very first runs it found a real bug, now fixed.
+- **It ejects a drive mid-index on purpose.** CI starts the real app, has it index a 30,000-file drive, and ejects
+  the drive the way Finder does — the eject must succeed and the app must keep running.
 - **Every update proves where it came from**, using GitHub's keyless build attestation; there's no signing key
   anywhere to steal.
 - **Every decision is written down.** What the owner asked for, what was decided and why, and what went wrong along
@@ -183,7 +203,7 @@ Some numbers from GitHub's Mac (which is slower than yours):
 | | |
 |---|---|
 | 100,000 files searchable after | ~1 s |
-| a million files searchable after | ~10.6 s (94,000 files/s) |
+| a million files searchable after | ~10.6 s (94,000 files/s; faster since 0.9.26 lifted the engine's memory ceiling) |
 | slowest search, a million files | 38 ms |
 | memory after indexing a million files | 65 MB (Activity Monitor's measure) |
 | opening the app | ~0.2–0.3 s |
@@ -205,7 +225,7 @@ The app (macOS):
 ```bash
 app/scripts/build-go.sh                  # laserdotd + CLI, and the app's registry (rerun after registry changes)
 (cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
-VERSION=0.9.17 app/scripts/bundle.sh     # → app/build/Laserdot.app
+VERSION=0.9.26 app/scripts/bundle.sh     # → app/build/Laserdot.app
 ```
 
 CI builds and tests on Linux and macOS, bundles the app, launches it, runs the updater against GitHub, and runs
@@ -222,7 +242,8 @@ compare), times searches and measures the daemon's memory. On CI's Mac, 100,000 
 Releases publish themselves: when CI passes on `main` and the newest version in `CHANGELOG.md` has no release yet,
 the **Release** workflow builds that exact commit, launch-tests it and publishes `Laserdot-<version>.dmg` with that
 version's notes. (A `v*` tag or a run by hand still work.) A version marked `<!-- quiet -->` in CHANGELOG.md is
-released without a What's New message. The **perf-big** workflow measures a million files weekly.
+released without a What's New message. User-facing changes are released in batches, about weekly, unless a fix is
+urgent. Documents-only commits skip the Mac jobs, and a job GitHub leaves without a machine retries by itself. The **perf-big** workflow measures a million files weekly.
 
 ## Documents
 
@@ -230,7 +251,7 @@ Start with whichever sounds most interesting:
 
 - [`docs/design-conversation.md`](docs/design-conversation.md) — the story: what the owner asked for, release by
   release, and what was decided and why.
-- [`docs/lessons-learned.md`](docs/lessons-learned.md) — twenty-one things building it taught us, mostly the hard way.
+- [`docs/lessons-learned.md`](docs/lessons-learned.md) — the things building it taught us, mostly the hard way.
 - [`docs/how-it-works.md`](docs/how-it-works.md) — one page: how Laserdot works now.
 - [`docs/business-rules.md`](docs/business-rules.md) — what Laserdot promises and will never do (privacy, files,
   duplicates, updates, reminders).

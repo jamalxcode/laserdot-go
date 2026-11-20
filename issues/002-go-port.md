@@ -123,6 +123,17 @@ Binding unless revisited deliberately; each is also in the spec.
   most twice) while real failures stay failures; the Mac runs the race detector only on macOS-specific code; the
   million-file test follows indexer changes; the self-test times every step and milestone, so slow spots are found
   from numbers.
+- **Removable media aware (0.9.21):** Laserdot never keeps a drive from ejecting — a drive's index file is open only
+  during a job, and before macOS ejects a disk the app has the engine let go (always approving).
+- **Choose from what the results have (0.9.21–0.9.24):** under the hint, the attributes the results actually have,
+  counted; a choice joins the query as a word; its group shrinks to it (click to take it out), every other group
+  stays, each counted with the other picks; a value giving nothing is greyed, not hidden; a clicked choice never
+  brings up typing suggestions, and suggestions never hide the row.
+- **Storage tells the truth (0.9.25):** apps and packages at their real size (measured once, remembered, "at least"
+  while measuring), counted as apps; numbers formatted; "Empty".
+- **Calm and batched (0.9.26):** one "…" menu for refresh, order, pin and filters; choices wrap; a plain word's meaning
+  is explained three times; drive indexing can be stopped and continued; releases batched about weekly unless urgent;
+  a one-page `docs/how-it-works.md` kept current. Measured and not adopted: streaming this Mac's own folders.
 - **Left out by the owner:** an Apple Developer ID signature and notarization (needs a paid account), and more
   languages than English and Arabic for now.
 

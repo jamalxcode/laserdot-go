@@ -50,6 +50,12 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
     suggestions; the owner chose `res:1440p`, which does, and the suggestions hid the choices. The test now checks
     the row is still shown after a click, whatever the filter.
 
+5j. **Measure before you migrate.** Streaming this Mac's own first index looked like the fix for the million-file
+    slowdown; measured, it was slower and heavier on a fast disk. The real cause was the engine's memory ceiling, a
+    one-line change. The streaming work still paid off: testing it found two real bugs in the drive indexer.
+5k. **Tests can disturb each other.** A new test that ejects a disk ran just before the self-test, and macOS finishing
+    the eject stalled the self-test's start. Order tests so one's aftermath can't reach the next.
+
 ## Crashes and recovery
 
 8. **Kill it on purpose.** A test that kills a real Laserdot process at random moments found, on its first runs, a
