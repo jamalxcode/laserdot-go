@@ -81,6 +81,9 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 18b. **CI capacity is a failure mode too.** A release job can wait for a Mac runner and be cancelled without running
      a step; it is not a code failure. The `retry` workflow now starts such jobs again by itself (at most twice), and
      leaves jobs that ran and failed alone.
+18e. **Time it before trimming it.** Guessing would have trimmed the steps; the timings showed 105 s per language
+     spent waiting for a preview that never reported closed, and 2.5 minutes of the Arabic run waiting for a reader
+     that only runs in English (an empty variable read as "set"). Two one-line fixes halved the job.
 18d. **Don't spend a Mac on a comma.** Commits that change only documents skip the Mac jobs; a newer push to a branch
      cancels the run it replaces; every job has a time limit.
 18c. **Code only CI can compile needs extra care.** The Swift app compiles only on CI's Macs; a test that referred to

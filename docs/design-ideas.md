@@ -45,8 +45,8 @@ Smaller ideas noted along the way:
 - A Stop button for indexing a drive, as Find Duplicates has (the engine can stop and resume since 0.9.19; the
   button is missing).
 - Stream this Mac's own first index too, and let FSEvents say which folders changed instead of comparing times.
-- Use the self-test's per-step timings (printed by `check-selftest.py`) to trim its slowest steps; the self-test is
-  about 12 of the app job's 17 minutes.
+- The self-test's per-step timings (printed by `check-selftest.py`) show the steps at about 2.7 s each and the
+  windows tour at 22 s; the waits that cost minutes were removed on 2026-11-20.
 
 ## Left out on purpose
 

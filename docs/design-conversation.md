@@ -519,6 +519,9 @@ minutes for a GitHub Mac that never came. **Decided:** documents-only commits us
 run it replaces; every job has a time limit; jobs that never got a machine are retried by themselves; the Mac runs
 the race detector only where the code is macOS-specific; the million-file test follows indexer changes; the
 self-test retries a lost Space key and times every step, so the next trim is chosen from numbers rather than guesses.
+**Then "fix it all":** the timings found the two big waits (Quick Look waited for before every step, 105 s per
+language; the Arabic run holding for an English-only reader, about 2.5 minutes); both fixed, the app job from about 17
+minutes to under 10.
 
 ## Chat conventions
 

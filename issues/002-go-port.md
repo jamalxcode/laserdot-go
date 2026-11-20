@@ -361,7 +361,11 @@ Binding unless revisited deliberately; each is also in the spec.
   Release that ended without a single step (no machine), at most twice; `perf-big` also runs when the indexer, the
   walk or the media parsers change on main; the self-test records each step's time (`ms`, `selftest_seconds`,
   printed by the checker) and presses Space again once if the first press never reached Quick Look
-  (`space_pressed_again`).
+  (`space_pressed_again`). **Found by the timings ("fix it all"):** 105 s per language went to waiting before every
+  step for a Quick Look panel that CI's Mac reports visible after it closed (now waited for once, about a second,
+  `quicklook_stuck_before`); the Arabic run held for the accessibility reader CI runs only in English (the variable is
+  set, empty) and waited out its 2-minute limit (now only a non-empty value holds). The app job went from ~17 min to
+  11.6 min with the first fix, and the Arabic hold is another ~2.5 min.
 - **0.9.20 (2026-11-19):** the owner's 0.9.19 install took over 3 minutes and the Mac showed the beachball while an
   8 TB drive was being indexed; with the drive unplugged the update went through. Four fixes: (1) `daemon.StepBack`
   (nice 10; macOS throttled disk I/O through purego) before the index opens; (2) `AttachDrive`/`CatchUpDrive`

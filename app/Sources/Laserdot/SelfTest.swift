@@ -295,7 +295,9 @@ final class SelfTestRunner {
                         let next = { self.runSteps(steps.dropFirst(), model: model, overlay: overlay) }
                         // CI reads the screen with an accessibility client
                         // (app/scripts/ax-dump.swift) while this is shown.
-                        if step.name == "jpg", ProcessInfo.processInfo.environment["LASERDOT_SELFTEST_HOLD"] != nil {
+                        // Only when asked (CI sets it, empty, for the Arabic run, which has
+                        // no reader: holding there waited out the 2-minute limit).
+                        if step.name == "jpg", !(ProcessInfo.processInfo.environment["LASERDOT_SELFTEST_HOLD"] ?? "").isEmpty {
                             self.hold(then: next)
                         } else {
                             next()
