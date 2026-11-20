@@ -18,38 +18,33 @@ struct SearchView: View {
     /// The selected row uses the accent colour while this window has the
     /// keyboard (the overlay always does), and grey otherwise — as lists do.
     var emphasized: Bool { fixedSize || activeState == .key }
+    /// The panel's width (how many of the start's round buttons fit).
+    @State var panelWidth: CGFloat = 920
 
     /// The overlay's start: the rounded bar and its round buttons.
     static let compactHeight: CGFloat = 62
     static let fullHeight: CGFloat = 520
 
+    /// The overlay is at its start (the bar and its round buttons).
+    var atStart: Bool { fixedSize && model.compact }
+
     var body: some View {
-        Group {
-            if fixedSize && model.compact {
-                startBar
-            } else {
-                card
-            }
-        }
-        .overlay(hiddenShortcuts)
-        // Drop a folder (or a file: its folder) to search inside it.
-        .onDrop(of: [.fileURL], isTargeted: nil) { providers in model.handleDrop(providers) }
+        card
+            .overlay(hiddenShortcuts)
+            // Drop a folder (or a file: its folder) to search inside it.
+            .onDrop(of: [.fileURL], isTargeted: nil) { providers in model.handleDrop(providers) }
+            // The panel's width, for how many round buttons fit.
+            .background(GeometryReader { g in
+                Color.clear
+                    .onAppear { panelWidth = g.size.width }
+                    .onChange(of: g.size.width) { _, w in panelWidth = w }
+            })
     }
 
     // MARK: the start
 
-    /// As macOS's Spotlight starts: a rounded search bar, then round buttons —
-    /// kinds of files first, the menu's tools after them. When the window is
-    /// narrow the tools, then all the buttons, give way to the field.
-    var startBar: some View {
-        GeometryReader { geo in
-            startRow(Self.fitting(model.startButtons, width: geo.size.width))
-        }
-        .frame(maxWidth: .infinity, maxHeight: Self.compactHeight, alignment: .topLeading)
-    }
-
     /// The buttons that leave the field at least 300 points: all, else the
-    /// kinds of files, else none (one field only: it holds the keyboard).
+    /// kinds of files, else none.
     static func fitting(_ all: [SearchModel.StartButton], width: CGFloat) -> [SearchModel.StartButton] {
         func needed(_ b: [SearchModel.StartButton]) -> CGFloat {
             300 + CGFloat(b.count) * 54 + (b.contains(where: \.isTool) ? 10 : 0) + 4
@@ -59,38 +54,50 @@ struct SearchView: View {
         return needed(kinds) <= width ? kinds : []
     }
 
-    func startRow(_ buttons: [SearchModel.StartButton]) -> some View {
+    /// The top of the overlay. One search field in one place, always (it
+    /// holds the keyboard: rebuilding it lost the first letter typed). At
+    /// the start it sits in a capsule with round buttons beside it, as
+    /// macOS's Spotlight does — kinds of files first, the menu's tools after
+    /// them; once something is typed they make way for the full window.
+    var topRow: some View {
         HStack(spacing: 8) {
             header
-                .frame(minWidth: 300, maxHeight: 54)
-                .background(Capsule(style: .continuous).fill(.regularMaterial))
-                .overlay(Capsule(style: .continuous).strokeBorder(Color.primary.opacity(0.12)))
-            ForEach(Array(buttons.enumerated()), id: \.element.id) { i, b in
-                Button(action: b.run) {
-                    Image(systemName: b.symbol)
-                        .font(.system(size: 19, weight: .regular))
-                        .frame(width: 46, height: 46)
-                        .contentShape(Circle())
+                .frame(minWidth: atStart ? 300 : nil, maxHeight: atStart ? 54 : nil)
+                .background {
+                    if atStart {
+                        Capsule(style: .continuous).fill(.regularMaterial)
+                        Capsule(style: .continuous).strokeBorder(Color.primary.opacity(0.12))
+                    }
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.primary.opacity(0.8))
-                .background(Circle().fill(.regularMaterial))
-                .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
-                .padding(.leading, b.isTool && i > 0 && !buttons[i - 1].isTool ? 10 : 0)
-                .help(b.title)
-                .accessibilityLabel(b.title)
-                .accessibilityIdentifier("start-" + b.id)
+            if atStart {
+                let buttons = Self.fitting(model.startButtons, width: panelWidth)
+                ForEach(Array(buttons.enumerated()), id: \.element.id) { i, b in
+                    Button(action: b.run) {
+                        Image(systemName: b.symbol)
+                            .font(.system(size: 19, weight: .regular))
+                            .frame(width: 46, height: 46)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.primary.opacity(0.8))
+                    .background(Circle().fill(.regularMaterial))
+                    .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
+                    .padding(.leading, b.isTool && i > 0 && !buttons[i - 1].isTool ? 10 : 0)
+                    .help(b.title)
+                    .accessibilityLabel(b.title)
+                    .accessibilityIdentifier("start-" + b.id)
+                }
             }
         }
-        .padding(2)
+        .padding(atStart ? 2 : 0)
     }
 
     // MARK: the full window
 
     var card: some View {
         VStack(spacing: 0) {
-            header
-            if !(fixedSize && model.compact) {
+            topRow
+            if !atStart {
                 hintLine
                 chips
                 refinementChips
@@ -129,7 +136,7 @@ struct SearchView: View {
         .background {
             // The floating card is the overlay's look; the main window keeps
             // the standard window background.
-            if fixedSize {
+            if fixedSize && !atStart {
                 RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.regularMaterial)
             }
         }
