@@ -800,3 +800,9 @@ sound · photo · music — each group carrying its family; the app draws each f
   they replaced. The 10-item UI change compiled and passed the Mac self-test on its first run, and the screenshots
   were read before each UI release. The owner's batching rule was set aside for 0.9.29 and 0.9.30, both fixes of
   problems the owner reported.
+- In the 0.9.31–0.9.40 stretch: most releases answered something the owner saw on their Mac (screenshots of the
+  start screen, the eject prompt, a stuck-looking update, Full Disk Access asked again on a new Mac mini). Two reviews
+  the owner asked for (robustness, then stability and recovery) found real problems before they showed: disk checks
+  under the index lock, a start-up restart loop, unguarded background jobs. Newer pushes replaced unfinished branch
+  runs instead of releasing twice, so 0.9.39 and 0.9.40 each carried several changes; every UI change was checked in
+  the self-test's screenshots before release. A function name clashed with a constant once, caught by CI's Mac.

@@ -34,6 +34,9 @@ The engineering pillars behind them are in [`../CLAUDE.md`](../CLAUDE.md).
    unplugging stops indexing at once, keeping what was read.
 4. **Laserdot never stands in the way of ejecting a drive** (0.9.21): between jobs it holds nothing open on a drive,
    and when macOS is about to eject one it lets go first, then approves.
+5. **Laserdot recovers by itself** (0.9.39): a bug is caught and logged and the engine carries on; an engine that
+   stops answering is restarted, but one still loading a big index is given time; a disk that stops answering (a
+   sleeping network share) never holds up searching. Nice-to-haves (the flashing dot) never compete with real work.
 
 ## 2. Files are never put at risk
 
@@ -60,12 +63,15 @@ The engineering pillars behind them are in [`../CLAUDE.md`](../CLAUDE.md).
 
 1. **Every update carries proof** that Laserdot's own release workflow on GitHub built it (a keyless Sigstore
    attestation). Without valid proof, nothing is installed. No signing key exists anywhere to be stolen.
-2. Each Mac then signs the update with **its own key**, so macOS keeps the user's "Allow" answers.
+2. Each Mac then signs the update with **its own key**, so macOS keeps the user's "Allow" answers (Full Disk Access
+   included). A version installed by hand from the disk image signs itself the same way at its first launch (0.9.40),
+   so it costs at most one more question; a signing problem is shown in Save Diagnostics, never hidden.
 3. Updates install on quit (instantly: prepared in the background) or from the prompt; the previous version is kept
    for **Go Back**.
 4. An update is never silent: checking, downloading and installing show their progress and each step's elapsed
    time, and a download can be cancelled.
 5. **No step can hang:** every tool an install runs has a time limit; Save Diagnostics shows how long each step took.
+   A download that stalls is tried again by itself, and the window shows the real size downloaded (0.9.40).
 
 ## 5. Releases
 

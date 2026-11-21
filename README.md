@@ -21,7 +21,8 @@ file search should be, and a robot that types into it on every change to prove i
 - 🎬 **Knows your media without opening it.** Resolution, codecs, HDR, frame rate, audio channels, track languages,
   subtitles, camera EXIF, music tags: `res:4k codec:hevc`, `lang:ar channels:5.1`.
 - 🎚️ **Narrow it down with a click.** Search `mov` and a row of choices shows what your results actually have —
-  Videos · 4K 11 · 1080p 15 · With sound 82 · Portrait 45 · Under 1 min 47 · in Trips · on This Mac… Pick one and it
+  in Trips · Videos · Under 1 GB · 4K 11 · 1080p 15 · With sound 82… — top down from broad to detailed, related
+  choices sharing a softly shaded band. Pick one and it
   becomes a pill in the search box ("4K ✕"); hover and press **−** to leave one out ("not PDF"). The other kinds of
   choices stay so you can keep going, like the filters in a good shop.
 - 📍 **Search where you mean.** The magnifying glass is a menu: Everywhere, This Mac, a recent folder, or any folder
@@ -56,8 +57,10 @@ file search should be, and a robot that types into it on every change to prove i
 Updates install themselves: Laserdot checks once a day, downloads a new version in the background and installs it
 when you quit (or now, from **Check for Updates…** in the menu-bar icon's menu). No account or token is needed. Each
 update comes with GitHub's proof that Laserdot's own release build made it, and is installed only when that proof
-checks out. Each update is then signed on your Mac with a key Laserdot makes there, so macOS keeps your "Allow" answers. Not happy with
-an update? **Settings ▸ General ▸ Go Back**.
+checks out. Each update is then signed on your Mac with a key Laserdot makes there, so macOS keeps your "Allow" answers
+(Full Disk Access included); a copy installed by hand from the disk image signs itself the same way when it first
+starts, and restarts once. A download that stalls is retried by itself. Not happy with an update? **Settings ▸ General
+▸ Go Back**.
 
 The app is signed ad hoc, not with an Apple Developer ID, so the first launch may need **right-click → Open**.
 
@@ -67,7 +70,9 @@ Press **⌥Space** anywhere (change it in **Settings**), or use the Laserdot win
 Spotlight's style: a rounded search bar, then round buttons for **Videos, Images, Music, Documents, Apps, Recent
 Downloads, Big Files** (each adds its filter to what you typed; click again to take it out), then **Find Duplicates,
 Storage, Drives** (while a drive is connected), **Index a Folder** and **Settings**; then the choices and results. If
-a search limited to one place finds nothing, **Search Everywhere** looks everywhere else.
+a search limited to one place finds nothing, **Search Everywhere** looks everywhere else. While Laserdot is busy
+(indexing, reading photo and video details, a drive, duplicates), the dot in its menu-bar icon flashes red, white,
+blue and green.
 
 | You type | You get |
 |---|---|
@@ -120,11 +125,12 @@ downloads.
 | → or Tab | take the completed name; Tab also completes a filter / ⌥1–⌥9 press a suggestion chip |
 | Esc | close actions or the cheat sheet, then clear the search, then close the window |
 
-**Choices under the search.** After a search, the row under the hint shows what your results have to choose from,
-with counts: first what they are (Videos, Documents, Folders…); for videos the resolutions, with sound or without,
-portrait or landscape, length and codec; for pictures shape, camera, location, screenshots and Live Photos; for
-music artist, album and genre; for documents their type; the **drive** (This Mac or each attached drive) and the
-**folders** the results are in; and date and size for everything. Click one and it becomes a pill in the search box;
+**Choices under the search.** After a search, the rows under the hint show what your results have to choose from,
+with counts, top down from broad to detailed, each family in a band of its own shade: **where** (the drive — This
+Mac or each attached drive — and the folders the results are in) · **what** (Videos, Documents, Folders…, and the
+documents' types) · **size and date** · **picture** (resolution, portrait or landscape, HDR, codec) · **length and
+sound** · **photo** (camera, location, screenshots and Live Photos) · **music** (artist, album, genre). Only what your
+results have shows. Click one and it becomes a pill in the search box;
 its group leaves the row (remove the pill to choose again) and every other kind of choice stays, each count saying
 what it gives with your other picks. Hover a choice and press **−** (or ⌥-click, or right-click ▸ Leave Out) to
 leave it out: the pill says "not …".
@@ -222,6 +228,8 @@ A few things that make this project unusual:
   screenshots into the job log.
 - **It gets killed on purpose.** A crash test kills a real Laserdot process at random moments while it indexes and
   scans, then checks the index comes back exactly right. On its very first runs it found a real bug, now fixed.
+- **It comes back by itself.** A bug is caught, logged and survived; an engine that stops answering is restarted,
+  but one still loading a big index is given its time; a network drive that stops answering can't freeze searching.
 - **Its dialogs can't hide.** Every Laserdot dialog stays in front, on every desktop and over full-screen apps,
   and the self-test checks the update prompt does.
 - **It ejects a drive mid-index on purpose.** CI starts the real app, has it index a 30,000-file drive, and ejects
@@ -258,13 +266,13 @@ The app (macOS):
 ```bash
 app/scripts/build-go.sh                  # laserdotd + CLI, and the app's registry (rerun after registry changes)
 (cd app && swift build && LASERDOTD=$PWD/build/go/laserdotd swift test)
-VERSION=0.9.30 app/scripts/bundle.sh     # → app/build/Laserdot.app
+VERSION=0.9.40 app/scripts/bundle.sh     # → app/build/Laserdot.app
 ```
 
 CI builds and tests on Linux and macOS, bundles the app, launches it, runs the updater against GitHub, and runs
 the **self-test**: the real app types into its own ⌥Space window, checks what it shows (results, sections, hints,
 commands, actions, Quick Look, Rename, Move to…, Compress, Tags, Undo, search history, dropping a folder, content
-passages, the Spotlight-style start and its buttons, choices and pills, leaving a choice out, the place menu, zip
+passages, the Spotlight-style start and its buttons, choices (top down, in shaded bands) and pills, leaving a choice out, the place menu, zip
 contents, More Like This, the home starts,
 the unreadable list, the Keychain, Settings and, last, Erase All Data) in English and Arabic, measures its
 launch time, and saves screenshots
