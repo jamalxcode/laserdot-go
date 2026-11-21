@@ -745,7 +745,9 @@ laserdot activity", and, with a screenshot of a narrow window, "let the icons wr
 **Done:** while Laserdot works (indexing folders or a drive, the details pass, a duplicate scan, a refresh) the
 menu-bar icon's dot cycles red, white, blue and green every 0.4 s (the ring follows the menu bar's look; the dot is
 outlined so white shows on a light bar); searching does not count, or it would flash at every keystroke. The app
-asks the engine every 2 s whether it is indexing. The round buttons now wrap like the choices.
+asks the engine whether it is indexing; then "for the flashing it's a nice to have, so don't let it block or take
+over important processing" — so it asks every 5 s, with one small request at background priority and never two at
+once, and the four icons are drawn once. The round buttons now wrap like the choices.
 
 ## Chat conventions
 

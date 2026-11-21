@@ -132,6 +132,13 @@ public final class Engine: @unchecked Sendable {
             catchUp: s.catchUp)
     }
 
+    /// Whether the engine is indexing a folder now: one small request (the
+    /// menu-bar dot asks it; nil when the engine does not answer).
+    public func indexingNow() -> Bool? {
+        guard let s = try? call(.status, as: Wire.Status.self) else { return nil }
+        return s.indexing != nil
+    }
+
     public func search(query: String, limit: Int = 100, offset: Int = 0, sort: SortKey = .relevance, reverse: Bool = false) throws -> Results {
         let r = try quickCall(.search(query: query, sort: sort, reverse: reverse, offset: offset, limit: limit, typo: true),
                               as: Wire.SearchResults.self)

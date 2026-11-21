@@ -48,6 +48,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     private var activityTimer: Timer?
     /// The engine reported a folder being indexed at its last look.
     private var engineIndexing = false
+    /// A question to the engine about indexing is on its way (never two).
+    private var activityAsking = false
     var watchdog: Watchdog?
     /// Lets go of a drive just before macOS ejects it.
     var ejectWatcher: EjectWatcher?
@@ -475,42 +477,54 @@ extension AppDelegate {
             || model?.refreshing == true
     }
 
-    /// Every 2 s: ask the engine (off the main thread) whether it is
-    /// indexing, then flash the dot or stop.
+    /// Every 5 s: ask the engine (one small request, at background priority,
+    /// never two at once) whether it is indexing, then flash the dot or stop.
+    /// The dot is a nicety: it must never hold up searching or indexing (the
+    /// owner: "don't let it block or take over important processing").
     func startActivityWatch() {
         guard activityTimer == nil else { return }
-        activityTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
             guard let self else { return }
-            if self.engineStarted, let engine = self.engine {
-                DispatchQueue.global(qos: .utility).async { [weak self] in
-                    let s = engine.status()
-                    DispatchQueue.main.async {
-                        self?.engineIndexing = s.running && s.indexing != nil
-                        self?.updateFlash()
-                    }
+            self.updateFlash() // the app's own work, at once
+            guard self.engineStarted, let engine = self.engine, !self.activityAsking else { return }
+            self.activityAsking = true
+            DispatchQueue.global(qos: .background).async { [weak self] in
+                let indexing = engine.indexingNow()
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.activityAsking = false
+                    self.engineIndexing = indexing ?? false
+                    self.updateFlash()
                 }
-            } else {
-                self.updateFlash()
             }
         }
+        t.tolerance = 1
+        RunLoop.main.add(t, forMode: .common)
+        activityTimer = t
     }
 
     func updateFlash() {
         let working = isWorking
         if working, flashTimer == nil {
             flashStep = 0
-            flashTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+            let t = Timer(timeInterval: 0.4, repeats: true) { [weak self] _ in
                 guard let self else { return }
-                self.menuIcon = flashingMenuBarIcon(dot: menuBarFlashColors[self.flashStep % menuBarFlashColors.count])
+                self.menuIcon = Self.flashFrames[self.flashStep % Self.flashFrames.count]
                 self.flashStep += 1
             }
-            flashTimer?.fire()
+            t.tolerance = 0.1 // let macOS bunch the redraws with other work
+            RunLoop.main.add(t, forMode: .common)
+            flashTimer = t
+            t.fire()
         } else if !working, let t = flashTimer {
             t.invalidate()
             flashTimer = nil
             menuIcon = menuBarIcon
         }
     }
+
+    /// The four icons, drawn once (not on every flash).
+    static let flashFrames: [NSImage] = menuBarFlashColors.map { flashingMenuBarIcon(dot: $0) }
 
     /// Whether the dot is flashing now (the self-test's report).
     var isFlashing: Bool { flashTimer != nil }
