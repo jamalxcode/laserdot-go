@@ -326,6 +326,16 @@ final class SelfTestRunner {
                 model.dropPlace()
                 UserDefaults.standard.removeObject(forKey: SearchPlace.key)
             }, until: { $0.placeInEffect }, wait: 1.5),
+            // Reset clears the words, pills, place and order at once; a place
+            // whose folder is gone (an unplugged drive) is ignored.
+            Step(name: "reset", typed: "trip", before: {
+                UserDefaults.standard.set(folder + "/Trips/2023", forKey: SearchPlace.key)
+                model.sort = .name
+            }, after: { model.resetSearch() }, until: { $0.placeInEffect }, wait: 1.0),
+            Step(name: "placegone", typed: "trip", before: {
+                UserDefaults.standard.set("/Volumes/LaserdotGoneDrive/Photos", forKey: SearchPlace.key)
+            }, after: { UserDefaults.standard.removeObject(forKey: SearchPlace.key) },
+               until: { !$0.results.isEmpty }),
             // The start's round buttons: Videos runs its search as a pill.
             Step(name: "startvideos", typed: "", after: {
                 model.startButtons.first { $0.id == "videos" }?.run()

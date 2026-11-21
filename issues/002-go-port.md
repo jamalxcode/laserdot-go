@@ -137,6 +137,8 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Reset (0.9.35):** `SearchModel.resetSearch` / `canReset` (the ✕ and … ▸ Reset Search); `searchPlace` ignores a
+  folder that no longer exists; `recentPlaces` keeps existing ones; `morePage` = 1000. Self-test steps reset, placegone.
 - **Fresh results (0.9.34):** op `touched` (Path: a folder) = `ApplyChanges` for it (`TestTouchedFolderIsListedAgain`);
   the app's `refreshSoon(touching:)` sends it for every folder a rename, move, trash, compress or undo changed;
   `OverlayController.show` re-runs a non-empty query; `PreviewPane.previewMenu`; Rename no longer limited to this

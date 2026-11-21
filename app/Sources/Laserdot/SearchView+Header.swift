@@ -33,13 +33,15 @@ extension SearchView {
                 onDeleteEmpty: { model.removeLastPill() }
             )
             .frame(height: 30)
-            if !model.query.isEmpty {
-                Button { model.query = ""; model.focusSearch() } label: {
+            // Reset: the words, the pills, the place and the order, at once.
+            if model.canReset {
+                Button { model.resetSearch() } label: {
                     Image(systemName: "xmark.circle.fill").foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.borderless)
-                .help(L("search.clear"))
-                .accessibilityLabel(L("search.clear"))
+                .help(L("search.reset"))
+                .accessibilityLabel(L("search.reset"))
+                .accessibilityIdentifier("resetSearch")
             }
             if model.refreshing {
                 ProgressView().controlSize(.small).frame(width: 20, height: 20)
@@ -82,6 +84,9 @@ extension SearchView {
                 Button(L(model.isPinned ? "pin.remove" : "pin.add") + "  ⌘D") { model.togglePin() }
                     .disabled(model.isHome || model.isCommandMode)
                 Button(L("cheatsheet.help")) { model.showCheatSheet.toggle() }
+                Divider()
+                Button(L("search.reset")) { model.resetSearch() }
+                    .disabled(!model.canReset)
             } label: {
                 Image(systemName: model.sort == .relevance && !model.isPinned ? "ellipsis.circle" : "ellipsis.circle.fill")
                     .font(.title3)

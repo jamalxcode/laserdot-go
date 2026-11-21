@@ -695,6 +695,13 @@ after any file action (rename, move, trash, compress, undo) the app tells the en
 `touched`), which lists them again at once — also on drives, which have no change events. Right-click on the
 preview (picture, video, PDF) has Rename and the rest, and Rename works for drive files.
 
+## 53. Show More by a thousand; Reset (0.9.35)
+
+**Asked:** "have the show more show max 1000 instead of 100"; "have a button that resets all search terms,
+especially if an old drive that is removed is still shown". **Done:** Show More adds 1,000 results at a time; the
+search box's ✕ (and … ▸ Reset Search) resets words, pills, choices, the search place and the order; a search place
+whose folder no longer exists (a drive unplugged) is ignored, and gone folders leave the recent places.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

@@ -3,6 +3,14 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.35
+
+- **Show More** adds a thousand results at a time instead of a hundred.
+- The ✕ in the search box (and **… ▸ Reset Search**) now resets everything at once: words, choices, the search place
+  (back to Everywhere) and the order.
+- A search place whose folder is gone — on a drive that was unplugged, or deleted — is ignored instead of hiding
+  every result, and such folders drop out of the place menu's recent list.
+
 ## 0.9.34
 
 - Reopening the search window runs the search again, so files that were unzipped, moved or deleted meanwhile are

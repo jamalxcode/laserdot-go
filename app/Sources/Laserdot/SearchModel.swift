@@ -48,8 +48,37 @@ final class SearchModel: ObservableObject {
         didSet { updateCompact() }
     }
 
+    /// Results added by each Show More.
+    static let morePage = 1000
+
     /// Settings ▸ General ▸ Search in ("" everywhere, "local", or a folder).
-    var searchPlace: String { UserDefaults.standard.string(forKey: SearchPlace.key) ?? "" }
+    /// A folder that is no longer there (a drive unplugged, a folder deleted)
+    /// counts as everywhere, so it never hides every result.
+    var searchPlace: String {
+        let p = UserDefaults.standard.string(forKey: SearchPlace.key) ?? ""
+        if p.isEmpty || p == "local" { return p }
+        return FileManager.default.fileExists(atPath: p) ? p : ""
+    }
+
+    /// Reset: every search term, pill and choice, the search place (back to
+    /// Everywhere) and the order — a clean start (the owner: "a button that
+    /// resets all search terms, especially if an old drive that is removed is
+    /// still shown").
+    func resetSearch() {
+        UserDefaults.standard.removeObject(forKey: SearchPlace.key)
+        placeOff = false
+        placeVersion += 1
+        sort = .relevance
+        reverse = false
+        showHomeList = false
+        if query.isEmpty { queryChanged() } else { query = "" }
+        focusSearch()
+    }
+
+    /// Something narrows or orders the search beyond the empty box.
+    var canReset: Bool {
+        !query.isEmpty || !searchPlace.isEmpty || sort != .relevance || reverse
+    }
     /// The search actually sent: the query with the default place.
     var effectiveQuery: String { SearchPlace.effective(query, place: searchPlace, off: placeOff) }
     /// The default place is narrowing this search (its pill shows).
@@ -79,7 +108,10 @@ final class SearchModel: ObservableObject {
     }
 
     /// Folders chosen as places before (newest first).
-    var recentPlaces: [String] { UserDefaults.standard.stringArray(forKey: "laserdot.recentPlaces") ?? [] }
+    var recentPlaces: [String] {
+        // Only folders still there (an unplugged drive's drop out).
+        (UserDefaults.standard.stringArray(forKey: "laserdot.recentPlaces") ?? []).filter { FileManager.default.fileExists(atPath: $0) }
+    }
 
     // MARK: pills
 
@@ -663,7 +695,8 @@ final class SearchModel: ObservableObject {
         loadingMore = true
         let (engine, q, gen, offset, sort, reverse) = (self.engine, self.effectiveQuery, self.generation, allHits.count, self.sort, self.reverse)
         queue.async { [weak self] in
-            let more = (try? engine.search(query: q, limit: 100, offset: offset, sort: sort, reverse: reverse).hits) ?? []
+            // Show More: a thousand at a time (the owner: "max 1000 instead of 100").
+            let more = (try? engine.search(query: q, limit: Self.morePage, offset: offset, sort: sort, reverse: reverse).hits) ?? []
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.loadingMore = false

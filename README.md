@@ -92,6 +92,9 @@ empty box (or click **Recently Opened**) for what you opened lately, new downloa
 Downloads, Photos This Month, Videos, Documents This Week, Big Files**) and a suggestion from your own files (e.g.
 *“See your 4K videos (812)”*).
 
+The ✕ in the box resets everything at once — words, choices, the search place and the order. **Show More** adds a
+thousand results at a time.
+
 **Where to search.** Click the magnifying glass: **Everywhere**, **This Mac**, a recent folder or **Choose
 Folder…** (the same as **Settings ▸ General ▸ Search in**). The place's name shows beside the glass while it narrows
 your searches; a search that names its own place (a Folder choice, `in:`) looks there instead.

@@ -146,6 +146,8 @@ extension SelfTestRunner {
         r["place_pill"] = model.placeInEffect
         r["start_buttons"] = model.startButtons.map(\.id)
         r["dismiss_on_open"] = model.onOpened != nil
+        r["sort_key"] = model.sort.rawValue
+        r["more_page"] = SearchModel.morePage
         r["pills"] = model.pills
         r["pill_labels"] = model.pills.map { model.pillLabel($0) }
         r["field_text"] = model.fieldText
