@@ -56,6 +56,12 @@ public final class Engine: @unchecked Sendable {
     let lock = NSLock()
     var client: DaemonClient?
     var child: Process?
+    /// When `child` was started: a daemon loading a big index (no snapshot
+    /// yet) can take a while before it answers, and must be waited for, not
+    /// replaced by another one that would start loading from scratch.
+    var childStarted = Date.distantPast
+    /// How long a starting daemon is given before it counts as stuck.
+    public static var startGrace: TimeInterval = 180
     var log: [String] = []
     let logLock = NSLock()
     /// Ops this daemon answered `unsupported`; forgotten on reconnect.
@@ -375,6 +381,13 @@ public final class Engine: @unchecked Sendable {
         child.map(\.isRunning)
     }
 
+    /// The daemon this app started is still within its start-up time (the
+    /// watchdog leaves it alone meanwhile).
+    public var childStarting: Bool {
+        guard let p = child, p.isRunning else { return false }
+        return Date().timeIntervalSince(childStarted) < Self.startGrace
+    }
+
     /// The daemon this app started (the self-test kills it to check the
     /// watchdog).
     public var childPID: Int32? {
@@ -454,7 +467,15 @@ public final class Engine: @unchecked Sendable {
     /// `lock` held.
     func startDaemon() throws -> DaemonClient {
         guard let exe = daemonPath else { throw LaserdotError.unavailable("laserdotd is not running") }
-        if let old = child, old.isRunning { old.terminate() }
+        if let old = child, old.isRunning {
+            if Date().timeIntervalSince(childStarted) < Self.startGrace {
+                return try waitForDaemon(old, upTo: 15) // still loading: wait, don't start another
+            }
+            old.terminate()
+            let deadline = Date().addingTimeInterval(3)
+            while old.isRunning && Date() < deadline { usleep(50_000) }
+            if old.isRunning { kill(old.processIdentifier, SIGKILL) }
+        }
         let p = Process()
         p.executableURL = URL(fileURLWithPath: exe)
         p.arguments = ["--db", dbPath, "--socket", socketPath]
@@ -485,7 +506,15 @@ public final class Engine: @unchecked Sendable {
             throw LaserdotError.unavailable("cannot start \(exe): \(error.localizedDescription)")
         }
         child = p
-        let deadline = Date().addingTimeInterval(10)
+        childStarted = Date()
+        return try waitForDaemon(p, upTo: 15)
+    }
+
+    /// Wait for a daemon this app started to answer. Past the wait it keeps
+    /// running (it may be loading a big index): the next request waits again,
+    /// until `startGrace` has passed. Called with `lock` held.
+    func waitForDaemon(_ p: Process, upTo seconds: TimeInterval) throws -> DaemonClient {
+        let deadline = Date().addingTimeInterval(seconds)
         while true {
             if let c = DaemonClient.connectLive(socketPath: socketPath) { return c }
             if !p.isRunning || Date() > deadline {
@@ -493,7 +522,7 @@ public final class Engine: @unchecked Sendable {
                 logLock.lock()
                 let tail = log.joined(separator: "\n")
                 logLock.unlock()
-                let why = p.isRunning ? "laserdotd did not start in time" : "laserdotd exited (\(p.terminationStatus))"
+                let why = p.isRunning ? "laserdotd is still starting (loading the index)" : "laserdotd exited (\(p.terminationStatus))"
                 throw LaserdotError.unavailable("\(why): \(tail)")
             }
             usleep(50_000)

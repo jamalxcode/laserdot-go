@@ -150,21 +150,24 @@ func run() error {
 	fmt.Fprintf(os.Stderr, "laserdotd: index %s\n", how)
 	fmt.Fprintf(os.Stderr, "laserdotd: soft memory limit %d MB\n", daemon.SetMemoryLimit()>>20)
 	fmt.Fprintf(os.Stderr, "laserdotd: running in the background (%s)\n", background)
-	// Serve from the snapshot: file-backed columns, not dirty memory.
-	if err := ld.Remap(); err != nil {
-		fmt.Fprintln(os.Stderr, "laserdotd: could not write the snapshot:", err)
-	}
 	if q := ld.OpenReport().Quarantined; q != nil {
 		fmt.Fprintf(os.Stderr, "laserdotd: index was damaged; moved to %s and rebuilt\n", *q)
 	}
 	st := ld.Stats()
 	fmt.Fprintf(os.Stderr, "laserdotd: %d entries loaded in %d ms\n", st.Entries, st.LoadMS)
 
-	// 4. Serve.
+	// 4. Serve. The socket opens first: writing the snapshot after a rebuild
+	// takes a while on a big index, and the app waits for an answer.
 	srv, err := daemon.Listen(ld, socket)
 	if err != nil {
 		return err
 	}
+	// Serve from the snapshot: file-backed columns, not dirty memory.
+	crash.Go("writing the snapshot", func() {
+		if err := ld.Remap(); err != nil {
+			fmt.Fprintln(os.Stderr, "laserdotd: could not write the snapshot:", err)
+		}
+	})
 	if !noWatch {
 		w := ld.Watch(wopts, core.WatchEvents{
 			Started:    func(b watch.Backend) { fmt.Fprintln(os.Stderr, "laserdotd: watching with", b) },
@@ -185,7 +188,7 @@ func run() error {
 	// Keep the snapshot current, so the next launch maps it: written once the
 	// index has been quiet for a minute (or every 30 minutes of constant
 	// change), and at quit.
-	go func() {
+	go crash.Keep("snapshot check", 5*time.Second, func() {
 		for {
 			select {
 			case <-srv.Done():
@@ -199,7 +202,8 @@ func run() error {
 				fmt.Fprintln(os.Stderr, "laserdotd: snapshot written")
 			}
 		}
-	}()
+	})
+
 	defer ld.Checkpoint()
 	srv.RunBackground(volumeEvery, func(m string) { fmt.Fprintln(os.Stderr, "laserdotd:", m) })
 	sig := make(chan os.Signal, 1)

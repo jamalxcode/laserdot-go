@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"github.com/jamalxcode/laserdot-go/internal/fold"
 	"github.com/jamalxcode/laserdot-go/internal/index"
 	"github.com/jamalxcode/laserdot-go/internal/media"
@@ -136,15 +137,22 @@ func snippetText(path string, kind index.ContentType) (string, bool) {
 		done = make(chan struct{})
 		c.reading[key] = done
 		go func() {
-			text, ok := index.RawText(path, kind)
-			c.Lock()
-			defer c.Unlock()
-			delete(c.reading, key)
-			if len(text) <= snippetCacheMax {
-				c.docs[key] = &snippetDoc{text: text, ok: ok, used: time.Now()}
-				trimSnippetCache()
-			}
-			close(done)
+			var text string
+			var ok bool
+			// Always finish, even after a bug reading the file: whoever waits
+			// for it must not wait forever.
+			defer func() {
+				c.Lock()
+				defer c.Unlock()
+				delete(c.reading, key)
+				if len(text) <= snippetCacheMax {
+					c.docs[key] = &snippetDoc{text: text, ok: ok, used: time.Now()}
+					trimSnippetCache()
+				}
+				close(done)
+			}()
+			defer crash.Guard("reading a document for its snippet")
+			text, ok = index.RawText(path, kind)
 		}()
 	}
 	c.Unlock()

@@ -39,10 +39,11 @@ final class Watchdog {
         queue.async { [weak self] in
             let alive = engine.isAlive()
             let gone = engine.childRunning == false
+            let starting = engine.childStarting
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.checking = false
-                if alive {
+                if alive || starting { // a daemon loading a big index is given time
                     self.misses = 0
                     return
                 }

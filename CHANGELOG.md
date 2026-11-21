@@ -12,6 +12,9 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
   its edge.
 - Steadier with network drives: a shared drive that stops answering no longer freezes searches, and the drives list
   doesn't pile up requests while waiting for it.
+- Starts reliably with a big index: when Laserdot has to rebuild its index at launch (after a crash or an update), it
+  is given the time it needs instead of being restarted over and over, and it answers sooner.
+- A bug while indexing a drive or reading a document's preview text is caught and noted, and Laserdot keeps running.
 
 ## 0.9.38
 

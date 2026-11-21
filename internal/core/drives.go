@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"github.com/jamalxcode/laserdot-go/internal/index"
 	"github.com/jamalxcode/laserdot-go/internal/scan"
 )
@@ -759,6 +760,7 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 		ld.streams.Add(1)
 		go func() {
 			defer ld.streams.Done()
+			defer crash.Guard("indexing a drive")
 			ld.streamDrive(d, index.StreamOptions{})
 		}()
 	default:
@@ -767,6 +769,7 @@ func (ld *Laserdot) AttachDrive(mount, pass string) (DriveInfo, error) {
 		ld.streams.Add(1)
 		go func() {
 			defer ld.streams.Done()
+			defer crash.Guard("indexing a drive")
 			ld.CatchUpDrive(mount)
 			ld.dropDriveJunk(d) // .DS_Store and the like from an index made before they were ignored
 		}()
@@ -808,6 +811,7 @@ func (ld *Laserdot) ContinueDriveIndex(mount string) bool {
 	ld.streams.Add(1)
 	go func() {
 		defer ld.streams.Done()
+		defer crash.Guard("indexing a drive")
 		ld.streamDrive(d, index.StreamOptions{})
 	}()
 	return true

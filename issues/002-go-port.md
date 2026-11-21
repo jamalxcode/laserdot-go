@@ -141,6 +141,10 @@ Binding unless revisited deliberately; each is also in the spec.
   runs `findIndex`/`dirBytes` without it (`foundIndex`), then builds `driveInfoFrom` under `mu`; `SyncDrives` and
   `unindexedVolume` read disks outside the lock too. App: `refreshSoon(touching:)` on `SearchModel.touchQueue` (not the
   search queue); `DrivesModel.refresh` has an in-flight guard (`listing`, with `listAgain` for asks meanwhile).
+  Start-up: `Engine.childStarted`/`startGrace` (180 s) — `startDaemon` waits on a daemon still loading (15 s per
+  request, `waitForDaemon`) instead of replacing it; `Watchdog` leaves a `childStarting` daemon alone; laserdotd
+  listens before `Remap` (now `crash.Go`); the snapshot loop runs under `crash.Keep`; drive-indexing goroutines and
+  the snippet reader are guarded (the snippet waiters are always released).
 - **Flashing dot (0.9.39):** `AppDelegate.menuIcon` (published; the `MenuBarExtra` label), `startActivityWatch`
   (`Engine.indexingNow()` — one status request — every 5 s at background QoS, `activityAsking` so never two at once →
   `engineIndexing`), `isWorking` (also drives, duplicates, refresh), `updateFlash` (0.4 s timer with tolerance over

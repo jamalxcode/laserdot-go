@@ -356,10 +356,10 @@ func (s *Server) handle(req *ipc.Request) ipc.Response {
 		// snapshot instead (file-backed pages, as after a restart) and give
 		// the build's memory back to the system.
 		defer func() {
-			go func() {
+			crash.Go("writing the snapshot", func() {
 				_ = s.ld.Remap()
 				debug.FreeOSMemory()
-			}()
+			})
 		}()
 		return result(s.ld.Index(req.Path))
 	case ipc.OpForget:

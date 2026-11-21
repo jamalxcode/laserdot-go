@@ -82,6 +82,11 @@ One page, kept current: what is true today. The history and the reasons are in
 - A disk that stops answering (a sleeping network share) never holds the index lock: the drive list and the drive
   checks look at disks without it, the app asks for that list one request at a time, and its "this folder changed"
   notes go on their own queue, so searches keep working.
+- Recovery: a bug in a request or a background job is caught, written to `laserdotd-crash.log` and the daemon carries
+  on (it restarts itself if the bug left the index locked). The app's watchdog restarts a daemon that is gone or stops
+  answering, but gives one that is still loading its index up to 3 minutes; the daemon opens its socket before it
+  writes the snapshot. A damaged index or snapshot is set aside and rebuilt; two failed launches in a row offer a
+  fresh index.
 
 ## Testing and releasing
 

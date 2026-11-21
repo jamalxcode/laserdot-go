@@ -136,4 +136,7 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 20d. **Never touch a disk while holding the index lock.** The drive list stat'ed every /Volumes entry under the read
      lock; one hung network share would have held it, a waiting writer then blocks every new reader, and searches
      stop. Copy what you need under the lock, do the I/O without it, and take the lock again to build the answer.
+20e. **A watchdog must know the difference between starting and stuck.** The app waited 10 s for the daemon, then the
+     next request killed it and started another: a big index that needed longer to load would never come up. Give a
+     starting process its time, and open the socket before slow, optional work.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.
