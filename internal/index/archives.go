@@ -227,12 +227,15 @@ func (a *ArchiveIndex) Remove(paths []string) error {
 
 // Matching: for every archive with a member whose name matches every one of
 // match (folded base names), the matching members' paths (up to limit
-// each), by archive path.
-func (a *ArchiveIndex) Matching(match func(folded string) bool, limit int) map[string][]string {
+// each), by archive path; at most maxArchives archives.
+func (a *ArchiveIndex) Matching(match func(folded string) bool, limit, maxArchives int) map[string][]string {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	out := map[string][]string{}
 	for p, m := range a.mem {
+		if len(out) >= maxArchives {
+			break
+		}
 		var found []string
 		for i, f := range m.folded {
 			if match(f) {

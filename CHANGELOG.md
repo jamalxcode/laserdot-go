@@ -9,6 +9,11 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
   unindexed for a moment. Laserdot now asks only about a drive that has just been plugged in, never one being
   ejected, and checks again two seconds later before asking.
 - Ejecting a drive no longer pauses Laserdot's window while the engine lets go of it.
+- Typing is lighter: names inside zip files are searched only once a word has three letters (one or two letters
+  matched nearly everything in every zip, on every keystroke).
+- The search window no longer checks the disk on every redraw to see whether the search place still exists, so a
+  slow network drive cannot stall it.
+- The freeze log ignores the Mac sleeping and stays short.
 
 ## 0.9.37
 

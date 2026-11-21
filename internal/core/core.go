@@ -1301,7 +1301,7 @@ func searchStoreKeyed(s *index.Store, content *index.ContentIndex, archives *ind
 	// Plain words also match the names inside zip files: the zip is a
 	// result, after the name and content matches, with what it contains.
 	inside := map[uint32][]string{}
-	if archives != nil && len(parts.words) > 0 {
+	if archives != nil && len(parts.words) > 0 && wordsLongEnough(parts.words, ArchiveMinWord) {
 		add, total, err := archiveMatches(s, archives, parts, restrict, nameHits, contentHit, p, int(res.Total), inside)
 		if err != nil {
 			return nil, nil, err

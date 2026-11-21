@@ -59,6 +59,11 @@ func TestAWordFindsTheZipHoldingAFileNamedWithIt(t *testing.T) {
 	if got := r.Hits[1].Inside; !slices.Equal(got, []string{"2023/invoice-march.pdf"}) {
 		t.Errorf("the zip says what matched (not the __MACOSX copy): %v", got)
 	}
+	// A word of one or two letters does not search inside zips (it would
+	// match almost every name in every zip, on every keystroke).
+	if r, _ := ld.Search("ma", DefaultSearchOptions); slices.ContainsFunc(r.Hits, func(h Hit) bool { return len(h.Inside) > 0 }) {
+		t.Errorf("a two-letter word searched inside zips: %+v", r.Hits)
+	}
 	// Two words: one file inside must have both.
 	if r, _ := ld.Search("invoice receipt", DefaultSearchOptions); r.Total != 0 {
 		t.Errorf("no file inside is named with both words: %+v", r.Hits)

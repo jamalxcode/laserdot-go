@@ -137,6 +137,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Review fixes (0.9.38):** `ArchiveMinWord` = 3 and `ArchiveMaxZips` = 2000 (`wordsLongEnough`,
+  `ArchiveIndex.Matching(…, maxArchives)`); `SearchModel.placeExists` caches each folder's existence for 3 s;
+  `HangMonitor` uses `systemUptime`, ignores gaps ≥ 120 s, trims its log past 64 KB.
 - **Eject without a prompt (0.9.38):** `DrivesModel` offers only `freshMounts` (appeared since the last look), never
   `ejectingMounts` (set by `EjectWatcher`), and re-checks after 2 s; `EjectWatcher` uses `DASessionSetDispatchQueue`
   (the approval's wait is off the main thread).

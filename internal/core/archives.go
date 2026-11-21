@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/RoaringBitmap/roaring/v2"
 
@@ -23,6 +24,23 @@ import (
 
 // archiveRankBase: zips found by their contents rank after content hits.
 const archiveRankBase = contentRankBase + 1<<59
+
+// ArchiveMinWord: zips are searched only once every word has this many
+// letters — a word of one or two matches nearly every name inside every zip,
+// and each keystroke would scan them all.
+const ArchiveMinWord = 3
+
+// ArchiveMaxZips: zips found by their contents in one search, at most.
+const ArchiveMaxZips = 2000
+
+func wordsLongEnough(words []string, n int) bool {
+	for _, w := range words {
+		if utf8.RuneCountInString(w) < n {
+			return false
+		}
+	}
+	return true
+}
 
 // ArchiveReaders: zips read at once.
 const ArchiveReaders = 8
@@ -164,7 +182,7 @@ func archiveMatches(s *index.Store, archives *index.ArchiveIndex, parts *content
 			}
 		}
 		return true
-	}, InsideShown)
+	}, InsideShown, ArchiveMaxZips)
 	if len(found) == 0 {
 		return nil, 0, nil
 	}

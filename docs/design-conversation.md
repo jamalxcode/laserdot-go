@@ -729,6 +729,15 @@ an unindexed drive and the app offered to index it. Also, the eject approval wai
 notice marks it), and confirms two seconds later that it is still there and still unindexed; the eject approval runs
 on a queue of its own.
 
+**Then asked:** "do a quick review of the code, any potential bugs or issues found? if found, fix it". The race
+detector found nothing (core, daemon, index, query). **Found and fixed:** zip-name matching ran on every keystroke
+over every name in every zip, even for one letter — now only for words of three letters or more, and at most 2,000
+zips per search; the search place's folder was checked on disk on every redraw (dozens of times per keystroke; a
+slow network drive could stall the window) — now at most every 3 seconds per folder; the freeze log counted a
+sleeping Mac as a freeze and grew without end — it now uses time that stops during sleep, ignores gaps over two
+minutes, and keeps its last 200 lines. **Noted, not changed:** a Drive choice matches drive names as a substring, so
+"Rapid" would also count a drive called "Rapid Backup".
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

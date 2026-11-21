@@ -13,8 +13,10 @@ final class HangMonitor {
 
     private let queue = DispatchQueue(label: "laserdot.hangs", qos: .utility)
     private var timer: DispatchSourceTimer?
-    private var lastAnswer = Date()
-    private var frozenSince: Date?
+    /// Seconds since boot, not counting sleep (a sleeping Mac is no freeze).
+    private var lastAnswer = ProcessInfo.processInfo.systemUptime
+    private var lastAnswerDate = Date()
+    private var frozenSince: TimeInterval?
     private var lastContext = ""
     private let lock = NSLock()
 
@@ -34,22 +36,24 @@ final class HangMonitor {
 
     private func tick() {
         lock.lock()
-        let since = Date().timeIntervalSince(lastAnswer)
-        if since >= 2, frozenSince == nil {
+        let since = ProcessInfo.processInfo.systemUptime - lastAnswer
+        // Over two minutes is macOS pausing a background app, not a freeze.
+        if since >= 2, since < 120, frozenSince == nil {
             frozenSince = lastAnswer
-            write("froze at \(Self.stamp(lastAnswer)) (\(lastContext))")
+            write("froze at \(Self.stamp(lastAnswerDate)) (\(lastContext))")
         }
         lock.unlock()
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             let ctx = self.context()
             self.lock.lock()
-            let now = Date()
+            let now = ProcessInfo.processInfo.systemUptime
             if let f = self.frozenSince {
-                self.write(String(format: "answered again after %.1f s", now.timeIntervalSince(f)))
+                self.write(String(format: "answered again after %.1f s", now - f))
                 self.frozenSince = nil
             }
             self.lastAnswer = now
+            self.lastAnswerDate = Date()
             self.lastContext = ctx
             self.lock.unlock()
         }
@@ -59,6 +63,12 @@ final class HangMonitor {
         let url = Self.logURL
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let text = line + "\n"
+        // Kept short: the last 200 lines once it passes 64 KB.
+        if let size = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int, size > 64_000,
+           let old = try? String(contentsOf: url, encoding: .utf8) {
+            let kept = old.split(separator: "\n").suffix(200).joined(separator: "\n") + "\n"
+            try? kept.write(to: url, atomically: true, encoding: .utf8)
+        }
         if let h = try? FileHandle(forWritingTo: url) {
             h.seekToEndOfFile()
             h.write(Data(text.utf8))

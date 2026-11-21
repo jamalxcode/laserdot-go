@@ -57,7 +57,19 @@ final class SearchModel: ObservableObject {
     var searchPlace: String {
         let p = UserDefaults.standard.string(forKey: SearchPlace.key) ?? ""
         if p.isEmpty || p == "local" { return p }
-        return FileManager.default.fileExists(atPath: p) ? p : ""
+        return Self.placeExists(p) ? p : ""
+    }
+
+    /// Whether the place's folder is there, asked of the disk at most every
+    /// few seconds: the window reads the place on every redraw, and a check
+    /// on a slow network drive must not stall it.
+    private static var placeChecks: [String: (exists: Bool, at: Date)] = [:]
+    static func placeExists(_ path: String) -> Bool {
+        if let c = placeChecks[path], Date().timeIntervalSince(c.at) < 3 { return c.exists }
+        let exists = FileManager.default.fileExists(atPath: path)
+        if placeChecks.count > 32 { placeChecks.removeAll() }
+        placeChecks[path] = (exists, Date())
+        return exists
     }
 
     /// Reset: every search term, pill and choice, the search place (back to
@@ -110,7 +122,7 @@ final class SearchModel: ObservableObject {
     /// Folders chosen as places before (newest first).
     var recentPlaces: [String] {
         // Only folders still there (an unplugged drive's drop out).
-        (UserDefaults.standard.stringArray(forKey: "laserdot.recentPlaces") ?? []).filter { FileManager.default.fileExists(atPath: $0) }
+        (UserDefaults.standard.stringArray(forKey: "laserdot.recentPlaces") ?? []).filter { Self.placeExists($0) }
     }
 
     // MARK: pills
