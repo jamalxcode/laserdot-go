@@ -347,7 +347,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             watchdog = w
             // A disk about to be ejected: the engine lets go of it first
             // (waiting at most 5 seconds; the eject goes ahead regardless).
-            ejectWatcher = EjectWatcher { mount in
+            ejectWatcher = EjectWatcher { [weak self] mount in
+                // Never offer to index a drive while it is being ejected (it
+                // can look unindexed for a moment as it goes).
+                DispatchQueue.main.async { self?.drives?.ejecting(mount) }
                 let done = DispatchSemaphore(value: 0)
                 DispatchQueue.global(qos: .userInitiated).async {
                     _ = try? engine.driveRelease(mount: mount)

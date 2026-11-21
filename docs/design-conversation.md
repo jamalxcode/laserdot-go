@@ -720,6 +720,15 @@ a second click takes it out. **Then reported:** "for the camera choices, and oth
 window, have them wrap down" — each group had been kept on one line; now every chip wraps on its own (the group's
 title starts it), about six lines show and more scroll.
 
+## 56. "Index this drive?" on eject (0.9.38)
+
+**Reported:** "i ejected a usb drive and it gave me an index drive dialog, why?". **Cause:** on eject the engine
+lets go of the drive's index; while macOS unmounts it, its index cannot be read, so a drive check in that moment saw
+an unindexed drive and the app offered to index it. Also, the eject approval waited (up to 5 s) on the main thread.
+**Fix:** the app offers to index only a drive that has just appeared, never one being ejected (DiskArbitration's
+notice marks it), and confirms two seconds later that it is still there and still unindexed; the eject approval runs
+on a queue of its own.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

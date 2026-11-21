@@ -13,14 +13,17 @@ import Foundation
 final class EjectWatcher {
     private let session: DASession
     private let box: Box
+    /// Asked off the main thread: waiting for the engine to let go must
+    /// never freeze the window (a beachball on every eject).
+    private let queue = DispatchQueue(label: "laserdot.eject", qos: .userInitiated)
 
     final class Box {
         let release: (String) -> Void
         init(release: @escaping (String) -> Void) { self.release = release }
     }
 
-    /// `release(mount)` is called on the main thread just before `mount` is
-    /// unmounted; it must return within seconds.
+    /// `release(mount)` is called on a background queue just before `mount`
+    /// is unmounted; it must return within seconds.
     init?(release: @escaping (String) -> Void) {
         guard let s = DASessionCreate(kCFAllocatorDefault) else { return nil }
         session = s
@@ -35,12 +38,12 @@ final class EjectWatcher {
             }
             return nil // approved: Laserdot never keeps a disk from being ejected
         }, context)
-        // Common modes: answered even while a dialog is open (the "index
-        // this drive?" prompt runs the main loop in its own mode).
-        DASessionScheduleWithRunLoop(session, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
+        // On a queue of its own: answered while a dialog is open, and the
+        // wait never blocks the window.
+        DASessionSetDispatchQueue(session, queue)
     }
 
     deinit {
-        DASessionUnscheduleFromRunLoop(session, CFRunLoopGetMain(), CFRunLoopMode.commonModes.rawValue)
+        DASessionSetDispatchQueue(session, nil)
     }
 }

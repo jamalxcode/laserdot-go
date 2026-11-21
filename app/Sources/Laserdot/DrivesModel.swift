@@ -17,6 +17,19 @@ final class DrivesModel: ObservableObject {
     private var timer: Timer?
     /// Unindexed drives already offered this session.
     private var offered = Set<String>()
+    /// Drives being ejected: never offered (the owner ejected a USB drive and
+    /// was asked to index it — while it unmounts it can look unindexed).
+    private var ejectingMounts = Set<String>()
+    /// Mounts seen at the last look (nil before the first): only a drive that
+    /// has just appeared is offered, not one changing state as it goes.
+    private var lastMounts: Set<String>?
+    private var freshMounts = Set<String>()
+
+    /// macOS is about to unmount this drive.
+    func ejecting(_ mount: String) {
+        ejectingMounts.insert(mount)
+        freshMounts.remove(mount)
+    }
     private let declinedKey = "laserdot.drives.declined"
 
     init(engine: Engine) {
@@ -40,6 +53,13 @@ final class DrivesModel: ObservableObject {
                 guard let self else { return }
                 self.drives = (try? outcome.get()) ?? []
                 if case let .failure(e) = outcome { self.available = !e.isUnsupported } else { self.available = true }
+                if case .success = outcome {
+                    let now = Set(self.drives.map(\.mount))
+                    self.freshMounts.formUnion(now.subtracting(self.lastMounts ?? []))
+                    self.freshMounts.formIntersection(now)
+                    self.ejectingMounts.formIntersection(now) // gone: it may come back as new
+                    self.lastMounts = now
+                }
                 self.offerNewDrives()
             }
         }
@@ -249,9 +269,23 @@ final class DrivesModel: ObservableObject {
     private func offerNewDrives() {
         guard busy == nil else { return }
         let declined = Set(UserDefaults.standard.stringArray(forKey: declinedKey) ?? [])
-        for d in drives where d.state == "unindexed" && !offered.contains(d.mount) && !declined.contains(d.name) {
+        for d in drives where d.state == "unindexed" && !offered.contains(d.mount) && !declined.contains(d.name)
+            && freshMounts.contains(d.mount) && !ejectingMounts.contains(d.mount) {
             offered.insert(d.mount)
-            promptIndex(d)
+            // Asked only if, two seconds on, it is still there and still
+            // unindexed (not a drive on its way out).
+            let mount = d.mount
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+                guard let self, !self.ejectingMounts.contains(mount), FileManager.default.fileExists(atPath: mount) else { return }
+                let engine = self.engine
+                DispatchQueue.global(qos: .userInitiated).async {
+                    let now = (try? engine.drives())?.first { $0.mount == mount }
+                    DispatchQueue.main.async {
+                        guard let now, now.state == "unindexed", !self.ejectingMounts.contains(mount), self.busy == nil else { return }
+                        self.promptIndex(now)
+                    }
+                }
+            }
             return
         }
         for d in drives where d.state == "locked" && !offered.contains(d.mount) {

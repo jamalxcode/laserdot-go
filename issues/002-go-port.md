@@ -137,6 +137,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Eject without a prompt (0.9.38):** `DrivesModel` offers only `freshMounts` (appeared since the last look), never
+  `ejectingMounts` (set by `EjectWatcher`), and re-checks after 2 s; `EjectWatcher` uses `DASessionSetDispatchQueue`
+  (the approval's wait is off the main thread).
 - **One screen (0.9.37):** `compact` is always false (no slim start; the overlay opens at full size); `topRow` and
   `fitting` are gone; `SearchView.choiceBar` (round buttons with captions, both windows) from `startButtons`, whose
   searches toggle pills (`toggleBar`, `barButtonIsOn`; a new kind replaces the old); the home `quickStarts` are gone

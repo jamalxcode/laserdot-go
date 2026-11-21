@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.38
+
+- Fixed: ejecting a drive could bring up "Index this drive?" — while macOS unmounts it, the drive can look
+  unindexed for a moment. Laserdot now asks only about a drive that has just been plugged in, never one being
+  ejected, and checks again two seconds later before asking.
+- Ejecting a drive no longer pauses Laserdot's window while the engine lets go of it.
+
 ## 0.9.37
 
 - One search screen everywhere, in Spotlight's style: the ⌥Space window and the Laserdot window are the same — a
