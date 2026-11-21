@@ -139,4 +139,7 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 20e. **A watchdog must know the difference between starting and stuck.** The app waited 10 s for the daemon, then the
      next request killed it and started another: a big index that needed longer to load would never come up. Give a
      starting process its time, and open the socket before slow, optional work.
+20f. **`URLSessionTask.progress` is not bytes until the size is known.** Before the response headers it counts a
+     placeholder 100 units, which the update window showed as "5 bytes of 100 bytes" and looked stuck. Use
+     `countOfBytesReceived`/`countOfBytesExpectedToReceive`, and retry a download that breaks off.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

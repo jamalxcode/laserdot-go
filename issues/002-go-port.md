@@ -137,6 +137,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Update download (0.9.40):** the helper's session has a 60 s idle and 30 min total timeout; `download` retries a
+  `URLError` up to three times (not HTTP refusals); progress comes from `countOfBytesReceived` (the task's `progress`
+  counts placeholder units until the size is known).
 - **Robustness (0.9.39):** `core.Drives()` copies `ld.volumes` and the attached drives under `mu`, lists volumes and
   runs `findIndex`/`dirBytes` without it (`foundIndex`), then builds `driveInfoFrom` under `mu`; `SyncDrives` and
   `unindexedVolume` read disks outside the lock too. App: `refreshSoon(touching:)` on `SearchModel.touchQueue` (not the

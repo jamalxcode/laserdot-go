@@ -35,7 +35,13 @@ final class RedirectGuard: NSObject, URLSessionTaskDelegate {
     }
 }
 
-let session = URLSession(configuration: .ephemeral, delegate: RedirectGuard(), delegateQueue: nil)
+let session: URLSession = {
+    let c = URLSessionConfiguration.ephemeral
+    c.timeoutIntervalForRequest = 60 // no data for a minute: the try fails (and is tried again)
+    c.timeoutIntervalForResource = 30 * 60
+    c.waitsForConnectivity = false
+    return URLSession(configuration: c, delegate: RedirectGuard(), delegateQueue: nil)
+}()
 
 /// Refuses every redirect, so the answer's Location header can be read.
 final class NoRedirects: NSObject, URLSessionTaskDelegate {
@@ -79,7 +85,23 @@ func fetch(_ r: URLRequest) throws -> Data {
     return try result.get()
 }
 
+/// A download that breaks off (a dropped or stalled connection) is tried
+/// again, up to three times; GitHub's own refusals (404, 403) are not.
 func download(_ r: URLRequest, to dest: URL, version: String, report: Bool = true) throws {
+    var attempt = 0
+    while true {
+        attempt += 1
+        do {
+            return try downloadOnce(r, to: dest, version: version, report: report)
+        } catch let e as URLError where attempt < 3 && e.code != .cancelled {
+            if report { UpdateProgress(phase: .downloading, version: version).save() }
+            Thread.sleep(forTimeInterval: Double(attempt) * 3)
+            continue
+        }
+    }
+}
+
+func downloadOnce(_ r: URLRequest, to dest: URL, version: String, report: Bool) throws {
     let done = DispatchSemaphore(value: 0)
     var failure: Error?
     let task = session.downloadTask(with: r) { tmp, response, error in
@@ -93,12 +115,14 @@ func download(_ r: URLRequest, to dest: URL, version: String, report: Bool = tru
         } catch { failure = error }
     }
     // How far it has got, for the app's update window (a few times a second).
+    // Real byte counts, from the task: its `progress` counts in placeholder
+    // units (a percentage) until GitHub has said how big the file is.
     var last = Date.distantPast
-    let watch = task.progress.observe(\.completedUnitCount) { p, _ in
+    let watch = task.observe(\.countOfBytesReceived) { t, _ in
         guard report, Date().timeIntervalSince(last) > 0.25 else { return }
         last = Date()
-        UpdateProgress(phase: .downloading, received: p.completedUnitCount, total: max(0, p.totalUnitCount),
-                       version: version).save()
+        UpdateProgress(phase: .downloading, received: t.countOfBytesReceived,
+                       total: max(0, t.countOfBytesExpectedToReceive), version: version).save()
     }
     task.resume()
     done.wait()

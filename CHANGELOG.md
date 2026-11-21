@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.40
+
+- Updates download more reliably: a download that stalls or drops is tried again by itself (up to three times), and
+  the update window shows the real size downloaded instead of "5 bytes of 100 bytes" while it waits for GitHub. (This
+  takes effect from the next update on: the version being replaced does the downloading.)
+
 ## 0.9.39
 
 - The dot in the menu-bar icon flashes red, white, blue and green while Laserdot is working — indexing (folders or a
