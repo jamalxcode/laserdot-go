@@ -3,6 +3,15 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.34
+
+- Reopening the search window runs the search again, so files that were unzipped, moved or deleted meanwhile are
+  gone from the results (they no longer linger until the next search).
+- After Rename, Move to…, Move to Trash, Compress or Undo, the folder is updated in the index at once — on drives
+  too — so the results show the new names straight away.
+- Right-click the preview's picture, video or PDF for Rename… and the other actions; Rename now works for files on
+  drives as well.
+
 ## 0.9.33
 
 - Opening a file (or showing it in Finder) closes the search window, as Spotlight does.

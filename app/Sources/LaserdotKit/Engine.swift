@@ -178,6 +178,16 @@ public final class Engine: @unchecked Sendable {
         _ = try? call(.opened(path: path), as: String.self)
     }
 
+    /// Files in `folder` were renamed, moved, trashed or made by the app:
+    /// the engine lists it again at once (also on a drive, which has no
+    /// change events), so results never show what is gone.
+    public func touched(folder: String) {
+        _ = try? call(.touched(path: folder), as: Ignored.self)
+    }
+
+    /// An answer whose content does not matter.
+    struct Ignored: Decodable {}
+
     /// Index a folder (or refresh it if already indexed). Returns a summary.
     @discardableResult
     public func index(path: String) throws -> String {

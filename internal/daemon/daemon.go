@@ -510,6 +510,11 @@ func (s *Server) handle(req *ipc.Request) ipc.Response {
 		return result(s.ld.Refinements(req.Query))
 	case ipc.OpMoreLike:
 		return result(s.ld.MoreLike(req.Path))
+	case ipc.OpTouched:
+		if req.Path == "" {
+			return fail(ipc.ErrorOf(fmt.Errorf("touched needs a folder")))
+		}
+		return result(s.ld.ApplyChanges([]core.Change{{Path: req.Path}}))
 	case ipc.OpFilters:
 		return ok(query.FilterList(query.LangFromCode(req.Lang)))
 	case ipc.OpDeepProbe:

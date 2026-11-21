@@ -79,7 +79,10 @@ const (
 	OpRefine = "refine"
 	// OpMoreLike: a query for files like the one at Path (same type,
 	// similar size, near date), for the search field.
-	OpMoreLike   = "more_like"
+	OpMoreLike = "more_like"
+	// OpTouched: the app changed files in the folder at Path (rename,
+	// move, trash, compress): it is listed again now, a drive's too.
+	OpTouched    = "touched"
 	OpFilters    = "filters"
 	OpCheatSheet = "cheat_sheet"
 	// Tier 2 (§3.1.1): deep probing now; loudness of one file (§3.6).

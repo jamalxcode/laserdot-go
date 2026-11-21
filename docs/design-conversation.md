@@ -685,6 +685,16 @@ may not have been Laserdot's. Right-click on a result has Rename…, More Like T
 rows, columns and thumbnails). The "−" appeared on hover and pushed the chips aside, so it moved away from the
 pointer; it is now always there, faint until the chip is pointed at.
 
+## 52. Rename on media, zips that lingered (0.9.34)
+
+**Reported:** "need right click on media, then rename added"; zips found with Laserdot were unzipped (and removed by
+the unzipper) but still showed when Laserdot was opened again, then "when i unselected archive and then selected
+archive again, the zips were gone". **Cause:** reopening the window kept the last results on screen; a new search
+already dropped the deleted zips (results are checked against the disk). **Fix:** reopening runs the search again;
+after any file action (rename, move, trash, compress, undo) the app tells the engine which folders changed (new op
+`touched`), which lists them again at once — also on drives, which have no change events. Right-click on the
+preview (picture, video, PDF) has Rename and the rest, and Rename works for drive files.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

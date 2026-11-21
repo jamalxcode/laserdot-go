@@ -19,6 +19,7 @@ struct PreviewPane: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     visual
+                        .contextMenu { previewMenu }
                     Text(highlighted(hit.name, model.highlightWords))
                         .font(.headline)
                         .lineLimit(3)
@@ -69,6 +70,19 @@ struct PreviewPane: View {
             .accessibilityIdentifier("previewButtons")
         }
         .task(id: hit.path) { model.loadSnippet(for: hit) }
+    }
+
+    /// Right-click on the picture, video or PDF: what a result's menu has.
+    @ViewBuilder private var previewMenu: some View {
+        Button(L("action.open")) { model.open(hit) }
+        Button(L("action.quickLook")) { model.quickLook(hit) }
+        Button(L("action.reveal")) { model.reveal(hit) }
+        Button(L("action.copy")) { model.copyPath(hit) }
+        Divider()
+        Button(L("action.rename")) { model.rename(hit) }
+        Button(L("action.moreLike")) { model.moreLike(path: hit.path) }
+        Divider()
+        Button(L("action.trash")) { model.trash([hit]) }
     }
 
     @ViewBuilder private var visual: some View {

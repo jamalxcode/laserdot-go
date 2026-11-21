@@ -166,6 +166,13 @@ final class SelfTestRunner {
             Step(name: "inline", typed: "beac"),
             // Reopened: the last search is there, all selected.
             Step(name: "reopen", typed: "jpg", after: { overlay.hide(); overlay.show() }),
+            // Reopened after a result was deleted (unzipped, moved…) while
+            // the window was closed: the search runs again, it is gone.
+            Step(name: "reopenfresh", typed: "staleme", after: {
+                overlay.hide()
+                try? FileManager.default.removeItem(atPath: folder + "/staleme.txt")
+                overlay.show()
+            }, until: { $0.results.map(\.name) == ["staleme.txt"] }, wait: 1.5),
             // Esc clears the search; Esc again (empty) closes the overlay.
             Step(name: "escape", typed: "jpg", after: {
                 self.key("\u{1b}", code: 53, into: overlay.panel)

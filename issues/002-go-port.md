@@ -137,6 +137,10 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Fresh results (0.9.34):** op `touched` (Path: a folder) = `ApplyChanges` for it (`TestTouchedFolderIsListedAgain`);
+  the app's `refreshSoon(touching:)` sends it for every folder a rename, move, trash, compress or undo changed;
+  `OverlayController.show` re-runs a non-empty query; `PreviewPane.previewMenu`; Rename no longer limited to this
+  Mac's files. Self-test step reopenfresh.
 - **Close on open (0.9.33):** `SearchModel.onOpened`, set by the overlay to hide it (not during the self-test),
   called by open, reveal, Open With, Show in Finder and Open in Terminal. `PDFOrIcon` reads on a detached task (no
   download for an iCloud placeholder, nothing over 80 MB). `HangMonitor` (a utility queue pinging the main thread

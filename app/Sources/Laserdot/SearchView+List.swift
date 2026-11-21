@@ -149,10 +149,8 @@ extension SearchView {
         Button(L("action.quickLook")) { model.quickLook(hit) }
         Button(L("action.reveal")) { model.reveal(hit) }
         Button(L("action.copy")) { model.copyPath(hit) }
-        if hit.volume == nil {
-            Divider()
-            Button(L("action.rename")) { model.rename(hit) }
-        }
+        Divider()
+        Button(L("action.rename")) { model.rename(hit) }
         Button(L("action.moreLike")) { model.moreLike(path: hit.path) }
         Divider()
         Button(L("action.trash")) { model.trash([hit]) }

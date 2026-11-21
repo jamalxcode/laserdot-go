@@ -122,7 +122,13 @@ final class OverlayController: NSObject, NSWindowDelegate {
         model.focusSearch() // the query field takes the keyboard each time
         // As in Spotlight: the last search is still there, all selected, so
         // typing replaces it and ↓ or Return reuse it.
-        if !model.query.isEmpty { model.selectAllRequest &+= 1 }
+        if !model.query.isEmpty {
+            model.selectAllRequest &+= 1
+            // Fresh results, not the ones from when it was closed: files
+            // unzipped, moved or deleted meanwhile are gone (the owner saw
+            // zips that had been unzipped and removed).
+            model.queryChanged()
+        }
         // When Quick Look closes, the overlay takes the keyboard back.
         QuickLook.shared.onClose = { [weak self] in
             guard let self, self.panel.isVisible else { return }

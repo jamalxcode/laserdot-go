@@ -54,6 +54,8 @@ public enum DaemonRequest: Encodable, Sendable {
     case refine(query: String)
     /// A query for files like the one at `path` (More Like This).
     case moreLike(path: String)
+    /// The app changed files in this folder: list it again now.
+    case touched(path: String)
     /// Every filter, for the cheat sheet (spec §8.9).
     case filters(lang: String)
     /// The plain-text cheat sheet.
@@ -123,6 +125,7 @@ public enum DaemonRequest: Encodable, Sendable {
         case .completions: return "completions"
         case .refine: return "refine"
         case .moreLike: return "more_like"
+        case .touched: return "touched"
         case .filters: return "filters"
         case .cheatSheet: return "cheat_sheet"
         }
@@ -144,7 +147,7 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(limit, forKey: .limit)
             try c.encode(typo, forKey: .typo)
         case let .index(path), let .forget(path), let .opened(path), let .exclude(path), let .include(path),
-             let .moreLike(path):
+             let .moreLike(path), let .touched(path):
             try c.encode(path, forKey: .path)
         case let .drivePlan(mount), let .driveDetach(mount), let .driveDelete(mount), let .driveEject(mount),
              let .driveStop(mount), let .driveContinue(mount):

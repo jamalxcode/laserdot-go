@@ -113,7 +113,7 @@ extension SearchModel {
             ActionItem(id: "compress", title: L("action.compress"), symbol: "doc.zipper") { [weak self] in self?.compress(hits) },
             ActionItem(id: "moveTo", title: L("action.moveTo"), symbol: "folder.badge.gearshape") { [weak self] in self?.move(hits) },
         ]
-        if !many && first.volume == nil {
+        if !many {
             list.append(ActionItem(id: "rename", title: L("action.rename"), symbol: "pencil") { [weak self] in self?.rename(first) })
         }
         list.append(ActionItem(id: "trash", title: L("action.trash"), symbol: "trash") { [weak self] in self?.trash(hits) })
@@ -146,7 +146,7 @@ extension SearchModel {
         } catch {
             return error
         }
-        refreshSoon()
+        refreshSoon(touching: [from.path])
         return nil
     }
 
@@ -180,7 +180,7 @@ extension SearchModel {
                     self?.offerUndo(UndoStep(title: String(format: L("undo.compressed"), made.lastPathComponent),
                                              created: [made]))
                 }
-                self?.refreshSoon()
+                self?.refreshSoon(touching: [dest.path])
                 done(made)
             }
         }
@@ -229,7 +229,7 @@ extension SearchModel {
         if !moves.isEmpty {
             offerUndo(UndoStep(title: String(format: L("undo.moved"), moves.count, folder.lastPathComponent), moves: moves))
         }
-        refreshSoon()
+        refreshSoon(touching: moves.flatMap { [$0.0.path, $0.1.path] })
         return failure
     }
 
@@ -254,7 +254,7 @@ extension SearchModel {
                 if !moves.isEmpty {
                     self?.offerUndo(UndoStep(title: String(format: L("undo.trashed"), moves.count), moves: moves))
                 }
-                self?.refreshSoon()
+                self?.refreshSoon(touching: urls.map(\.path))
                 done(error)
             }
         }
@@ -333,7 +333,7 @@ extension SearchModel {
         let created = step.created.map { URL(fileURLWithPath: $0) }.filter { fm.fileExists(atPath: $0.path) }
         if !created.isEmpty {
             NSWorkspace.shared.recycle(created) { [weak self] _, _ in
-                DispatchQueue.main.async { self?.refreshSoon() }
+                DispatchQueue.main.async { self?.refreshSoon(touching: created.map(\.path)) }
             }
         }
         if !ok {
@@ -341,7 +341,7 @@ extension SearchModel {
             a.messageText = L("undo.failed")
             a.runFront()
         }
-        refreshSoon()
+        refreshSoon(touching: step.moves.flatMap { [$0.from, $0.to] })
         return ok
     }
 
@@ -365,8 +365,20 @@ extension SearchModel {
     }
 
     /// The daemon's watcher picks the change up; search again a moment later.
-    func refreshSoon() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.queryChanged() }
+    /// After the app changed files: the folders they were (and are) in are
+    /// listed again by the engine at once — on a drive too, which has no
+    /// change events — then the search runs again, so nothing gone stays.
+    func refreshSoon(touching paths: [String] = []) {
+        let dirs = Set(paths.map { ($0 as NSString).deletingLastPathComponent })
+        guard !dirs.isEmpty else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.queryChanged() }
+            return
+        }
+        let engine = self.engine
+        queue.async { [weak self] in
+            for d in dirs { engine.touched(folder: d) }
+            DispatchQueue.main.async { self?.queryChanged() }
+        }
     }
 
     var selected: Hit? { results.indices.contains(selection) ? results[selection] : nil }

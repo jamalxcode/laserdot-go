@@ -281,3 +281,32 @@ func TestABugInARequestDoesNotStopTheDaemon(t *testing.T) {
 		t.Fatalf("the bug was not counted: %v %v", st["bugs_caught"], err)
 	}
 }
+
+// The app renamed a file (or moved, trashed, compressed): it says which
+// folder, and the engine lists it again at once, so the next search shows
+// the new name and not the old one.
+func TestTouchedFolderIsListedAgain(t *testing.T) {
+	dir, c, _ := start(t)
+	var st core.IndexStats
+	if err := c.Call(&ipc.Request{Op: ipc.OpIndex, Path: filepath.Join(dir, "files")}, &st); err != nil {
+		t.Fatal(err)
+	}
+	docs := filepath.Join(dir, "files", "docs")
+	if err := os.Rename(filepath.Join(docs, "invoice march.pdf"), filepath.Join(docs, "receipt april.pdf")); err != nil {
+		t.Fatal(err)
+	}
+	var stats map[string]any
+	if err := c.Call(&ipc.Request{Op: ipc.OpTouched, Path: docs}, &stats); err != nil {
+		t.Fatal(err)
+	}
+	var res core.SearchResults
+	if err := c.Call(&ipc.Request{Op: ipc.OpSearch, Query: "receipt"}, &res); err != nil || res.Total != 1 {
+		t.Fatalf("the new name: %+v %v", res, err)
+	}
+	if err := c.Call(&ipc.Request{Op: ipc.OpSearch, Query: "invoice"}, &res); err != nil || res.Total != 0 {
+		t.Fatalf("the old name is gone: %+v %v", res, err)
+	}
+	if err := c.Call(&ipc.Request{Op: ipc.OpTouched}, &stats); err == nil {
+		t.Error("touched needs a folder")
+	}
+}
