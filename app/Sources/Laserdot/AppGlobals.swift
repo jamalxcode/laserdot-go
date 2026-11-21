@@ -77,6 +77,40 @@ let menuBarIcon: NSImage = {
     return img
 }()
 
+/// The menu-bar icon with its dot in a colour (while Laserdot is working):
+/// the ring and ticks follow the menu bar's light or dark look, the dot is
+/// `dot`, outlined so white shows on a light bar.
+func flashingMenuBarIcon(dot: NSColor) -> NSImage {
+    let img = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { r in
+        let isDark = NSAppearance.currentDrawing().bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        (isDark ? NSColor.white : NSColor.black).set()
+        let ring = NSBezierPath(ovalIn: r.insetBy(dx: 3.5, dy: 3.5))
+        ring.lineWidth = 1.5
+        ring.stroke()
+        let ticks = NSBezierPath()
+        ticks.lineWidth = 1.5
+        for (from, to) in [((9.0, 0.5), (9.0, 3.5)), ((9.0, 14.5), (9.0, 17.5)), ((0.5, 9.0), (3.5, 9.0)), ((14.5, 9.0), (17.5, 9.0))] {
+            ticks.move(to: NSPoint(x: from.0, y: from.1))
+            ticks.line(to: NSPoint(x: to.0, y: to.1))
+        }
+        ticks.stroke()
+        let d = NSBezierPath(ovalIn: NSRect(x: 6.0, y: 6.0, width: 6.0, height: 6.0))
+        dot.setFill()
+        d.fill()
+        NSColor.black.withAlphaComponent(0.35).setStroke()
+        d.lineWidth = 0.5
+        d.stroke()
+        return true
+    }
+    img.isTemplate = false
+    img.accessibilityDescription = "Laserdot (working)"
+    return img
+}
+
+/// The dot's colours while Laserdot works, in turn (the owner: "flash red
+/// white blue green whenever there is laserdot activity").
+let menuBarFlashColors: [NSColor] = [.systemRed, .white, .systemBlue, .systemGreen]
+
 /// Milliseconds since this process started (launch time).
 func msSinceProcessStart() -> Int {
     var info = kinfo_proc()

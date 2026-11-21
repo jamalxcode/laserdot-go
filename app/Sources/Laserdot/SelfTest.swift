@@ -308,7 +308,12 @@ final class SelfTestRunner {
             // the results at once; Refresh (⌘R) looks at every folder again.
             Step(name: "gone", typed: "gonefile", before: {
                 try? FileManager.default.removeItem(atPath: folder + "/gonefile.txt")
-            }, after: { model.refreshIndex() }, until: { $0.results.isEmpty }),
+            }, after: {
+                model.refreshIndex()
+                // Working: the menu-bar dot flashes.
+                self.app.updateFlash()
+                self.extra["flash_when_working"] = self.app.isFlashing
+            }, until: { $0.results.isEmpty }),
             Step(name: "refreshed", typed: "gonefile", until: { !$0.refreshing }),
             // A laserdot:// link opens the overlay with its search.
             Step(name: "url", typed: "", before: { self.app.handle(URL(string: "laserdot://search?q=beach")!) }),

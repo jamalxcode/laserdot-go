@@ -3,6 +3,14 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.39
+
+- The dot in the menu-bar icon flashes red, white, blue and green while Laserdot is working — indexing (folders or a
+  drive), reading photo and video details, scanning for duplicates or refreshing — and goes back to normal when it
+  is done.
+- The round buttons under the search box wrap onto a second line when the window is narrow, instead of running off
+  its edge.
+
 ## 0.9.38
 
 - Fixed: ejecting a drive could bring up "Index this drive?" — while macOS unmounts it, the drive can look

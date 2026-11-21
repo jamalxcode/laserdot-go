@@ -132,6 +132,7 @@ check(rs["query"] == "" and rs.get("place_pill") is False and rs.get("sort_key")
 pg = steps["placegone"]
 check(pg.get("place_pill") is False and len(pg["results"]) >= 3, f"a place whose folder is gone is ignored (got {pg.get('place_pill')}, {pg['results']})")
 check(steps["start"].get("more_page") == 1000, "Show More adds a thousand results at a time")
+check(report.get("flash_when_working") is True, "the menu-bar dot flashes while Laserdot works (a refresh)")
 sv = steps["startvideos"]
 check(sv.get("pills") == ["kind:video"] and "clip.mp4" in sv["results"] and not sv["compact"], f"the Videos button searches videos (got {sv.get('pills')}, {sv['results']})")
 check(not jpg["compact"], "the overlay grows for results")

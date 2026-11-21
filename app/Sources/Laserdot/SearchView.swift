@@ -39,8 +39,10 @@ struct SearchView: View {
     @ViewBuilder var choiceBar: some View {
         if !model.isCommandMode {
             let buttons = model.startButtons
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 10) {
+            // Wraps onto more lines in a narrow window (the owner: "let the
+            // icons wrap around if the window is small").
+            Group {
+                FlowLayout(spacing: 10, lineSpacing: 8) {
                     ForEach(Array(buttons.enumerated()), id: \.element.id) { i, b in
                         let on = model.barButtonIsOn(b)
                         Button(action: b.run) {

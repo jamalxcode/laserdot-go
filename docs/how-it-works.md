@@ -42,6 +42,8 @@ One page, kept current: what is true today. The history and the reasons are in
   hints, choices and results; recent files when the box is empty.
 - **Reset:** the ✕ in the box clears words, pills, the search place and the order; a place whose folder is gone
   counts as Everywhere. A search shows up to 1,000 results, and Show More adds 1,000 at a time.
+- **Menu-bar dot:** flashes red, white, blue, green while Laserdot works (indexing, details, a drive, duplicates, a
+  refresh); checked every 2 s. The round buttons wrap in a narrow window.
 - **Fresh results:** reopening the window runs the search again; after a file action the app sends `touched` with
   the folders it changed, and the engine lists them again at once (drives included).
 - **Opening** a result (Return, double-click, Open With, Show in Finder, Open in Terminal) hides the ⌥Space window.

@@ -137,6 +137,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Flashing dot (0.9.39):** `AppDelegate.menuIcon` (published; the `MenuBarExtra` label), `startActivityWatch`
+  (engine status every 2 s → `engineIndexing`), `isWorking` (also drives, duplicates, refresh), `updateFlash`
+  (0.4 s timer over `menuBarFlashColors`, `flashingMenuBarIcon(dot:)`). `choiceBar` uses `FlowLayout`.
 - **Review fixes (0.9.38):** `ArchiveMinWord` = 3 and `ArchiveMaxZips` = 2000 (`wordsLongEnough`,
   `ArchiveIndex.Matching(…, maxArchives)`); `SearchModel.placeExists` caches each folder's existence for 3 s;
   `HangMonitor` uses `systemUptime`, ignores gaps ≥ 120 s, trims its log past 64 KB.

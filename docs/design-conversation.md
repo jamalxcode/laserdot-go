@@ -738,6 +738,15 @@ sleeping Mac as a freeze and grew without end — it now uses time that stops du
 minutes, and keeps its last 200 lines. **Noted, not changed:** a Drive choice matches drive names as a substring, so
 "Rapid" would also count a drive called "Rapid Backup".
 
+## 57. A flashing dot; buttons that wrap (0.9.39)
+
+**Asked:** "lets have the laserdot especially the dot part in the menu flash red white blue green whenever there is
+laserdot activity", and, with a screenshot of a narrow window, "let the icons wrap around if the window is small".
+**Done:** while Laserdot works (indexing folders or a drive, the details pass, a duplicate scan, a refresh) the
+menu-bar icon's dot cycles red, white, blue and green every 0.4 s (the ring follows the menu bar's look; the dot is
+outlined so white shows on a light bar); searching does not count, or it would flash at every keystroke. The app
+asks the engine every 2 s whether it is indexing. The round buttons now wrap like the choices.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

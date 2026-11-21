@@ -33,13 +33,21 @@ struct LaserdotApp: App {
         MenuBarExtra {
             StatusMenu(delegate: delegate, updates: delegate.updates)
         } label: {
-            Image(nsImage: menuBarIcon)
+            // The dot flashes red, white, blue and green while Laserdot works.
+            Image(nsImage: delegate.menuIcon)
         }
     }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     @Published var statusLine = L("daemon.starting")
+    /// The menu-bar icon (its dot flashes while Laserdot works).
+    @Published var menuIcon: NSImage = menuBarIcon
+    private var flashTimer: Timer?
+    private var flashStep = 0
+    private var activityTimer: Timer?
+    /// The engine reported a folder being indexed at its last look.
+    private var engineIndexing = false
     var watchdog: Watchdog?
     /// Lets go of a drive just before macOS ejects it.
     var ejectWatcher: EjectWatcher?
@@ -83,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         // Freezes are written down (Save Diagnostics shows them).
         HangMonitor.shared.context = { [weak self] in self?.hangContext() ?? "" }
         HangMonitor.shared.start()
+        startActivityWatch()
         let db = Paths.defaultDbPath
         // Safe start: two launches in a row that did not get going offer a
         // fresh index on the third (nothing else is touched).
@@ -450,4 +459,59 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             DispatchQueue.main.async { self?.show(status) }
         }
     }
+}
+
+// MARK: the menu-bar dot
+
+extension AppDelegate {
+    /// Laserdot is working: indexing (folders or a drive, details included),
+    /// scanning for duplicates, or refreshing. Searching is not counted (it
+    /// would flash at every keystroke).
+    var isWorking: Bool {
+        engineIndexing
+            || drives?.busy != nil
+            || drives?.drives.contains(where: \.indexing) == true
+            || duplicatesModel?.scanning == true
+            || model?.refreshing == true
+    }
+
+    /// Every 2 s: ask the engine (off the main thread) whether it is
+    /// indexing, then flash the dot or stop.
+    func startActivityWatch() {
+        guard activityTimer == nil else { return }
+        activityTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            if self.engineStarted, let engine = self.engine {
+                DispatchQueue.global(qos: .utility).async { [weak self] in
+                    let s = engine.status()
+                    DispatchQueue.main.async {
+                        self?.engineIndexing = s.running && s.indexing != nil
+                        self?.updateFlash()
+                    }
+                }
+            } else {
+                self.updateFlash()
+            }
+        }
+    }
+
+    func updateFlash() {
+        let working = isWorking
+        if working, flashTimer == nil {
+            flashStep = 0
+            flashTimer = Timer.scheduledTimer(withTimeInterval: 0.4, repeats: true) { [weak self] _ in
+                guard let self else { return }
+                self.menuIcon = flashingMenuBarIcon(dot: menuBarFlashColors[self.flashStep % menuBarFlashColors.count])
+                self.flashStep += 1
+            }
+            flashTimer?.fire()
+        } else if !working, let t = flashTimer {
+            t.invalidate()
+            flashTimer = nil
+            menuIcon = menuBarIcon
+        }
+    }
+
+    /// Whether the dot is flashing now (the self-test's report).
+    var isFlashing: Bool { flashTimer != nil }
 }
