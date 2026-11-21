@@ -3,6 +3,14 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.37
+
+- One search screen everywhere, in Spotlight's style: the ⌥Space window and the Laserdot window are the same — a
+  rounded search bar, then a row of round buttons with captions (Videos, Images, Music, Documents, Apps, Recent
+  Downloads, Big Files, then Find Duplicates, Storage, Drives, Index a Folder, Settings), then the choices and the
+  results. Nothing is hidden behind a slim start any more, and recent files show as soon as the window opens.
+- A kind button joins your search as a pill and keeps what you typed; click it again to take it out.
+
 ## 0.9.36
 
 - Searches show up to a thousand results straight away (not only after Show More).

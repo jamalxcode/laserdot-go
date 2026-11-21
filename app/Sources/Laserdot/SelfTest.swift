@@ -148,11 +148,14 @@ final class SelfTestRunner {
                 model.dropPlace()
                 UserDefaults.standard.removeObject(forKey: SearchPlace.key)
             }, until: { $0.placeInEffect }, wait: 1.0),
-            // A one-click start from the home screen: its filter is a pill;
-            // Delete with nothing typed takes the pill away.
-            Step(name: "quickstart", typed: "", after: {
-                model.query = (SearchModel.quickStarts.first { $0.id == "documents" }?.query ?? "kind:document since:7d") + " "
-            }, until: { $0.isHome }, wait: 1.5),
+            // The choice bar: Documents joins the typed words as a pill, and
+            // a second click takes it out again.
+            Step(name: "quickstart", typed: "proj", after: {
+                model.startButtons.first { $0.id == "documents" }?.run()
+            }, until: { !$0.results.isEmpty }, wait: 1.5),
+            Step(name: "bartoggle", typed: "", before: { model.query = "kind:document proj" }, after: {
+                model.startButtons.first { $0.id == "documents" }?.run()
+            }, until: { !$0.results.isEmpty }, wait: 1.0),
             Step(name: "pillback", typed: "", after: {
                 model.query = "kind:video "
                 _ = model.removeLastPill()
@@ -316,8 +319,6 @@ final class SelfTestRunner {
                 model.loadHome()
                 model.showHomeList = true // ↓ or Recently Opened
             }),
-            // ⌘2 at the start presses the second round button (Videos).
-            Step(name: "startnumber", typed: "", after: { model.openNumbered(2) }, until: { $0.compact }, wait: 1.5),
             // Limited to a place where nothing matches: Search Everywhere.
             Step(name: "noneplace", typed: "quokka", before: {
                 UserDefaults.standard.set(folder + "/Trips/2023", forKey: SearchPlace.key)
@@ -339,7 +340,7 @@ final class SelfTestRunner {
             // The start's round buttons: Videos runs its search as a pill.
             Step(name: "startvideos", typed: "", after: {
                 model.startButtons.first { $0.id == "videos" }?.run()
-            }, until: { $0.compact }, wait: 1.5),
+            }, until: { $0.isHome }, wait: 1.5),
         ]
         overlay.show()
         after(1) {

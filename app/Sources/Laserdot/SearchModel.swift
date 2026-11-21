@@ -235,7 +235,7 @@ final class SearchModel: ObservableObject {
     @Published var progressText: String?
     var progressTimer: Timer?
     /// The overlay shrinks to a slim bar when there is nothing to show.
-    @Published private(set) var compact = true
+    @Published private(set) var compact = false
     @Published private(set) var problem: Problem?
     @Published private(set) var notes: [String] = []
     @Published private(set) var unavailable: String?
@@ -589,7 +589,9 @@ final class SearchModel: ObservableObject {
     /// The start is the bar and its buttons until something is typed, ↓ is
     /// pressed or Recently Opened is clicked.
     func updateCompact() {
-        compact = query.isEmpty && !showHomeList && !showCheatSheet && !showActions
+        // One full screen, always (the owner: "the full option, full choices
+        // screen all the time"): no slim start any more.
+        compact = false
     }
 
     // MARK: the empty box: recently opened, recent downloads, pins
@@ -662,19 +664,6 @@ final class SearchModel: ObservableObject {
         query += sep + filter
         focusSearch()
     }
-
-    /// One-click starts on the home screen: common searches as filters.
-    struct QuickStart: Identifiable, Hashable {
-        let id: String
-        let symbol: String
-        let query: String
-    }
-    static let quickStarts: [QuickStart] = [
-        QuickStart(id: "downloads", symbol: "arrow.down.circle", query: "in:~/Downloads since:30d"),
-        QuickStart(id: "photos", symbol: "photo", query: "kind:image since:30d"),
-        QuickStart(id: "documents", symbol: "doc.text", query: "kind:document since:7d"),
-        QuickStart(id: "big", symbol: "externaldrive", query: "fsize:>1gb"),
-    ]
 
     /// Chips that narrow the results to one kind, when they mix kinds and
     /// the query does not already name one.

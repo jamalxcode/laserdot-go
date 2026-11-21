@@ -35,8 +35,8 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
-             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "startnumber", "noneplace", "noneplaceoff", "startvideos"):
+for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+             "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
     sys.exit(1)
@@ -99,8 +99,10 @@ check(pl["results"] == ["rome trip.txt"] and pl.get("place_pill") is True, f"a d
 check(len(po["results"]) >= 3 and po.get("place_pill") is False, f"Search Everywhere drops it for this search (got {po['results']}, pill {po.get('place_pill')})")
 
 qs = steps["quickstart"]
-check(qs.get("pills") == ["kind:document", "since:7d"] and qs.get("field_text") == "" and "project.pdf" in qs["results"],
-      f"a home start runs its search as a pill (got {qs.get('pills')}, {qs.get('field_text')!r}, {qs['results']})")
+check(qs.get("pills") == ["kind:document"] and qs.get("field_text") == "proj" and "project.pdf" in qs["results"],
+      f"the bar's Documents joins the typed words as a pill (got {qs.get('pills')}, {qs.get('field_text')!r}, {qs['results']})")
+bt = steps["bartoggle"]
+check(bt.get("pills") == [] and bt["query"].strip() == "proj", f"a second click takes it out (got {bt.get('pills')}, {bt['query']!r})")
 bk = steps["pillback"]
 check(bk.get("pills") == [] and bk["query"] == "", f"Delete in an empty field takes the last pill away (got {bk.get('pills')}, {bk['query']!r})")
 
@@ -115,19 +117,17 @@ wc = steps["wherechosen"]
 check(wc["query"].startswith("in:") and wc["query"].endswith("trip") and len(wc["results"]) == 1, f"choosing a folder searches only there (got {wc['query']!r}, {wc['results']})")
 
 # The overlay starts as a slim bar (nothing typed, nothing opened yet).
-check(steps.get("start", {}).get("compact") is True, "the overlay starts as the bar and its buttons")
+check(steps.get("start", {}).get("compact") is False, "one full screen from the start (no slim bar)")
 sb = steps.get("start", {}).get("start_buttons", [])
-check(all(b in sb for b in ("recent", "videos", "images", "music", "documents", "apps", "dupes", "storage", "index", "settings")) and sb.index("videos") < sb.index("dupes"),
-      f"the start offers kinds of files, then the menu's tools (got {sb})")
-sn = steps["startnumber"]
-check(sn.get("pills") == ["kind:video"] and "clip.mp4" in sn["results"], f"⌘2 at the start presses Videos (got {sn.get('pills')}, {sn['results']})")
+check(all(b in sb for b in ("videos", "images", "music", "documents", "apps", "downloads", "big", "dupes", "storage", "index", "settings")) and sb.index("big") < sb.index("dupes"),
+      f"the choice bar offers kinds and searches, then the menu's tools (got {sb})")
 np_, npo = steps["noneplace"], steps["noneplaceoff"]
 check(np_["results"] == [] and np_.get("place_pill") is True, f"nothing in the place: an empty list with Search Everywhere (got {np_['results']}, {np_.get('place_pill')})")
 check("archive-2023.zip" in npo["results"] and npo.get("place_pill") is False, f"Search Everywhere finds it elsewhere (got {npo['results']})")
 check(steps["start"].get("dismiss_on_open") is True, "opening a result closes the search window (it is wired to)")
 check(steps["reopenfresh"]["results"] == [], f"reopening runs the search again: a deleted file is gone (got {steps['reopenfresh']['results']})")
 rs = steps["reset"]
-check(rs["query"] == "" and rs.get("place_pill") is False and rs.get("sort_key") == "relevance" and rs.get("compact") is True,
+check(rs["query"] == "" and rs.get("place_pill") is False and rs.get("sort_key") == "relevance",
       f"Reset clears words, place and order (got {rs['query']!r}, place {rs.get('place_pill')}, sort {rs.get('sort_key')})")
 pg = steps["placegone"]
 check(pg.get("place_pill") is False and len(pg["results"]) >= 3, f"a place whose folder is gone is ignored (got {pg.get('place_pill')}, {pg['results']})")

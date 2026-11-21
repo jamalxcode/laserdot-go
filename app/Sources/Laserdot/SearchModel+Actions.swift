@@ -385,12 +385,6 @@ extension SearchModel {
 
     /// ⌘1–⌘9: open the nth result on screen.
     func openNumbered(_ n: Int) {
-        // At the start ⌘1–⌘9 press the round buttons (keyboard first).
-        if compact && query.isEmpty {
-            let buttons = startButtons
-            if buttons.indices.contains(n - 1) { buttons[n - 1].run() }
-            return
-        }
         guard results.indices.contains(n - 1) else { return }
         selection = n - 1
         open(results[n - 1])

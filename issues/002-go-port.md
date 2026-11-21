@@ -137,6 +137,10 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **One screen (0.9.37):** `compact` is always false (no slim start; the overlay opens at full size); `topRow` and
+  `fitting` are gone; `SearchView.choiceBar` (round buttons with captions, both windows) from `startButtons`, whose
+  searches toggle pills (`toggleBar`, `barButtonIsOn`; a new kind replaces the old); the home `quickStarts` are gone
+  (Recent Downloads and Big Files are bar buttons). Self-test steps quickstart (bar + typed words) and bartoggle.
 - **Reset (0.9.35):** `SearchModel.resetSearch` / `canReset` (the ✕ and … ▸ Reset Search); `searchPlace` ignores a
   folder that no longer exists; `recentPlaces` keeps existing ones; `morePage` = 1000. Self-test steps reset, placegone.
 - **Fresh results (0.9.34):** op `touched` (Path: a folder) = `ApplyChanges` for it (`TestTouchedFolderIsListedAgain`);

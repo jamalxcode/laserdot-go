@@ -13,8 +13,8 @@ file search should be, and a robot that types into it on every change to prove i
 
 ## What it does
 
-- 🟣 **Starts like Spotlight.** ⌥Space shows a rounded bar and round buttons for Videos, Images, Music,
-  Documents, Apps and recent files, then Duplicates, Storage, Drives and Settings; the rest appears as you type.
+- 🟣 **Looks like Spotlight, shows everything.** One screen in every window: a rounded bar, round buttons for
+  Videos, Images, Music, Documents, Apps, Downloads and Big Files, then Duplicates, Storage, Drives and Settings.
 - 🔎 **Finds things the way you say them.** `jpg`, `photos last week`, `big videos`, `pdf yesterday`,
   `invoice march`, `4k hdr` — and Arabic: `صور الاسبوع الماضي`, `فاتورة ٢٠٢٤`. A hint under the box shows how it read
   you (*“last week means since:7d”*), so you pick up the precise language for free.
@@ -63,11 +63,11 @@ The app is signed ad hoc, not with an Apple Developer ID, so the first launch ma
 
 ## Using it
 
-Press **⌥Space** anywhere (change it in **Settings**), or use the Laserdot window. Like macOS's Spotlight, it starts
-as a rounded search bar with round buttons beside it: **Recently Opened, Videos, Images, Music, Documents, Apps**,
-then **Find Duplicates, Storage, Drives** (while a drive is connected), **Index a Folder** and **Settings**. The rest
-appears when it's needed — start typing, press ↓, or click a button (⌘1–⌘9 press them too). If a search limited to
-one place finds nothing, **Search Everywhere** looks everywhere else.
+Press **⌥Space** anywhere (change it in **Settings**), or use the Laserdot window — both show the same screen, in
+Spotlight's style: a rounded search bar, then round buttons for **Videos, Images, Music, Documents, Apps, Recent
+Downloads, Big Files** (each adds its filter to what you typed; click again to take it out), then **Find Duplicates,
+Storage, Drives** (while a drive is connected), **Index a Folder** and **Settings**; then the choices and results. If
+a search limited to one place finds nothing, **Search Everywhere** looks everywhere else.
 
 | You type | You get |
 |---|---|

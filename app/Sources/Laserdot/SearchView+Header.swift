@@ -17,8 +17,7 @@ extension SearchView {
             pillRow
             SearchField(
                 text: $model.fieldText,
-                // At the start the box says where recent files are (↓).
-                placeholder: atStart ? L("search.placeholderStart") : L("search.placeholder"),
+                placeholder: L("search.placeholder"),
                 focusToken: model.focusRequest,
                 onMove: { d in model.showCheatSheet ? model.moveCheat(d) : model.move(d) },
                 onExtend: { d in model.extend(d) },
@@ -47,9 +46,8 @@ extension SearchView {
                 ProgressView().controlSize(.small).frame(width: 20, height: 20)
                     .help(L("refresh.help"))
             }
-            // At the start only the field: the view and the … menu come with
-            // the results (options appear when they are needed).
-            if !(fixedSize && model.compact) {
+            // The view switch and the … menu, always (one full screen).
+            Group {
             // Thumbnail size, as Finder's icon view (⌘+ ⌘−): only while
             // thumbnails are shown.
             if model.viewMode == .grid {
@@ -232,8 +230,7 @@ extension SearchView {
     @ViewBuilder var chips: some View {
         let completions = model.completionChips
         let pins = model.isHome ? model.pinned : []
-        let starts = model.isHome ? SearchModel.quickStarts : []
-        if !completions.isEmpty || !pins.isEmpty || !starts.isEmpty {
+        if !completions.isEmpty || !pins.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     // ⌥1–⌥9 press a chip without the mouse (shown in its tooltip).
@@ -244,24 +241,12 @@ extension SearchView {
                                 .modifier(ChipKey(index: i))
                         }
                     } else {
-                        // One click to a common search (its filters become pills).
-                        ForEach(Array(starts.enumerated()), id: \.element.id) { i, st in
-                            Button { model.query = st.query + " " } label: {
-                                Label(L("start." + st.id), systemImage: st.symbol)
-                            }
-                            .help(L("start." + st.id) + Self.chipKey(i))
-                            .modifier(ChipKey(index: i))
-                            .accessibilityIdentifier("start-" + st.id)
-                        }
-                        if !pins.isEmpty {
-                            Divider().frame(height: 16)
-                            Image(systemName: "pin").foregroundStyle(.secondary).accessibilityHidden(true)
-                            ForEach(Array(pins.enumerated()), id: \.element) { i, q in
-                                Button(q) { model.query = q }
-                                    .help(Self.chipKey(starts.count + i).trimmingCharacters(in: .whitespaces))
-                                    .modifier(ChipKey(index: starts.count + i))
-                                    .contextMenu { Button(String(format: L("pin.unpin"), q)) { model.togglePin(q) } }
-                            }
+                        Image(systemName: "pin").foregroundStyle(.secondary).accessibilityHidden(true)
+                        ForEach(Array(pins.enumerated()), id: \.element) { i, q in
+                            Button(q) { model.query = q }
+                                .help(Self.chipKey(i).trimmingCharacters(in: .whitespaces))
+                                .modifier(ChipKey(index: i))
+                                .contextMenu { Button(String(format: L("pin.unpin"), q)) { model.togglePin(q) } }
                         }
                     }
                 }

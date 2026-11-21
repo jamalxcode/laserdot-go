@@ -14,11 +14,6 @@ extension SearchModel {
             commandIndex = max(0, min(commandEntries.count - 1, commandIndex + delta))
             return
         }
-        // ↓ at the start opens the empty box's list (recently opened…).
-        if query.isEmpty && !showHomeList && delta > 0 {
-            showHomeList = true
-            return
-        }
         // ↑ from the empty box (not yet in its list), and again while
         // walking the history: earlier searches; ↓ goes into the results.
         let walking = historyIndex >= 0 && !browsing && delta < 0

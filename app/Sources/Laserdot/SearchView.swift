@@ -18,86 +18,72 @@ struct SearchView: View {
     /// The selected row uses the accent colour while this window has the
     /// keyboard (the overlay always does), and grey otherwise — as lists do.
     var emphasized: Bool { fixedSize || activeState == .key }
-    /// The panel's width (how many of the start's round buttons fit).
-    @State var panelWidth: CGFloat = 920
 
-    /// The overlay's start: the rounded bar and its round buttons.
+    /// The overlay's smallest height (it opens at its full size).
     static let compactHeight: CGFloat = 62
     static let fullHeight: CGFloat = 520
-
-    /// The overlay is at its start (the bar and its round buttons).
-    var atStart: Bool { fixedSize && model.compact }
 
     var body: some View {
         card
             .overlay(hiddenShortcuts)
             // Drop a folder (or a file: its folder) to search inside it.
             .onDrop(of: [.fileURL], isTargeted: nil) { providers in model.handleDrop(providers) }
-            // The panel's width, for how many round buttons fit.
-            .background(GeometryReader { g in
-                Color.clear
-                    .onAppear { panelWidth = g.size.width }
-                    .onChange(of: g.size.width) { _, w in panelWidth = w }
-            })
     }
 
-    // MARK: the start
-
-    /// The buttons that leave the field at least 300 points: all, else the
-    /// kinds of files, else none.
-    static func fitting(_ all: [SearchModel.StartButton], width: CGFloat) -> [SearchModel.StartButton] {
-        func needed(_ b: [SearchModel.StartButton]) -> CGFloat {
-            300 + CGFloat(b.count) * 54 + (b.contains(where: \.isTool) ? 10 : 0) + 4
-        }
-        if needed(all) <= width { return all }
-        let kinds = all.filter { !$0.isTool }
-        return needed(kinds) <= width ? kinds : []
-    }
-
-    /// The top of the overlay. One search field in one place, always (it
-    /// holds the keyboard: rebuilding it lost the first letter typed). At
-    /// the start it sits in a capsule with round buttons beside it, as
-    /// macOS's Spotlight does — kinds of files first, the menu's tools after
-    /// them; once something is typed they make way for the full window.
-    var topRow: some View {
-        HStack(spacing: 8) {
-            header
-                .frame(minWidth: atStart ? 300 : nil, maxHeight: atStart ? 54 : nil)
-                .background {
-                    if atStart {
-                        Capsule(style: .continuous).fill(.regularMaterial)
-                        Capsule(style: .continuous).strokeBorder(Color.primary.opacity(0.12))
+    /// The choice bar under the search box, the same in every window and for
+    /// every search (the owner: "the full option, full choices screen all the
+    /// time", "lean towards the spotlight"): round buttons with a caption, as
+    /// macOS's Spotlight shows them — kinds of files and common searches,
+    /// then the menu's tools. A kind joins the search as a pill (click it
+    /// again to take it out); the typed words stay.
+    @ViewBuilder var choiceBar: some View {
+        if !model.isCommandMode {
+            let buttons = model.startButtons
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 10) {
+                    ForEach(Array(buttons.enumerated()), id: \.element.id) { i, b in
+                        let on = model.barButtonIsOn(b)
+                        Button(action: b.run) {
+                            VStack(spacing: 4) {
+                                Image(systemName: b.symbol)
+                                    .font(.system(size: 17, weight: .regular))
+                                    .frame(width: 40, height: 40)
+                                    .foregroundStyle(on ? Color.white : Color.primary.opacity(0.8))
+                                    .background(Circle().fill(on ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.regularMaterial)))
+                                    .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
+                                Text(b.title)
+                                    .font(.caption2)
+                                    .lineLimit(1)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(minWidth: 58)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.leading, b.isTool && i > 0 && !buttons[i - 1].isTool ? 12 : 0)
+                        .help(b.title)
+                        .accessibilityLabel(b.title)
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                        .accessibilityIdentifier("start-" + b.id)
                     }
                 }
-            if atStart {
-                let buttons = Self.fitting(model.startButtons, width: panelWidth)
-                ForEach(Array(buttons.enumerated()), id: \.element.id) { i, b in
-                    Button(action: b.run) {
-                        Image(systemName: b.symbol)
-                            .font(.system(size: 19, weight: .regular))
-                            .frame(width: 46, height: 46)
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.primary.opacity(0.8))
-                    .background(Circle().fill(.regularMaterial))
-                    .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
-                    .padding(.leading, b.isTool && i > 0 && !buttons[i - 1].isTool ? 10 : 0)
-                    .help(i < 9 ? "\(b.title)  ⌘\(i + 1)" : b.title)
-                    .accessibilityLabel(b.title)
-                    .accessibilityIdentifier("start-" + b.id)
-                }
+                .padding(.horizontal, 16)
             }
+            .padding(.bottom, 8)
         }
-        .padding(atStart ? 2 : 0)
     }
 
     // MARK: the full window
 
     var card: some View {
         VStack(spacing: 0) {
-            topRow
-            if !atStart {
+            // The search box as a rounded bar, as Spotlight's.
+            header
+                .background(Capsule(style: .continuous).fill(.regularMaterial).padding(.horizontal, 8).padding(.vertical, 4))
+                .overlay(Capsule(style: .continuous).strokeBorder(Color.primary.opacity(0.1)).padding(.horizontal, 8).padding(.vertical, 4))
+                .padding(.top, 4)
+            choiceBar
+            Group {
                 hintLine
                 chips
                 refinementChips
@@ -132,11 +118,11 @@ struct SearchView: View {
         }
         // The overlay fills its panel (resizable, remembered); the slim bar
         // is just the field.
-        .frame(maxWidth: .infinity, maxHeight: fixedSize && model.compact ? Self.compactHeight : .infinity, alignment: .top)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background {
             // The floating card is the overlay's look; the main window keeps
             // the standard window background.
-            if fixedSize && !atStart {
+            if fixedSize {
                 RoundedRectangle(cornerRadius: 14, style: .continuous).fill(.regularMaterial)
             }
         }

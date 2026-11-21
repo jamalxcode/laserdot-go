@@ -707,6 +707,17 @@ whose folder no longer exists (a drive unplugged) is ignored, and gone folders l
 **Reported:** "its still showing 100 max". 0.9.35 had changed only what Show More adds; the first page was still
 100. **Fix:** the first page is 1,000 results too.
 
+## 55. One full screen, in Spotlight's style (0.9.37)
+
+**Asked:** with screenshots of three different screens (the ⌥Space window with results, its empty state with the
+home starts, and the Laserdot window): "there are different versions of different searches in laserdot that are
+confusing, lets have the full option, full choices screen all the time for all the searches", then "lean towards
+the spotlight, more options shown as the search screen". **Done:** one screen in both windows, always: the search
+box as a rounded bar, a row of round buttons with captions (kinds of files, Recent Downloads, Big Files, then the
+menu's tools), then hints, choices and results. The slim start (0.9.31) and the home screen's separate starts are
+gone; recent files show at once (no ↓). A kind button adds its pill to the current search and keeps the typed words;
+a second click takes it out.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.
