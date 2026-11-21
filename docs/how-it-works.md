@@ -11,7 +11,10 @@ One page, kept current: what is true today. The history and the reasons are in
 - **laserdotd** (Go). Owns the index, answers searches, watches for changes. Denied the network by macOS before it
   does anything else; runs at low priority with throttled disk access, so it never slows the Mac.
 - **Laserdot Updater** (a helper app). The only networked code: finds and downloads releases from GitHub; nothing is
-  installed without GitHub's build proof, and each Mac signs the update with its own key.
+  installed without GitHub's build proof, and each Mac signs the update with its own key. A version installed by
+  hand from the disk image (signed ad hoc) re-signs itself with that key at its first launch and relaunches, before
+  macOS is asked anything, so Full Disk Access is granted once and kept. Save Diagnostics shows the signature and the
+  last signing problem.
 
 ## The index
 

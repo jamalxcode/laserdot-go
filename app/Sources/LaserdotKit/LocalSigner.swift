@@ -141,3 +141,54 @@ public struct LocalSigner {
         return bytes.map { String(format: "%02x", $0) }.joined()
     }
 }
+
+// MARK: keeping the signature after a manual install
+
+extension LocalSigner {
+    /// How an app bundle is signed, as far as macOS's permissions care.
+    public enum SignatureKind: String, Sendable {
+        case thisMac = "this Mac's key"
+        case developerID = "Developer ID"
+        case adHoc = "ad hoc"
+        case unsigned
+    }
+
+    public static func signatureKind(of app: URL) -> SignatureKind {
+        guard let info = try? Updater.run("/usr/bin/codesign", ["-dvv", app.path], limit: 30) else { return .unsigned }
+        if info.contains("Authority=\(identityName)") { return .thisMac }
+        if info.contains("Signature=adhoc") { return .adHoc }
+        if info.contains("Authority=Developer ID") { return .developerID }
+        return .unsigned
+    }
+
+    /// Where the last signing problem is remembered (Save Diagnostics shows it).
+    public static let lastErrorKey = "laserdot.lastSigningError"
+
+    public static func remember(error: String?) {
+        if let error {
+            UserDefaults.standard.set(error, forKey: lastErrorKey)
+        } else {
+            UserDefaults.standard.removeObject(forKey: lastErrorKey)
+        }
+    }
+
+    /// A version installed by hand from the disk image is signed ad hoc, which
+    /// macOS sees as a new app: it would ask for Full Disk Access again now
+    /// and once more at the next update. Re-sign it with this Mac's key in
+    /// place (a signed copy beside it, swapped in by a rename) so the answer
+    /// given from now on is kept. Returns whether the app was replaced (the
+    /// caller relaunches it). Only an ad hoc app in a folder it can write to.
+    @discardableResult
+    public func resignInPlace(_ app: URL) throws -> Bool {
+        let app = app.standardizedFileURL
+        let parent = app.deletingLastPathComponent()
+        guard !app.path.contains("/AppTranslocation/"), FileManager.default.isWritableFile(atPath: parent.path),
+              Self.signatureKind(of: app) == .adHoc else { return false }
+        let copy = parent.appendingPathComponent(".Laserdot-signing-\(UUID().uuidString).app")
+        defer { try? FileManager.default.removeItem(at: copy) }
+        try Updater.run("/usr/bin/ditto", [app.path, copy.path])
+        try sign(copy)
+        _ = try FileManager.default.replaceItemAt(app, withItemAt: copy, backupItemName: nil, options: [])
+        return true
+    }
+}

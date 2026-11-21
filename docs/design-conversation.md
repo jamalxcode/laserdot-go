@@ -749,6 +749,20 @@ asks the engine whether it is indexing; then "for the flashing it's a nice to ha
 over important processing" — so it asks every 5 s, with one small request at background priority and never two at
 once, and the four icons are drawn once. The round buttons now wrap like the choices.
 
+## 58. Stability, update downloads, and Full Disk Access on a new Mac (0.9.39–0.9.40)
+
+The owner asked for a robustness review, then a stability one ("not crashing, and able to recover"). Found and fixed:
+disk checks for the drive list ran under the index lock (a sleeping network share could stall searches); the app could
+kill a daemon still loading a big index and start another, forever; a few background jobs were not guarded.
+
+An update on one of two Macs showed "5 bytes of 100 bytes" and seemed stuck (it finished later): the window showed the
+download task's placeholder progress units as bytes. Now real bytes, and a stalled download is retried.
+
+"Laserdot keeps asking for disk access every update … it's a new Mac mini." Updates were already signed with the Mac's
+own key, but a version installed by hand from the disk image is ad hoc (a new app to macOS), and signing failures left
+no trace. Decided: Laserdot re-signs an ad hoc copy of itself with the Mac's key at first launch and restarts once,
+before asking anything; Save Diagnostics shows how it is signed and the last signing problem.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

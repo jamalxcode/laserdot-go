@@ -142,4 +142,7 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 20f. **`URLSessionTask.progress` is not bytes until the size is known.** Before the response headers it counts a
      placeholder 100 units, which the update window showed as "5 bytes of 100 bytes" and looked stuck. Use
      `countOfBytesReceived`/`countOfBytesExpectedToReceive`, and retry a download that breaks off.
+20g. **Every way in must keep the signature.** Updates were re-signed with this Mac's key, but a version installed by
+     hand from the disk image was ad hoc again, so macOS asked for Full Disk Access again on a new Mac. And a
+     signing failure was swallowed with no trace. Re-sign at launch too, and keep the last failure for diagnostics.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

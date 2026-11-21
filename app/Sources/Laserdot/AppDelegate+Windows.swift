@@ -118,6 +118,8 @@ extension AppDelegate {
                 "launch steps (ms since start): \(steps)",
                 "couldn't read: \((try? engine.unreadable())?.total ?? 0) items",
                 "laserdotd restarted by the watchdog: \(restarts) times since Laserdot started",
+                "signed with: \(LocalSigner.signatureKind(of: Bundle.main.bundleURL).rawValue)"
+                    + (UserDefaults.standard.string(forKey: LocalSigner.lastErrorKey).map { "; last signing problem: \(scrub($0))" } ?? ""),
                 "",
                 "Recent laserdotd log (paths removed):",
             ]

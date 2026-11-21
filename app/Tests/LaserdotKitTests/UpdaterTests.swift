@@ -212,6 +212,24 @@ final class UpdaterTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: signer.dir.path))
     }
 
+    /// A version installed by hand (ad hoc) is re-signed in place with this
+    /// Mac's key, getting the same signature as the updates; one already
+    /// signed so is left alone.
+    func testAnAdHocInstallIsResignedInPlaceWithThisMacsKey() throws {
+        let signer = LocalSigner(dir: dir.appendingPathComponent("signing"))
+        defer { signer.forget() }
+        let app = try realApp(dir.appendingPathComponent("Applications"), version: "0.9.40")
+        _ = try Updater.run("/usr/bin/codesign", ["--force", "--deep", "--sign", "-", app.path])
+        XCTAssertEqual(LocalSigner.signatureKind(of: app), .adHoc)
+        XCTAssertTrue(try signer.resignInPlace(app))
+        XCTAssertEqual(LocalSigner.signatureKind(of: app), .thisMac)
+        XCTAssertEqual(AppVersion(bundle: app)?.short, "0.9.40")
+        _ = try Updater.run("/usr/bin/codesign", ["--verify", "--deep", "--strict", app.path])
+        XCTAssertFalse(try signer.resignInPlace(app), "already signed with this Mac's key")
+        let left = try FileManager.default.contentsOfDirectory(atPath: app.deletingLastPathComponent().path)
+        XCTAssertEqual(left, ["Laserdot.app"], "no signing copy left behind")
+    }
+
     /// A Laserdot.app whose executables are real programs (codesign signs Mach-O files).
     private func realApp(_ parent: URL, version: String) throws -> URL {
         let app = try fakeApp(parent, version: version)

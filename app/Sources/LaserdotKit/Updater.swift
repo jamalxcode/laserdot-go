@@ -347,8 +347,10 @@ public final class Updater {
             do {
                 try signer.sign(c.app)
                 lastSigningError = nil
+                LocalSigner.remember(error: nil)
             } catch {
                 lastSigningError = (error as? LocalizedError)?.errorDescription ?? "\(error)"
+                LocalSigner.remember(error: lastSigningError)
             }
         }
         step(.placing)

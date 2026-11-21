@@ -160,7 +160,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             // sees as a new app, all of them come together), then the index.
             // Not tied to the welcome tour: a menu-bar launch may never show it.
             noteVersion()
-            askPermissionsThenStart()
+            keepSignatureThenAsk()
         }
         launchMS = msSinceProcessStart()
         LaunchTimer.mark("ready")
@@ -323,6 +323,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
 
     /// Every macOS prompt at once, then laserdotd (which then indexes the
     /// default folders by itself, indexDefaultsOnce).
+    /// A version installed by hand from the disk image is signed ad hoc, and
+    /// macOS forgets Full Disk Access for it at every change of signature. It
+    /// is re-signed with this Mac's key (the one updates are signed with) and
+    /// relaunched once, before macOS is asked anything, so the answer is kept
+    /// from then on. Tried once per version; a failure is noted for Save
+    /// Diagnostics and Laserdot carries on.
+    func keepSignatureThenAsk() {
+        let app = Bundle.main.bundleURL
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let triedKey = "laserdot.resignTried"
+        // Not for test runs on another index (CI launches the app with LASERDOT_DB).
+        guard UserDefaults.standard.string(forKey: triedKey) != version,
+              ProcessInfo.processInfo.environment["LASERDOT_DB"] == nil else { return askPermissionsThenStart() }
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var replaced = false
+            do {
+                replaced = try LocalSigner().resignInPlace(app)
+            } catch {
+                LocalSigner.remember(error: "at launch: " + ((error as? LocalizedError)?.errorDescription ?? "\(error)"))
+            }
+            DispatchQueue.main.async {
+                UserDefaults.standard.set(version, forKey: triedKey)
+                guard replaced else {
+                    self?.askPermissionsThenStart()
+                    return
+                }
+                SafeStart.succeeded() // a planned relaunch, not a failed start
+                Updater.relaunch(app)
+                NSApp.terminate(nil)
+            }
+        }
+    }
+
     func askPermissionsThenStart() {
         Permissions.askAll(waiting: { [weak self] place in
             guard self?.engineStarted == false else { return }
