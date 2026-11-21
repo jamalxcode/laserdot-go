@@ -10,6 +10,8 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
   is done.
 - The round buttons under the search box wrap onto a second line when the window is narrow, instead of running off
   its edge.
+- Steadier with network drives: a shared drive that stops answering no longer freezes searches, and the drives list
+  doesn't pile up requests while waiting for it.
 
 ## 0.9.38
 

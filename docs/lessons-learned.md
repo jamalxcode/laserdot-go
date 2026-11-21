@@ -133,4 +133,7 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 20c. **Test fixtures must be big enough to mean something.** A 64×48 test picture lost its fingerprint in HEIC
      compression (18 bits apart); an 800×600 one kept it. And a file written just before indexing is "still being
      written" and is not compared, so tests age their files.
+20d. **Never touch a disk while holding the index lock.** The drive list stat'ed every /Volumes entry under the read
+     lock; one hung network share would have held it, a waiting writer then blocks every new reader, and searches
+     stop. Copy what you need under the lock, do the I/O without it, and take the lock again to build the answer.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

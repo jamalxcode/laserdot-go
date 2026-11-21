@@ -24,6 +24,10 @@ final class DrivesModel: ObservableObject {
     /// has just appeared is offered, not one changing state as it goes.
     private var lastMounts: Set<String>?
     private var freshMounts = Set<String>()
+    /// A listing is on its way: the 3s timer skips its turn instead of piling
+    /// up threads behind a drive that answers slowly (a sleeping network share).
+    private var listing = false
+    private var listAgain = false // asked meanwhile (after an action): list once more
 
     /// macOS is about to unmount this drive.
     func ejecting(_ mount: String) {
@@ -44,6 +48,8 @@ final class DrivesModel: ObservableObject {
     }
 
     func refresh() {
+        guard !listing else { listAgain = true; return }
+        listing = true
         let engine = self.engine
         // Not on `queue`: a drive being indexed holds it for as long as that
         // takes, and the list must stay current meanwhile (Stop Indexing).
@@ -51,6 +57,7 @@ final class DrivesModel: ObservableObject {
             let outcome = Result { try engine.drives() }
             DispatchQueue.main.async {
                 guard let self else { return }
+                self.listing = false
                 self.drives = (try? outcome.get()) ?? []
                 if case let .failure(e) = outcome { self.available = !e.isUnsupported } else { self.available = true }
                 if case .success = outcome {
@@ -61,6 +68,7 @@ final class DrivesModel: ObservableObject {
                     self.lastMounts = now
                 }
                 self.offerNewDrives()
+                if self.listAgain { self.listAgain = false; self.refresh() }
             }
         }
     }

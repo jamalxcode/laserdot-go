@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"slices"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -338,24 +339,72 @@ func (ld *Laserdot) SetVolumeConfig(c VolumeConfig) {
 
 // Drives lists mounted drives and their index state.
 func (ld *Laserdot) Drives() []DriveInfo {
+	// Every look at the disks happens without the lock: a network share that
+	// stops answering can hang a stat for a long time, and holding the lock
+	// meanwhile stalled indexing and then every search behind it.
 	ld.mu.RLock()
-	defer ld.mu.RUnlock()
-	vols := scan.ListVolumes(ld.volumes.Dir, ld.volumes.MountsOnly)
+	vc := ld.volumes
+	attached := map[string]string{} // mount → its index folder
 	for _, d := range ld.drives {
-		if !slices.ContainsFunc(vols, func(v scan.Volume) bool { return v.Mount == d.mount }) {
-			if v, err := scan.VolumeAt(d.mount); err == nil {
+		attached[d.mount] = d.dir
+	}
+	ld.mu.RUnlock()
+	vols := scan.ListVolumes(vc.Dir, vc.MountsOnly)
+	for m := range attached {
+		if !slices.ContainsFunc(vols, func(v scan.Volume) bool { return v.Mount == m }) {
+			if v, err := scan.VolumeAt(m); err == nil {
 				vols = append(vols, v)
 			}
 		}
 	}
+	slices.SortFunc(vols, func(a, b scan.Volume) int { return strings.Compare(a.Mount, b.Mount) })
+	found := make([]foundIndex, len(vols))
+	for i, v := range vols {
+		if dir, ok := attached[v.Mount]; ok {
+			found[i].bytes = dirBytes(dir)
+			continue
+		}
+		f := &found[i]
+		f.dir, f.on, f.vf, f.ok = ld.findIndex(v)
+		if f.ok {
+			f.bytes = dirBytes(f.dir)
+		}
+	}
+	ld.mu.RLock()
+	defer ld.mu.RUnlock()
 	out := []DriveInfo{}
-	for _, v := range vols {
-		out = append(out, ld.driveInfo(v))
+	for i, v := range vols {
+		out = append(out, ld.driveInfoFrom(v, found[i]))
 	}
 	return out
 }
 
+// foundIndex: what was read from a volume (outside the lock) for its info.
+type foundIndex struct {
+	dir   string
+	on    bool
+	vf    volumeFile
+	ok    bool
+	bytes uint64 // the index folder's size
+}
+
+// driveInfo reads the volume's index itself (callers that already hold mu
+// for a drive just attached).
 func (ld *Laserdot) driveInfo(v scan.Volume) DriveInfo {
+	var f foundIndex
+	if d := ld.driveAt(v.Mount); d != nil {
+		f.bytes = dirBytes(d.dir)
+	} else {
+		f.dir, f.on, f.vf, f.ok = ld.findIndex(v)
+		if f.ok {
+			f.bytes = dirBytes(f.dir)
+		}
+	}
+	return ld.driveInfoFrom(v, f)
+}
+
+// driveInfoFrom builds a volume's info from what was read; caller holds mu.
+func (ld *Laserdot) driveInfoFrom(v scan.Volume, f foundIndex) DriveInfo {
 	info := DriveInfo{
 		Name: v.Name, Mount: v.Mount, FSType: v.FSType, ReadOnly: v.ReadOnly, TotalBytes: v.TotalBytes,
 		FreeBytes: v.FreeBytes, State: DriveState{State: DriveUnindexed},
@@ -369,7 +418,7 @@ func (ld *Laserdot) driveInfo(v scan.Volume) DriveInfo {
 		info.ID, info.IndexPath = &id, &p
 		info.State = DriveState{State: DriveAttached}
 		info.OnDrive, info.Encrypted = d.onDrive, d.encrypted
-		info.IndexBytes = dirBytes(d.dir)
+		info.IndexBytes = f.bytes
 		info.Entries = d.store.LiveCount()
 		info.Indexing = d.indexing.Load()
 		info.Complete = !info.Indexing
@@ -380,11 +429,12 @@ func (ld *Laserdot) driveInfo(v scan.Volume) DriveInfo {
 				info.LastScan = &lv
 			}
 		}
-	} else if dir, on, vf, ok := ld.findIndex(v); ok {
+	} else if f.ok {
+		dir, on, vf := f.dir, f.on, f.vf
 		p := filepath.Join(dir, "index.db")
 		info.ID, info.IndexPath = &vf.ID, &p
 		info.OnDrive, info.Encrypted = on, vf.Encrypted
-		info.IndexBytes = dirBytes(dir)
+		info.IndexBytes = f.bytes
 		info.State = DriveState{State: DriveDetached}
 		if _, have := ld.keys[vf.ID]; vf.Encrypted && !have {
 			info.State = DriveState{State: DriveLocked}
@@ -1011,9 +1061,9 @@ func (ld *Laserdot) SyncDrives() (attached, gone []string) {
 		ld.DetachDrive(m)
 	}
 	for _, v := range mounted {
+		_, _, vf, ok := ld.findIndex(v) // reads the drive: without the lock
 		ld.mu.RLock()
 		skip := ld.driveAt(v.Mount) != nil || ld.creating[v.Mount]
-		_, _, vf, ok := ld.findIndex(v)
 		_, haveKey := ld.keys[vf.ID]
 		ld.mu.RUnlock()
 		if skip || !ok || vf.Encrypted && !haveKey {
@@ -1030,8 +1080,9 @@ func (ld *Laserdot) SyncDrives() (attached, gone []string) {
 // their own index, so the system index never crosses into one, §17.6.1).
 func (ld *Laserdot) unindexedVolume(path string) (scan.Volume, bool) {
 	ld.mu.RLock()
-	defer ld.mu.RUnlock()
-	for _, v := range scan.ListVolumes(ld.volumes.Dir, ld.volumes.MountsOnly) {
+	vc := ld.volumes
+	ld.mu.RUnlock()
+	for _, v := range scan.ListVolumes(vc.Dir, vc.MountsOnly) { // the disks, without the lock
 		if within(path, v.Mount) {
 			return v, true
 		}

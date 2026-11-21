@@ -368,6 +368,8 @@ extension SearchModel {
     /// After the app changed files: the folders they were (and are) in are
     /// listed again by the engine at once — on a drive too, which has no
     /// change events — then the search runs again, so nothing gone stays.
+    static let touchQueue = DispatchQueue(label: "laserdot.touched", qos: .utility)
+
     func refreshSoon(touching paths: [String] = []) {
         let dirs = Set(paths.map { ($0 as NSString).deletingLastPathComponent })
         guard !dirs.isEmpty else {
@@ -375,7 +377,9 @@ extension SearchModel {
             return
         }
         let engine = self.engine
-        queue.async { [weak self] in
+        // Its own queue: telling the daemon waits for the index writer, which a
+        // big indexing run can hold, and searches must not queue behind that.
+        Self.touchQueue.async { [weak self] in
             for d in dirs { engine.touched(folder: d) }
             DispatchQueue.main.async { self?.queryChanged() }
         }

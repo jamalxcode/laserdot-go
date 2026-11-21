@@ -79,6 +79,9 @@ One page, kept current: what is true today. The history and the reasons are in
   ejecting or an update stops jobs at once (indexing pauses while an update installs).
 - Storage window: sizes from the index; apps and packages measured once and remembered; items can be moved to the
   Trash (confirmed, undoable).
+- A disk that stops answering (a sleeping network share) never holds the index lock: the drive list and the drive
+  checks look at disks without it, the app asks for that list one request at a time, and its "this folder changed"
+  notes go on their own queue, so searches keep working.
 
 ## Testing and releasing
 

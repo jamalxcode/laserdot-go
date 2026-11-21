@@ -137,6 +137,10 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Robustness (0.9.39):** `core.Drives()` copies `ld.volumes` and the attached drives under `mu`, lists volumes and
+  runs `findIndex`/`dirBytes` without it (`foundIndex`), then builds `driveInfoFrom` under `mu`; `SyncDrives` and
+  `unindexedVolume` read disks outside the lock too. App: `refreshSoon(touching:)` on `SearchModel.touchQueue` (not the
+  search queue); `DrivesModel.refresh` has an in-flight guard (`listing`, with `listAgain` for asks meanwhile).
 - **Flashing dot (0.9.39):** `AppDelegate.menuIcon` (published; the `MenuBarExtra` label), `startActivityWatch`
   (`Engine.indexingNow()` — one status request — every 5 s at background QoS, `activityAsking` so never two at once →
   `engineIndexing`), `isWorking` (also drives, duplicates, refresh), `updateFlash` (0.4 s timer with tolerance over
