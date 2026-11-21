@@ -245,6 +245,8 @@ final class SelfTestRunner {
             }, after: { model.extend(1) }),
             // ⌘K ▸ Move to Trash removes a file; a new search no longer finds it.
             Step(name: "trash", typed: "trashme", after: {
+                // What was found, before it goes (results now refresh at once).
+                self.extra["trash_found"] = model.results.map(\.name)
                 model.allActions.first { $0.id == "trash" }?.run()
             }),
             Step(name: "trashed", typed: "trashme", until: { $0.results.isEmpty }),

@@ -206,7 +206,7 @@ check(c2["reverse"] is True and c2["sizes"] == sorted(c2["sizes"]), f"a second c
 check(steps["multi"]["selected_count"] == 2, f"two results selected (got {steps['multi']['selected_count']})")
 
 # Move to Trash: gone from the next search.
-check("trashme.txt" in steps["trash"]["results"], f"the file to trash was found (got {steps['trash']['results']})")
+check("trashme.txt" in report.get("trash_found", []), f"the file to trash was found (got {report.get('trash_found')})")
 check(steps["trashed"]["results"] == [], f"after Move to Trash it is gone (got {steps['trashed']['results']})")
 
 check(steps["trashed"]["undo_banner"], "the Undo banner is offered after Move to Trash")
