@@ -3,6 +3,14 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.42
+
+- The choices under the search box are calmer: choices that would leave nothing are hidden, each group shows its
+  four biggest values, and the first four bands show. **More choices (N)** brings everything back, **Fewer
+  choices** tidies it again, and Laserdot remembers which you prefer.
+- Each band has a colour that stays distinct for colour-blind people, and its own small icon, so colour is never the
+  only cue.
+
 ## 0.9.41
 
 - Opening a downloaded disk image to install an app no longer brings up "Index this drive?": Laserdot recognises

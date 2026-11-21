@@ -521,7 +521,7 @@ final class SearchModel: ObservableObject {
 
     /// The choice row shows whenever there are choices (completions for a
     /// word being typed show above it; they never hide it).
-    var showsRefinements: Bool { !visibleRefinements.isEmpty && !isCommandMode }
+    var showsRefinements: Bool { !openRefinements.isEmpty && !isCommandMode }
 
     /// The choices as shown: a group with a choice shrinks to that choice
     /// (its other values go; click it to take it out and they come back),
@@ -530,7 +530,21 @@ final class SearchModel: ObservableObject {
     /// choices remaining to allow further choices like location, modified,
     /// camera").
     var visibleRefinements: [RefineGroup] {
+        RefineLogic.compact(openRefinements, expanded: allChoices).shown
+    }
+
+    /// Every open choice, before the calm view leaves some out.
+    var openRefinements: [RefineGroup] {
         RefineLogic.visible(refinements, hiding: Set([SearchPlace.token(searchPlace)].compactMap { $0 }))
+    }
+
+    /// How many choices the calm view leaves out ("More choices (N)").
+    var hiddenChoices: Int { RefineLogic.compact(openRefinements, expanded: allChoices).hidden }
+
+    /// Show every choice (More choices); remembered, so someone who likes
+    /// them all keeps seeing them all.
+    @Published var allChoices = UserDefaults.standard.bool(forKey: "laserdot.allChoices") {
+        didSet { UserDefaults.standard.set(allChoices, forKey: "laserdot.allChoices") }
     }
 
     /// A refinement chip. Chosen already: it leaves the search. Another

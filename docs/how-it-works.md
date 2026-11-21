@@ -42,7 +42,8 @@ One page, kept current: what is true today. The history and the reasons are in
   ⌥-click (or right-click ▸ Leave Out) leaves a value out: a `-` word (`-ext:pdf`), shown struck through.
   The groups come top down, large to granular (`core.refineOrder`): drive, folder · kind, type · size, modified ·
   resolution, shape, HDR, codec · length, sound · camera, place, picture · artist, album, genre; each family is a
-  shaded band of its own.
+  shaded band of its own (Okabe–Ito colours and an icon each). The calm view (`RefineLogic.compact`) hides choices
+  that would give nothing, keeps a group's four biggest values and the first four bands; More choices shows all.
 - **One screen:** both windows show the same thing, always: the search box as a rounded bar, a row of round
   buttons (Videos, Images, Music, Documents, Apps, Recent Downloads, Big Files — each adds or removes its pills,
   keeping the typed words — then Duplicates, Storage, Drives while one is attached, Index a Folder, Settings), then

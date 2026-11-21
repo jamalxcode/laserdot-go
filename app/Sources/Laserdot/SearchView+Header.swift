@@ -272,30 +272,46 @@ extension SearchView {
             // scroll.
             // Top down, large to granular (where, what, size and date, picture,
             // length and sound, photo, music): each family is a band of its
-            // own, shaded alike, so related choices read as one.
+            // own, marked by a thin stripe of its colour on a faint tint. The
+            // calm view (the owner: "less cluttered") leaves out what gives
+            // nothing, keeps a group's biggest values and the first bands;
+            // More choices brings the rest back.
             ScrollView(.vertical, showsIndicators: true) {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     ForEach(RefineLogic.bands(groups), id: \.family) { band in
-                        FlowLayout(spacing: 4, lineSpacing: 6) {
-                            ForEach(Array(band.groups.enumerated()), id: \.element.id) { gi, g in
-                                Text(Self.refineTitle(g.id))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.leading, gi == 0 ? 0 : 10)
-                                    .fixedSize()
-                                ForEach(g.options, id: \.token) { o in
-                                    refineChip(o, in: g)
+                        HStack(alignment: .top, spacing: 6) {
+                            Capsule()
+                                .fill(Self.bandColor(band.family))
+                                .frame(width: 4)
+                            // The family's icon too: colour is never the only cue.
+                            Image(systemName: Self.bandIcon(band.family))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Self.bandColor(band.family))
+                                .frame(width: 14, height: 18)
+                                .accessibilityHidden(true)
+                            FlowLayout(spacing: 4, lineSpacing: 5) {
+                                ForEach(Array(band.groups.enumerated()), id: \.element.id) { gi, g in
+                                    Text(Self.refineTitle(g.id))
+                                        .font(.caption2.weight(.medium))
+                                        .foregroundStyle(.secondary)
+                                        .padding(.leading, gi == 0 ? 0 : 12)
                                         .fixedSize()
+                                    ForEach(g.options, id: \.token) { o in
+                                        refineChip(o, in: g)
+                                            .fixedSize()
+                                    }
                                 }
                             }
+                            .padding(.vertical, 3)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.leading, 4)
+                        .padding(.trailing, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Self.bandTint(band.family), in: RoundedRectangle(cornerRadius: 7))
+                        .background(Self.bandColor(band.family).opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
                         .accessibilityElement(children: .contain)
                         .accessibilityIdentifier("band-" + band.family)
                     }
+                    moreChoicesButton
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
@@ -340,21 +356,58 @@ extension SearchView {
 
     static func refineTitle(_ id: String) -> String { L("refine.group." + id) }
 
-    /// One soft shade per family of choices (light enough for the chips'
-    /// text in light and dark mode).
-    static func bandTint(_ family: String) -> Color {
-        let c: Color
-        switch family {
-        case "where": c = .blue
-        case "what": c = .purple
-        case "file": c = .orange
-        case "picture": c = .green
-        case "time": c = .teal
-        case "photo": c = .pink
-        case "music": c = .indigo
-        default: c = .gray
+    /// "More choices (N)" / "Fewer choices": shows what the calm view leaves
+    /// out, and hides it again (remembered).
+    @ViewBuilder var moreChoicesButton: some View {
+        let hidden = model.hiddenChoices
+        if hidden > 0 || model.allChoices {
+            HStack {
+                Spacer()
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { model.allChoices.toggle() }
+                } label: {
+                    Label(model.allChoices ? L("refine.fewer") : String(format: L("refine.more"), hidden),
+                          systemImage: model.allChoices ? "chevron.up" : "chevron.down")
+                        .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(Color.accentColor)
+                .help(model.allChoices ? L("refine.fewer.help") : L("refine.more.help"))
+                .accessibilityIdentifier("more-choices")
+            }
         }
-        return c.opacity(0.10)
+    }
+
+    /// One colour per family of choices: a stripe and a faint tint. The
+    /// Okabe–Ito colours, which stay apart for colour-blind people (the
+    /// owner: "more distinct especially for color blind people"); next
+    /// bands never use two similar ones.
+    static func bandColor(_ family: String) -> Color {
+        func rgb(_ r: Double, _ g: Double, _ b: Double) -> Color { Color(red: r / 255, green: g / 255, blue: b / 255) }
+        switch family {
+        case "where": return rgb(0, 114, 178)      // blue
+        case "what": return rgb(230, 159, 0)       // orange
+        case "file": return rgb(86, 180, 233)      // sky blue
+        case "picture": return rgb(0, 158, 115)    // bluish green
+        case "time": return rgb(213, 94, 0)        // vermillion
+        case "photo": return rgb(204, 121, 167)    // reddish purple
+        case "music": return rgb(181, 160, 0)      // yellow, deepened to show on white
+        default: return .gray
+        }
+    }
+
+    /// One icon per family, beside its stripe.
+    static func bandIcon(_ family: String) -> String {
+        switch family {
+        case "where": return "externaldrive"
+        case "what": return "square.grid.2x2"
+        case "file": return "doc"
+        case "picture": return "photo"
+        case "time": return "clock"
+        case "photo": return "camera"
+        case "music": return "music.note"
+        default: return "line.3.horizontal.decrease"
+        }
     }
 
     static func refineLabel(_ o: RefineOption) -> String {

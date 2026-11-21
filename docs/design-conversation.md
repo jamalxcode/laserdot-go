@@ -778,6 +778,15 @@ read-only). Decided: no offer for a disk image that is read-only or holds an app
 Applications shortcut; macOS's disk description says whether a volume is a disk image. Real drives are offered as
 before, and the image stays in the Drives list in case it is wanted.
 
+## 61. Calmer choices, colour-blind-safe colours (0.9.42)
+
+"The colored search choice bands are useful but it still looks crowded … keep the choices but make it less cluttered
+and better organized looking, eliminate or hide choices that are not applicable, and have a way of getting them back
+when needed", then "make the colors also more distinct especially for color blind people". Decided: a calm view by
+default — no choice that gives nothing, four values a group (the biggest, in their usual order), four bands — with
+**More choices (N)** / **Fewer choices** (remembered); bands are a coloured stripe on a faint tint instead of a filled
+box, in the Okabe–Ito colours, each with an icon.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

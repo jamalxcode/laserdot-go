@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -79,6 +79,14 @@ for nm in ("refine", "where"):
     check(len(bands) >= (2 if nm == "refine" else 1) and len(set(bands)) == len(bands) and all(b in FAMILIES for b in bands)
           and bands == sorted(bands, key=FAMILIES.index),
           f"{nm}: choices in shaded bands, top down (got {bands})")
+# Less clutter (the owner): More choices shows at least as much, and says how much
+# it adds; Fewer choices goes back.
+mc, fc = steps["morechoices"], steps["fewerchoices"]
+check(mc.get("refine_all") is True and mc.get("refine_hidden") == 0, f"More choices shows everything (got {mc.get('refine_all')}, hidden {mc.get('refine_hidden')})")
+check(mc.get("refine_shown_count", 0) >= steps["refine"].get("refine_shown_count", 0) + steps["refine"].get("refine_hidden", 0),
+      f"More choices adds what was hidden (calm {steps['refine'].get('refine_shown_count')} + {steps['refine'].get('refine_hidden')}, all {mc.get('refine_shown_count')})")
+check(fc.get("refine_all") is False and fc.get("refine_shown_count") == steps["refine"].get("refine_shown_count"),
+      f"Fewer choices goes back to the calm view (got {fc.get('refine_shown_count')})")
 groups = steps["refine"].get("refine_groups", [])
 check(groups.index("kind") < groups.index("type") < groups.index("size") if {"kind", "type", "size"} <= set(groups) else True,
       f"kind, then type, then size (got {groups})")

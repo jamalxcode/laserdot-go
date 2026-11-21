@@ -106,7 +106,13 @@ final class SelfTestRunner {
             Step(name: "tool", typed: "tool"),
             // What the results have to choose from (here: their types), with
             // counts; choosing one narrows the search to it.
-            Step(name: "refine", typed: "proj", until: { !$0.refinements.isEmpty }),
+            Step(name: "refine", typed: "proj", before: { model.allChoices = false }, until: { !$0.refinements.isEmpty }),
+            // The calm view hides what gives nothing; More choices shows it
+            // all, Fewer choices hides it again.
+            Step(name: "morechoices", typed: "proj", after: { model.allChoices = true },
+                 until: { $0.allChoices && !$0.refinements.isEmpty }, wait: 0.5),
+            Step(name: "fewerchoices", typed: "proj", after: { model.allChoices = false },
+                 until: { !$0.allChoices && !$0.refinements.isEmpty }, wait: 0.5),
             Step(name: "refined", typed: "proj", after: {
                 if let pdf = model.refinements.flatMap(\.options).first(where: { $0.token == "ext:pdf" }) {
                     model.applyRefinement(pdf)

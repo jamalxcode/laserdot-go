@@ -489,6 +489,10 @@
 "place.nothingThere" = "Nothing in %@ — Search Everywhere";
 "search.reset" = "Reset Search (words, choices, place and order)";
 "refine.leaveOut" = "Leave Out";
+"refine.more" = "More choices (%d)";
+"refine.fewer" = "Fewer choices";
+"refine.more.help" = "Show every choice, including ones that would leave nothing";
+"refine.fewer.help" = "Show only the main choices";
 "refine.leftOut.help" = "Left out of the search: click to bring %@ back";
 "refine.leftOut.spoken" = "%@ %@, left out";
 "refine.choose.help" = "Click to search only this (%@); ⌥-click or right-click to leave it out";

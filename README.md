@@ -130,7 +130,8 @@ with counts, top down from broad to detailed, each family in a band of its own s
 Mac or each attached drive — and the folders the results are in) · **what** (Videos, Documents, Folders…, and the
 documents' types) · **size and date** · **picture** (resolution, portrait or landscape, HDR, codec) · **length and
 sound** · **photo** (camera, location, screenshots and Live Photos) · **music** (artist, album, genre). Only what your
-results have shows. Click one and it becomes a pill in the search box;
+results have shows, calmly: the biggest few values and the first bands, with **More choices** for the rest. Each
+band has a colour-blind-safe colour and an icon. Click one and it becomes a pill in the search box;
 its group leaves the row (remove the pill to choose again) and every other kind of choice stays, each count saying
 what it gives with your other picks. Hover a choice and press **−** (or ⌥-click, or right-click ▸ Leave Out) to
 leave it out: the pill says "not …".

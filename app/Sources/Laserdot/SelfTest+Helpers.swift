@@ -195,6 +195,9 @@ extension SelfTestRunner {
         r["refine_groups"] = model.refinements.map(\.id)
         r["refine_bands"] = RefineLogic.bands(model.visibleRefinements).map(\.family)
         r["refine_row"] = model.showsRefinements
+        r["refine_hidden"] = model.hiddenChoices
+        r["refine_all"] = model.allChoices
+        r["refine_shown_count"] = model.visibleRefinements.reduce(0) { $0 + $1.options.count }
         r["completion_chips"] = model.completionChips.map(\.label)
         r["refine_selected"] = model.refinements.flatMap { $0.options.filter(\.isSelected).map(\.token) }
         r["refine_shown"] = model.visibleRefinements.map { g in g.id + ":" + g.options.map { ($0.isSelected ? "*" : "") + $0.token }.joined(separator: ",") }

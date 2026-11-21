@@ -137,6 +137,10 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Calm choices (0.9.42):** `RefineLogic.compact(_:expanded:perGroup:bandLimit:)` (count-0 values out, top 4 by
+  count per group in their order, first 4 families; returns the hidden count); `SearchModel.openRefinements`,
+  `hiddenChoices`, `allChoices` (UserDefaults `laserdot.allChoices`); `moreChoicesButton`; `bandColor` (Okabe–Ito) and
+  `bandIcon`. Self-test steps `morechoices`/`fewerchoices`.
 - **Installer images (0.9.41):** `LaserdotKit.InstallerVolume` (DiskArbitration: `DADiskCreateFromVolumePath` →
   device model "Disk Image" or protocol "Virtual Interface"; plus `looksLikeInstaller`: .app/.pkg/.mpkg or a link to
   /Applications at the top); `DrivesModel.offerNewDrives` skips them. Test: `InstallerVolumeTests` (hdiutil-made image).

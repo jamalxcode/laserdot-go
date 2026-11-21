@@ -129,6 +129,38 @@ public enum RefineLogic {
         return out
     }
 
+    /// The calm view of the choices (the owner: "less cluttered … hide
+    /// choices that are not applicable, and have a way of getting them
+    /// back"): values that would give nothing are left out, each group shows
+    /// its `perGroup` values with the most results (in their usual order),
+    /// and only the first `bandLimit` families show. `hidden` counts what was
+    /// left out, for the "More choices (N)" button; expanded shows everything.
+    public static func compact(_ groups: [RefineGroup], expanded: Bool,
+                               perGroup: Int = 4, bandLimit: Int = 4) -> (shown: [RefineGroup], hidden: Int) {
+        if expanded { return (groups, 0) }
+        var shown: [RefineGroup] = []
+        var hidden = 0
+        var families: [String] = []
+        for g in groups {
+            let family = g.family ?? g.id
+            if !families.contains(family) { families.append(family) }
+            guard families.count <= bandLimit else {
+                hidden += g.options.count
+                continue
+            }
+            let applicable = g.options.filter { $0.count > 0 }
+            hidden += g.options.count - applicable.count
+            var keep = applicable
+            if keep.count > perGroup {
+                let top = Set(applicable.sorted { $0.count > $1.count }.prefix(perGroup).map(\.token))
+                keep = applicable.filter { top.contains($0.token) }
+                hidden += applicable.count - keep.count
+            }
+            if !keep.isEmpty { shown.append(RefineGroup(id: g.id, family: g.family, options: keep)) }
+        }
+        return (shown, hidden)
+    }
+
     /// The choice row top down (the owner: "starting large then going
     /// granular, with related properties"): consecutive groups of one family
     /// form a band, shaded by its family. The daemon sends them in order.

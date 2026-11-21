@@ -169,4 +169,26 @@ final class PathTextTests: XCTestCase {
         // Visible keeps the family.
         XCTAssertEqual(RefineLogic.visible(groups).first?.family, "where")
     }
+
+    /// The calm view: nothing that gives no results, four values a group
+    /// (the biggest, in their usual order), four bands; More shows it all.
+    func testCompactHidesWhatDoesNotApplyAndCountsIt() {
+        func o(_ t: String, _ n: UInt64) -> RefineOption { RefineOption(token: t, label: t, key: nil, count: n) }
+        let groups = [
+            RefineGroup(id: "folder", family: "where", options: [o("a", 5), o("b", 0)]),
+            RefineGroup(id: "kind", family: "what", options: [o("k", 3)]),
+            RefineGroup(id: "size", family: "file", options: [o("s", 2)]),
+            RefineGroup(id: "resolution", family: "picture",
+                        options: [o("8k", 1), o("4k", 9), o("1440p", 2), o("1080p", 20), o("720p", 7), o("sd", 3)]),
+            RefineGroup(id: "sound", family: "time", options: [o("with", 4), o("none", 1)]),
+        ]
+        let (shown, hidden) = RefineLogic.compact(groups, expanded: false)
+        XCTAssertEqual(shown.map(\.id), ["folder", "kind", "size", "resolution"], "four bands")
+        XCTAssertEqual(shown[0].options.map(\.token), ["a"], "no result: hidden")
+        XCTAssertEqual(shown[3].options.map(\.token), ["4k", "1080p", "720p", "sd"], "the biggest four, in order")
+        XCTAssertEqual(hidden, 1 + 2 + 2, "zero, two resolutions, the sound band")
+        let all = RefineLogic.compact(groups, expanded: true)
+        XCTAssertEqual(all.shown, groups)
+        XCTAssertEqual(all.hidden, 0)
+    }
 }

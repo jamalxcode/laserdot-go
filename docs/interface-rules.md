@@ -71,6 +71,10 @@ for `>` commands, after a trailing space, or while moving through the results.
    **Top down, large to granular** (the owner): where (drive, folder), what (kind, type), size and date, picture
    (resolution, shape, HDR, codec), length and sound, photo (camera, place, kind of picture), music. Each of those
    families is a band of its own with its own soft shade, so related choices read as one.
+   **Calm by default** (0.9.42): choices that would leave nothing are hidden, a group shows its four biggest values,
+   and four bands show; **More choices (N)** shows everything (greyed ones included), **Fewer choices** goes back,
+   and the choice is remembered. Band colours are the colour-blind-safe Okabe–Ito set, each band with its own icon:
+   colour is never the only cue.
 2. Only choices that narrow the results are shown.
 2b. **Every choice can be reached:** a long group (cameras, folders) wraps onto the next lines; nothing runs off
     the edge of the window.
