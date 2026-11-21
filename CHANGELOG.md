@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.41
+
+- Opening a downloaded disk image to install an app no longer brings up "Index this drive?": Laserdot recognises
+  installer images (an app, an installer package or an Applications shortcut inside) and leaves them alone. Real
+  drives are still offered, and an installer image can still be indexed from the Drives list.
+
 ## 0.9.40
 
 - Updates download more reliably: a download that stalls or drops is tried again by itself (up to three times), and

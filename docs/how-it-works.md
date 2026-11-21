@@ -25,7 +25,8 @@ One page, kept current: what is true today. The history and the reasons are in
   drive leaves). A drive's first index is streamed folder by folder: searchable while it runs, bounded memory,
   checkpoints inside the drive's own index; it can be stopped and continued, and resumes after an unplug. The index
   file on a drive is open only during a job, so a drive can always be ejected; when macOS is about to eject one, the
-  engine lets go first.
+  engine lets go first. A new drive is offered for indexing once — but not a disk image opened to install an app
+  (read-only, or with an app, an installer package or an Applications shortcut at its top).
 - **Keeping current**: FSEvents for changes, a folder-time check every 30 minutes while FSEvents misses nothing
   (every 5 otherwise), an hourly catch-up; returning
   APFS/HFS+ drives are checked by folder times, other drives and once a week in full.

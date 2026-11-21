@@ -281,13 +281,15 @@ final class DrivesModel: ObservableObject {
             && freshMounts.contains(d.mount) && !ejectingMounts.contains(d.mount) {
             offered.insert(d.mount)
             // Asked only if, two seconds on, it is still there and still
-            // unindexed (not a drive on its way out).
+            // unindexed (not a drive on its way out), and not a disk image
+            // opened to install an app.
             let mount = d.mount
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
                 guard let self, !self.ejectingMounts.contains(mount), FileManager.default.fileExists(atPath: mount) else { return }
                 let engine = self.engine
                 DispatchQueue.global(qos: .userInitiated).async {
                     let now = (try? engine.drives())?.first { $0.mount == mount }
+                    if let now, InstallerVolume.isInstaller(mount: mount, readOnly: now.readOnly) { return }
                     DispatchQueue.main.async {
                         guard let now, now.state == "unindexed", !self.ejectingMounts.contains(mount), self.busy == nil else { return }
                         self.promptIndex(now)

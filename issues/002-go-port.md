@@ -137,6 +137,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Installer images (0.9.41):** `LaserdotKit.InstallerVolume` (DiskArbitration: `DADiskCreateFromVolumePath` →
+  device model "Disk Image" or protocol "Virtual Interface"; plus `looksLikeInstaller`: .app/.pkg/.mpkg or a link to
+  /Applications at the top); `DrivesModel.offerNewDrives` skips them. Test: `InstallerVolumeTests` (hdiutil-made image).
 - **Choice order and bands (0.9.40):** `core.refineOrder`/`refineRank` sort the groups and set `RefineGroup.Family`
   (where, what, file, picture, time, photo, music); Swift `RefineGroup.family`, `RefineLogic.bands` (consecutive
   groups of a family), `bandTint` per family; self-test `refine_bands`.

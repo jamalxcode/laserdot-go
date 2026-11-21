@@ -770,6 +770,14 @@ size, resolution, sound … starting large then going granular, with related pro
 the daemon (`refineOrder`) whatever kinds of results there are — where · what · size and date · picture · length and
 sound · photo · music — each group carrying its family; the app draws each family as a band with its own soft tint.
 
+## 60. Installer disk images are not drives (0.9.41)
+
+"I opened a volume to install an app, and laserdot jumped and wants to index it, can we have laserdot distinguish app
+volumes versus actual volumes and not react on indexing app volumes?" (a screenshot of "Index "Laser Email"?", 1 file,
+read-only). Decided: no offer for a disk image that is read-only or holds an app, an installer package or an
+Applications shortcut; macOS's disk description says whether a volume is a disk image. Real drives are offered as
+before, and the image stays in the Drives list in case it is wanted.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

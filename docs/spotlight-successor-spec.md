@@ -465,6 +465,9 @@ white       = " " | "\t" | "\n" ;
   - *As built (M5):* on FAT and exFAT, inode numbers are not stable across mounts, so they are not stored; moves are paired by (name, size, modified time) instead
 - **9.3** First mount of unindexed drive: prompt, show estimated size/file count, confirm the index write before starting
   - *As built (M5):* the estimate is a Tier 0 walk (files, folders, bytes) and an index size of about 220 bytes per entry. The prompt offers Index, Not Now and Never for This Drive (remembered by drive name), and an Encrypt checkbox with a passphrase
+  - *0.9.41:* no prompt for a disk image opened to install an app (`InstallerVolume`: macOS's disk description says
+    "Disk Image", and the volume is read-only or holds an app, an installer package or an Applications shortcut at
+    its top; when macOS cannot tell, read-only with such contents). It still shows in Drives, to index by hand.
 - **9.4** On unmount: drive's index detaches cleanly; system index untouched
   - *Go port (0.9.21):* removable media aware. A drive's index on the drive is opened for each job (first index,
     resume, catch-up) and closed after it (`drive.acquire`/`release`; the drive list uses the roots as last read), so
