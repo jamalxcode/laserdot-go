@@ -763,6 +763,13 @@ own key, but a version installed by hand from the disk image is ad hoc (a new ap
 no trace. Decided: Laserdot re-signs an ad hoc copy of itself with the Mac's key at first launch and restarts once,
 before asking anything; Save Diagnostics shows how it is signed and the last signing problem.
 
+## 59. Choices top down, shaded by family (0.9.40)
+
+"Arrange the choices logically and shade similar choices with a similar shade … start top down … drive, folder, kind,
+size, resolution, sound … starting large then going granular, with related properties." Decided: one fixed order in
+the daemon (`refineOrder`) whatever kinds of results there are — where · what · size and date · picture · length and
+sound · photo · music — each group carrying its family; the app draws each family as a band with its own soft tint.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

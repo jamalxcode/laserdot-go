@@ -137,6 +137,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Choice order and bands (0.9.40):** `core.refineOrder`/`refineRank` sort the groups and set `RefineGroup.Family`
+  (where, what, file, picture, time, photo, music); Swift `RefineGroup.family`, `RefineLogic.bands` (consecutive
+  groups of a family), `bandTint` per family; self-test `refine_bands`.
 - **Signature kept on manual installs (0.9.40):** `AppDelegate.keepSignatureThenAsk` (before `askPermissionsThenStart`,
   once per version via `laserdot.resignTried`, skipped under `LASERDOT_DB`/self-test) calls
   `LocalSigner.resignInPlace` (ad hoc only, writable folder, not translocated: ditto copy → `sign` → `replaceItemAt`)

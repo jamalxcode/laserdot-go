@@ -67,8 +67,10 @@ for `>` commands, after a trailing space, or while moving through the results.
 ## 5b. Choose, don't type
 
 1. After a search, what the results have to choose from is offered under the hint line, by attribute, with counts
-   ("Kind Videos 12 · Resolution 4K 3 · 1080p 12 · Folder Trips 5 · Sound With sound 14"). Kind comes first, and
-   where the results are (drive, folder) is a choice like any other.
+   ("Folder Trips 5 · Kind Videos 12 · Size … · Resolution 4K 3 · 1080p 12 · Sound With sound 14").
+   **Top down, large to granular** (the owner): where (drive, folder), what (kind, type), size and date, picture
+   (resolution, shape, HDR, codec), length and sound, photo (camera, place, kind of picture), music. Each of those
+   families is a band of its own with its own soft shade, so related choices read as one.
 2. Only choices that narrow the results are shown.
 2b. **Every choice can be reached:** a long group (cameras, folders) wraps onto the next lines; nothing runs off
     the edge of the window.

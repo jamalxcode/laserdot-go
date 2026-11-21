@@ -72,6 +72,16 @@ check(tool["results"] == ["Tool.app"], f"Tool.app is one result (got {tool['resu
 
 # What the results have to choose from: proj finds a PDF, a text file and a
 # folder, so their types are offered; choosing PDF narrows to it.
+# Top down, large to granular, each family one shaded band (the owner).
+FAMILIES = ["where", "what", "file", "picture", "time", "photo", "music"]
+for nm in ("refine", "where"):
+    bands = steps[nm].get("refine_bands", [])
+    check(len(bands) >= (2 if nm == "refine" else 1) and len(set(bands)) == len(bands) and all(b in FAMILIES for b in bands)
+          and bands == sorted(bands, key=FAMILIES.index),
+          f"{nm}: choices in shaded bands, top down (got {bands})")
+groups = steps["refine"].get("refine_groups", [])
+check(groups.index("kind") < groups.index("type") < groups.index("size") if {"kind", "type", "size"} <= set(groups) else True,
+      f"kind, then type, then size (got {groups})")
 ref = steps["refine"]
 check({"ext:pdf", "ext:txt"} <= set(ref.get("refinements", [])), f"the results' types are offered to choose from (got {ref.get('refinements')})")
 check("type" in ref.get("refine_groups", []), f"grouped under Type (got {ref.get('refine_groups')})")

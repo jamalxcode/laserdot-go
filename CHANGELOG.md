@@ -14,6 +14,10 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
   last time and then remembers. Save Diagnostics now says how Laserdot is signed and why signing last failed, if it
   did.
 
+- The choices under the search box are in order from broad to detailed: where (drive, folder), what (kind,
+  type), size and date, picture (resolution, shape, HDR, codec), length and sound, then camera and place, then
+  music. Related choices share a band with its own soft shade.
+
 ## 0.9.39
 
 - The dot in the menu-bar icon flashes red, white, blue and green while Laserdot is working — indexing (folders or a

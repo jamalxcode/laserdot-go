@@ -193,6 +193,7 @@ extension SelfTestRunner {
         r["action_shown_ids"] = model.selected == nil ? [String]() : model.actions.map(\.id)
         r["refinements"] = model.refinements.flatMap { $0.options.map(\.token) }
         r["refine_groups"] = model.refinements.map(\.id)
+        r["refine_bands"] = RefineLogic.bands(model.visibleRefinements).map(\.family)
         r["refine_row"] = model.showsRefinements
         r["completion_chips"] = model.completionChips.map(\.label)
         r["refine_selected"] = model.refinements.flatMap { $0.options.filter(\.isSelected).map(\.token) }

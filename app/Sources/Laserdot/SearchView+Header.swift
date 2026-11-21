@@ -270,25 +270,38 @@ extension SearchView {
             // continues on the next line instead of running off the edge (the
             // owner had to drag the window wider); about six lines show, more
             // scroll.
+            // Top down, large to granular (where, what, size and date, picture,
+            // length and sound, photo, music): each family is a band of its
+            // own, shaded alike, so related choices read as one.
             ScrollView(.vertical, showsIndicators: true) {
-                FlowLayout(spacing: 4, lineSpacing: 6) {
-                    ForEach(Array(groups.enumerated()), id: \.element.id) { gi, g in
-                        Text(Self.refineTitle(g.id))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(.leading, gi == 0 ? 0 : 10)
-                            .fixedSize()
-                        ForEach(g.options, id: \.token) { o in
-                            refineChip(o, in: g)
-                                .fixedSize()
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(RefineLogic.bands(groups), id: \.family) { band in
+                        FlowLayout(spacing: 4, lineSpacing: 6) {
+                            ForEach(Array(band.groups.enumerated()), id: \.element.id) { gi, g in
+                                Text(Self.refineTitle(g.id))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.leading, gi == 0 ? 0 : 10)
+                                    .fixedSize()
+                                ForEach(g.options, id: \.token) { o in
+                                    refineChip(o, in: g)
+                                        .fixedSize()
+                                }
+                            }
                         }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Self.bandTint(band.family), in: RoundedRectangle(cornerRadius: 7))
+                        .accessibilityElement(children: .contain)
+                        .accessibilityIdentifier("band-" + band.family)
                     }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 12)
             }
-            .frame(maxHeight: 150)
+            .frame(maxHeight: 190)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.bottom, 8)
             .accessibilityIdentifier("refinements")
@@ -326,6 +339,23 @@ extension SearchView {
     }
 
     static func refineTitle(_ id: String) -> String { L("refine.group." + id) }
+
+    /// One soft shade per family of choices (light enough for the chips'
+    /// text in light and dark mode).
+    static func bandTint(_ family: String) -> Color {
+        let c: Color
+        switch family {
+        case "where": c = .blue
+        case "what": c = .purple
+        case "file": c = .orange
+        case "picture": c = .green
+        case "time": c = .teal
+        case "photo": c = .pink
+        case "music": c = .indigo
+        default: c = .gray
+        }
+        return c.opacity(0.10)
+    }
 
     static func refineLabel(_ o: RefineOption) -> String {
         if let key = o.key { return L("refine." + key) }

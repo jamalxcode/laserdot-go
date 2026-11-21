@@ -49,8 +49,35 @@ type RefineGroup struct {
 	// ID names the attribute (the app titles it): resolution, sound, shape,
 	// length, codec, camera, place, picture, artist, album, genre, type,
 	// modified, size, and where: drive (with a drive attached) and folder.
-	ID      string         `json:"id"`
+	ID string `json:"id"`
+	// Family: related groups shown together and shaded alike (where, what,
+	// file, picture, time, photo, music).
+	Family  string         `json:"family,omitempty"`
 	Options []RefineOption `json:"options"`
+}
+
+// refineOrder (the owner: "start top down … drive, folder, kind, size,
+// resolution, sound … starting large then going granular, with related
+// properties"): every group's place and family. Groups come in this order,
+// whatever kinds of results produced them.
+var refineOrder = []struct{ id, family string }{
+	{"drive", "where"}, {"folder", "where"},
+	{"kind", "what"}, {"type", "what"},
+	{"size", "file"}, {"modified", "file"},
+	{"resolution", "picture"}, {"shape", "picture"}, {"hdr", "picture"}, {"codec", "picture"},
+	{"length", "time"}, {"sound", "time"},
+	{"camera", "photo"}, {"place", "photo"}, {"picture", "photo"},
+	{"artist", "music"}, {"album", "music"}, {"genre", "music"},
+}
+
+// refineRank: a group's place in refineOrder (unknown ones last) and family.
+func refineRank(id string) (int, string) {
+	for i, o := range refineOrder {
+		if o.id == id {
+			return i, o.family
+		}
+	}
+	return len(refineOrder), "other"
 }
 
 // RefineFacetLimit: values offered for a text attribute (codec, camera…).
@@ -358,8 +385,14 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 		}
 		add(refineGroupOf(rest), RefineOption{Token: rest, Label: label})
 	}
+	slices.SortStableFunc(order, func(a, b string) int {
+		ra, _ := refineRank(a)
+		rb, _ := refineRank(b)
+		return cmp.Compare(ra, rb)
+	})
 	for _, id := range order {
 		if g := groups[id]; len(g.Options) > 0 {
+			_, g.Family = refineRank(id)
 			out = append(out, *g)
 		}
 	}

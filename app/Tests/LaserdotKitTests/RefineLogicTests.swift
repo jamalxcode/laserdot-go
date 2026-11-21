@@ -149,4 +149,24 @@ final class PathTextTests: XCTestCase {
         }
         XCTAssertEqual(PathText.parts("/Users/j/a/b/c/d", home: home, rootName: name), ["Home", "…", "b", "c", "d"])
     }
+
+    /// Consecutive groups of one family share a band; families keep the
+    /// daemon's top-down order.
+    func testGroupsFormBandsByFamily() {
+        let o = RefineOption(token: "x", label: "x", key: nil, count: 1)
+        let groups = [
+            RefineGroup(id: "drive", family: "where", options: [o]),
+            RefineGroup(id: "folder", family: "where", options: [o]),
+            RefineGroup(id: "kind", family: "what", options: [o]),
+            RefineGroup(id: "size", family: "file", options: [o]),
+            RefineGroup(id: "modified", family: "file", options: [o]),
+            RefineGroup(id: "resolution", family: "picture", options: [o]),
+        ]
+        let bands = RefineLogic.bands(groups)
+        XCTAssertEqual(bands.map(\.family), ["where", "what", "file", "picture"])
+        XCTAssertEqual(bands[0].groups.map(\.id), ["drive", "folder"])
+        XCTAssertEqual(bands[2].groups.map(\.id), ["size", "modified"])
+        // Visible keeps the family.
+        XCTAssertEqual(RefineLogic.visible(groups).first?.family, "where")
+    }
 }

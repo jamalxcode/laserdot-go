@@ -42,6 +42,19 @@ func TestVideoResultsOfferTheirAttributes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Top down, whatever produced the groups: size before resolution before
+	// sound, related groups next to each other (the owner).
+	pos := map[string]int{}
+	for i, g := range groups {
+		pos[g.ID] = i
+	}
+	for _, pair := range [][2]string{{"size", "resolution"}, {"resolution", "codec"}, {"codec", "length"}, {"length", "sound"}} {
+		a, okA := pos[pair[0]]
+		b, okB := pos[pair[1]]
+		if okA && okB && a > b {
+			t.Errorf("%s comes before %s: %v", pair[0], pair[1], groups)
+		}
+	}
 	res := refineGroup(groups, "resolution")
 	if len(res) < 2 {
 		t.Fatalf("several resolutions to choose from, got %v (all groups %v)", tokens(res), groups)

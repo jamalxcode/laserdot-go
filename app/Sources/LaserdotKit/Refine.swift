@@ -32,12 +32,22 @@ public struct RefineOption: Codable, Equatable, Hashable, Sendable {
 /// size).
 public struct RefineGroup: Codable, Equatable, Hashable, Sendable {
     public let id: String
+    /// Related groups, shown together and shaded alike (where, what, file,
+    /// picture, time, photo, music); nil from an older daemon.
+    public let family: String?
     public let options: [RefineOption]
 
-    public init(id: String, options: [RefineOption]) {
+    public init(id: String, family: String? = nil, options: [RefineOption]) {
         self.id = id
+        self.family = family
         self.options = options
     }
+}
+
+/// Groups of one family, side by side in one shaded band.
+public struct RefineBand: Equatable, Sendable {
+    public let family: String
+    public let groups: [RefineGroup]
 }
 
 extension Engine {
@@ -114,7 +124,23 @@ public enum RefineLogic {
             let options = g.options.filter { !hiding.contains($0.token) }
             if options.contains(where: { $0.isSelected && !$0.isExcluded }) { continue }
             let open = options.filter { !$0.isSelected }
-            if !open.isEmpty { out.append(RefineGroup(id: g.id, options: open)) }
+            if !open.isEmpty { out.append(RefineGroup(id: g.id, family: g.family, options: open)) }
+        }
+        return out
+    }
+
+    /// The choice row top down (the owner: "starting large then going
+    /// granular, with related properties"): consecutive groups of one family
+    /// form a band, shaded by its family. The daemon sends them in order.
+    public static func bands(_ groups: [RefineGroup]) -> [RefineBand] {
+        var out: [RefineBand] = []
+        for g in groups {
+            let f = g.family ?? g.id
+            if let last = out.last, last.family == f {
+                out[out.count - 1] = RefineBand(family: f, groups: last.groups + [g])
+            } else {
+                out.append(RefineBand(family: f, groups: [g]))
+            }
         }
         return out
     }

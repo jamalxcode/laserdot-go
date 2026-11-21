@@ -104,8 +104,22 @@ func TestResultsOfferTheDrivesAndFoldersTheyAreIn(t *testing.T) {
 	if !slices.Equal(l4, []string{"2023", "2024"}) {
 		t.Errorf("inside trips: %v", l4)
 	}
-	// What the results are is the first choice (folders and documents here).
-	if len(g4) == 0 || g4[0].ID != "kind" || !slices.Contains(tokens(g4[0].Options), "kind:folder") || !slices.Contains(tokens(g4[0].Options), "kind:document") {
-		t.Errorf("a Kind group first: %+v", g4)
+	// Large to granular (the owner): where first, then what the results are
+	// (folders and documents here), then size; each group with its family.
+	var ids []string
+	for _, g := range g4 {
+		ids = append(ids, g.ID)
+	}
+	if !slices.Equal(ids, []string{"folder", "kind", "type", "size"}) {
+		t.Errorf("groups top down: %v", ids)
+	}
+	if k := refineGroup(g4, "kind"); !slices.Contains(tokens(k), "kind:folder") || !slices.Contains(tokens(k), "kind:document") {
+		t.Errorf("kinds: %v", tokens(k))
+	}
+	for _, g := range g4 {
+		want := map[string]string{"folder": "where", "kind": "what", "type": "what", "size": "file"}[g.ID]
+		if g.Family != want {
+			t.Errorf("%s: family %q, want %q", g.ID, g.Family, want)
+		}
 	}
 }
