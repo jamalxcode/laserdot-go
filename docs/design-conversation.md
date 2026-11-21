@@ -716,7 +716,9 @@ the spotlight, more options shown as the search screen". **Done:** one screen in
 box as a rounded bar, a row of round buttons with captions (kinds of files, Recent Downloads, Big Files, then the
 menu's tools), then hints, choices and results. The slim start (0.9.31) and the home screen's separate starts are
 gone; recent files show at once (no ↓). A kind button adds its pill to the current search and keeps the typed words;
-a second click takes it out.
+a second click takes it out. **Then reported:** "for the camera choices, and other choices that extend beyond the
+window, have them wrap down" — each group had been kept on one line; now every chip wraps on its own (the group's
+title starts it), about six lines show and more scroll.
 
 ## Chat conventions
 

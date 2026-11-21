@@ -10,6 +10,8 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
   Downloads, Big Files, then Find Duplicates, Storage, Drives, Index a Folder, Settings), then the choices and the
   results. Nothing is hidden behind a slim start any more, and recent files show as soon as the window opens.
 - A kind button joins your search as a pill and keeps what you typed; click it again to take it out.
+- Long rows of choices (cameras, folders…) wrap onto the next line instead of running off the edge of the window,
+  so every choice can be seen and clicked without making the window wider.
 
 ## 0.9.36
 

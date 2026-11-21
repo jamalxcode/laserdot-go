@@ -266,27 +266,29 @@ extension SearchView {
     @ViewBuilder var refinementChips: some View {
         let groups = model.visibleRefinements
         if model.showsRefinements {
-            // Wraps to more lines instead of running off the edge (each
-            // group stays together), at most three lines' worth.
-            ScrollView(.vertical, showsIndicators: false) {
-                FlowLayout(spacing: 12, lineSpacing: 6) {
-                    ForEach(groups, id: \.id) { g in
-                        HStack(spacing: 4) {
-                            Text(Self.refineTitle(g.id))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            ForEach(g.options, id: \.token) { o in
-                                refineChip(o, in: g)
-                            }
+            // Every chip wraps on its own, so a long group (cameras, folders)
+            // continues on the next line instead of running off the edge (the
+            // owner had to drag the window wider); about six lines show, more
+            // scroll.
+            ScrollView(.vertical, showsIndicators: true) {
+                FlowLayout(spacing: 4, lineSpacing: 6) {
+                    ForEach(Array(groups.enumerated()), id: \.element.id) { gi, g in
+                        Text(Self.refineTitle(g.id))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .padding(.leading, gi == 0 ? 0 : 10)
+                            .fixedSize()
+                        ForEach(g.options, id: \.token) { o in
+                            refineChip(o, in: g)
+                                .fixedSize()
                         }
-                        .fixedSize()
                     }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.mini)
                 .padding(.horizontal, 16)
             }
-            .frame(maxHeight: 74)
+            .frame(maxHeight: 150)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.bottom, 8)
             .accessibilityIdentifier("refinements")

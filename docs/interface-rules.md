@@ -70,6 +70,8 @@ for `>` commands, after a trailing space, or while moving through the results.
    ("Kind Videos 12 · Resolution 4K 3 · 1080p 12 · Folder Trips 5 · Sound With sound 14"). Kind comes first, and
    where the results are (drive, folder) is a choice like any other.
 2. Only choices that narrow the results are shown.
+2b. **Every choice can be reached:** a long group (cameras, folders) wraps onto the next lines; nothing runs off
+    the edge of the window.
 3. **What is chosen is a pill in the search box** ("4K ✕", "not PDF ✕", "in 2023 ✕"), before the typed words: ✕ or
    Delete in an empty box removes it. Its group leaves the row until the pill is removed; every other group stays,
    each count saying what that choice gives with the rest; a choice that would leave nothing is greyed out.
