@@ -42,7 +42,7 @@ One page, kept current: what is true today. The history and the reasons are in
   button; the tools, then all buttons, give way when the window is narrow. ⌘1–⌘9 press the buttons; the empty box
   says "↓ for recent files"; a search limited to a place that finds nothing offers Search Everywhere.
 - **Reset:** the ✕ in the box clears words, pills, the search place and the order; a place whose folder is gone
-  counts as Everywhere. Show More adds 1,000 results at a time.
+  counts as Everywhere. A search shows up to 1,000 results, and Show More adds 1,000 at a time.
 - **Fresh results:** reopening the window runs the search again; after a file action the app sends `touched` with
   the folders it changed, and the engine lists them again at once (drives included).
 - **Opening** a result (Return, double-click, Open With, Show in Finder, Open in Terminal) hides the ⌥Space window.

@@ -48,7 +48,7 @@ final class SearchModel: ObservableObject {
         didSet { updateCompact() }
     }
 
-    /// Results added by each Show More.
+    /// Results fetched at first, and added by each Show More.
     static let morePage = 1000
 
     /// Settings ▸ General ▸ Search in ("" everywhere, "local", or a folder).
@@ -467,7 +467,8 @@ final class SearchModel: ObservableObject {
             // A newer keystroke came while this one waited: its search
             // replaces this one, which would only be thrown away.
             guard let self, gen == self.currentGeneration() else { return }
-            let outcome = Result { try engine.search(query: sent, limit: 100, sort: sort, reverse: reverse) }
+            // The first page is a thousand too (the owner: "still showing 100 max").
+            let outcome = Result { try engine.search(query: sent, limit: Self.morePage, sort: sort, reverse: reverse) }
             DispatchQueue.main.async {
                 guard gen == self.generation else { return }
                 self.apply(outcome)

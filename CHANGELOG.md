@@ -3,6 +3,10 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.36
+
+- Searches show up to a thousand results straight away (not only after Show More).
+
 ## 0.9.35
 
 - **Show More** adds a thousand results at a time instead of a hundred.

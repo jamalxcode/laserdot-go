@@ -702,6 +702,11 @@ especially if an old drive that is removed is still shown". **Done:** Show More 
 search box's ✕ (and … ▸ Reset Search) resets words, pills, choices, the search place and the order; a search place
 whose folder no longer exists (a drive unplugged) is ignored, and gone folders leave the recent places.
 
+## 54. A thousand from the start (0.9.36)
+
+**Reported:** "its still showing 100 max". 0.9.35 had changed only what Show More adds; the first page was still
+100. **Fix:** the first page is 1,000 results too.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.
