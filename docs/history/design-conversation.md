@@ -827,6 +827,19 @@ only within one file. Then the new gallery folder "Beach" took the place of `bea
 text at the top; it became a round button like the others, opening a small panel of the tools. Nothing reached the
 owner before all three were fixed and the screenshots read.
 
+## 66. A third critique: recency, no document packages, English-only checks, one look (0.9.45)
+
+The owner's answers: "1 do it" (recent files rank first among equal matches), "2 do not include app packages, at
+all" (taken as: packages made by apps — a Ulysses sheet and the like — are not results, not even as one item; apps
+themselves stay, the Apps button depends on them), "3 explain" (choice rows on huge searches), "4 remove arabic,
+only english, later languages can be added" (taken as: the self-test runs in English only; the app keeps its Arabic
+— to be confirmed), "5 explain" ("What's New" as a dot instead of a window), "6 explain" (a Health section), "7 why
+is it important" (start-up time on a real Mac), "8 make other windows match new look", "9 make it consistent" (⌘T
+for the More panel, with ↑↓ Return Esc). Decided: recency is a coarse bucket after match quality, opens and
+file-before-folder, before name length; `IsHiddenPackage` skips every package but apps in every listing, and an
+older index is cleared once; CI's two Macs are now "selftest" (English) and "checks"; Duplicates, Storage and
+Settings use the bands, the rounded bar and Finder-style folder names.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

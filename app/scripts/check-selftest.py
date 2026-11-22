@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "gallery", "galleryall", "gallerycalm", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -152,6 +152,8 @@ check(len(ga["results"]) >= 30 and not any("inside" in r for r in ga["results"])
       f"thirty sunsets, none from inside a package (got {len(ga['results'])}: {[r for r in ga['results'] if 'inside' in r]})")
 check(ga.get("refine_hidden", 0) > 0, f"the calm view leaves some choices out of a big search (hidden {ga.get('refine_hidden')})")
 check(gall.get("refine_shown_count", 0) > ga.get("refine_shown_count", 0), f"More choices shows more (calm {ga.get('refine_shown_count')}, all {gall.get('refine_shown_count')})")
+check(steps["toolskey"].get("tools_open") is True, "⌘T opens the More panel of tools")
+check(steps["toolsclosed"].get("tools_open") is False, "and it closes again")
 po = steps["pillsonly"]
 check(po.get("refine_row") is True and po.get("visible_hint", "") == "",
       f"only pills in the box: the choices show and no hint repeats them (row {po.get('refine_row')}, hint {po.get('visible_hint')!r})")

@@ -77,7 +77,9 @@ for `>` commands, after a trailing space, or while moving through the results.
    colour is never the only cue.
 2. Only choices that narrow the results are shown.
 2a. **While searching, the kinds stay and the tools fold into More** (0.9.44), a round button like the others that
-    opens a small panel of the tools; the empty box shows every button.
+    opens a small panel of the tools (⌘T; ↑↓ Return Esc, as everywhere); the empty box shows every button.
+2b2. **One look in every window** (0.9.45): Duplicates' groups, Storage's place and sizes use the search screen's
+    bands (stripe, icon, faint tint, colour-blind-safe colours) and its rounded bar; folders read as Finder names them.
     The hint explains what is being typed, never what the choices already show.
 2b. **Every choice can be reached:** a long group (cameras, folders) wraps onto the next lines; nothing runs off
     the edge of the window.

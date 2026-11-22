@@ -15,8 +15,8 @@ file search should be, and a robot that types into it on every change to prove i
 
 - 🟣 **Looks like Spotlight, shows everything.** One screen in every window: a rounded bar, round buttons for
   Videos, Images, Music, Documents, Apps, Downloads and Big Files, then Duplicates, Storage, Drives and Settings
-  (which fold under **More** while you search). Like Spotlight, a document package — a Ulysses sheet, an app, an
-  Xcode project — is one result, not the hundreds of files inside it.
+  (which fold under **More** while you search, ⌘T). A document package — a Ulysses sheet, an Xcode project — is not
+  a result, nor anything inside it; apps are one result each. Recently changed files come first among equal matches.
 - 🔎 **Finds things the way you say them.** `jpg`, `photos last week`, `big videos`, `pdf yesterday`,
   `invoice march`, `4k hdr` — and Arabic: `صور الاسبوع الماضي`, `فاتورة ٢٠٢٤`. A hint under the box shows how it read
   you (*“last week means since:7d”*), so you pick up the precise language for free.
@@ -117,6 +117,7 @@ downloads.
 | ↑ ↓ | move through results (⇧↑ ⇧↓ or ⌘-click select several) |
 | Return / ⌘1–⌘9 | open the selected / the numbered result |
 | Space (after ↑↓ or a click), or Space twice | Quick Look: pictures large, videos and songs playing |
+| ⌘T | the More panel of tools while searching (↑↓, Return, Esc) |
 | ⌘K | actions: Open, Quick Look, Show in Finder, Copy Path, More Like This, Search in This Folder, Move to Trash — then **Open With…** and **More Actions…** (Copy file or link, Share, Tags…, Compress, Move to…, Open in Terminal, Rename) |
 | ⌥⌘Z | undo the last Move to Trash, Rename, Move to…, Compress or tag change (or click **Undo** on the bar); press again for the one before — Laserdot remembers 20 steps for a week, even after quitting |
 | ↑ in the empty box | your earlier searches |
@@ -292,7 +293,7 @@ Releases publish themselves: when CI passes on `main` and the newest version in 
 the **Release** workflow builds that exact commit, launch-tests it and publishes `Laserdot-<version>.dmg` with that
 version's notes. (A `v*` tag or a run by hand still work.) A version marked `<!-- quiet -->` in CHANGELOG.md is
 released without a What's New message. User-facing changes are released in batches, about weekly, unless a fix is
-urgent. The app's checks run on two Macs side by side (about 7 minutes; 13 before). Documents-only commits skip the Mac jobs, and a job GitHub leaves without a machine retries by itself. The **perf-big** workflow measures a million files weekly.
+urgent. The app's checks run on two Macs side by side (about 7 minutes; 13 before); the self-test runs in English. Documents-only commits skip the Mac jobs, and a job GitHub leaves without a machine retries by itself. The **perf-big** workflow measures a million files weekly.
 
 ## Documents
 

@@ -141,10 +141,11 @@ Run gofmt, vet and the full test suite before committing.
   them, `Guidance.swift` answers from `Registry.generated.swift`. Rerun `app/scripts/build-go.sh` after changing the
   registry (CI fails on a stale file) and add the filter's Arabic description in `Guidance.swift` too (a Swift test
   enforces it). Swift compiles only on macOS: the CI `app` job builds, tests and bundles it, on two Macs
-  side by side — `app (en)` runs the checks and the English self-test, `app (ar)` the Swift tests and the Arabic one.
+  side by side — `app (selftest)` runs the self-test, `app (checks)` everything else, the Swift tests included.
 - **Self-test (the app's real screen):** CI runs the bundled app with `LASERDOT_SELFTEST` (`SelfTest.swift`): it
   types into the ⌥Space window with key events, presses ↓/Space/⌘K, opens Settings, and writes a report that
-  `app/scripts/check-selftest.py` judges, in English and Arabic; the screenshots are printed base64 in the job log
+  `app/scripts/check-selftest.py` judges, in English only since 0.9.45 (the owner: "only english, later languages can
+  be added" — add a language to the self-test loop in `ci.yml` to check it again); the screenshots are printed base64 in the job log
   (`=== SCREENSHOT <lang> <name>`) — decode them to look at the UI. Extend it for every visible change.
 - Regenerate `app/Sources/LaserdotKit/Registry.generated.swift` (`go run ./app/scripts/registry > …`) whenever the
   registry, the cheat sheet or the type/plain-language words change — CI fails on a stale file.

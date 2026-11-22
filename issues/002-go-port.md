@@ -137,6 +137,14 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Recency, hidden packages, one look (0.9.45):** `index.relevanceKey` gains `ageBucket(now-Modified)` (4 bits at
+  36, name length 16 bits); test `TestRecentFilesRankFirstAmongEqualMatches`. `scan.ShownPackageExts` (["app"]) and
+  `scan.IsHiddenPackage` in `skip` (every listing, bulk too); `junkFolders` relists a hidden package's folder;
+  `junkRules` "3"; test `TestDocumentPackagesAreNotResults`. App: `SearchModel.showTools` (⌘T in `hiddenShortcuts`,
+  popover keys via `onKeyPress`, `toolIndex`); `Bands.swift` (`band(_:)`, `capsuleBar()`, `BandTitle`) used by
+  Duplicates groups (`DuplicatesView.family`), Storage (breadcrumb band, kind-coloured sizes) and Settings folder
+  lists (`shortPath` with the full path on hover). CI `app` matrix `part: [selftest, checks]`, English only.
+  Self-test steps `toolskey`/`toolsclosed`.
 - **Split files, two-Mac CI, docs arranged (0.9.44):** `internal/core/core.go` → `core.go`, `snapshotting.go`,
   `indexing.go`, `updating.go`, `searching.go`; `drives.go` → `drives.go`, `drives_list.go`, `drives_index.go`,
   `drives_attach.go`; `SearchModel+Home.swift` (empty box, editing, sections, Show More, snippet; `tip`, `snippet`, `sections`,

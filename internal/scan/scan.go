@@ -46,6 +46,22 @@ var DefaultOpaqueExts = []string{
 	"lrlibrary", "pkg", "mpkg", "workflow", "action", "component", "vst", "vst3", "wdgt",
 }
 
+// ShownPackageExts: the packages that are results themselves (apps: the Apps
+// button finds them). Every other package in OpaqueExts is left out entirely
+// (0.9.45, the owner: "do not include app packages, at all" — a Ulysses sheet
+// named a1b2c3.ulysses is noise as a result too).
+var ShownPackageExts = []string{"app"}
+
+// IsHiddenPackage: a package folder that is not a result at all (by name).
+func IsHiddenPackage(name string, opts Options) bool {
+	i := strings.LastIndexByte(name, '.')
+	if i <= 0 {
+		return false
+	}
+	ext := strings.ToLower(name[i+1:])
+	return contains(opts.OpaqueExts, ext) && !contains(ShownPackageExts, ext)
+}
+
 // PartialDownloadExts are downloads in progress: never indexed (story 12).
 var PartialDownloadExts = []string{"crdownload", "part", "partial", "download", "opdownload", "!qb", "!ut"}
 
@@ -249,7 +265,7 @@ func readDir(dir string, parent int, rootDev uint64, opts Options) ([]Entry, []E
 // skip: the ignore rules for a child of dir.
 func skip(dir, name, path string, isDir bool, opts Options) bool {
 	only, restricted := opts.OnlyChildren[dir]
-	return (isDir && contains(opts.IgnoredDirs, name)) || IsPartialDownload(name) || (!isDir && IsSystemJunk(name)) ||
+	return (isDir && (contains(opts.IgnoredDirs, name) || IsHiddenPackage(name, opts))) || IsPartialDownload(name) || (!isDir && IsSystemJunk(name)) ||
 		contains(opts.ExcludedPaths, path) ||
 		(restricted && !contains(only, name))
 }

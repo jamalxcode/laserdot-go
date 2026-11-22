@@ -115,7 +115,7 @@ const junkCleanedKey = "system_junk_cleaned"
 
 // junkRules: bumped when the rules leave out more ("2": document packages,
 // 0.9.44), so an index made before is cleared again once.
-const junkRules = "2"
+const junkRules = "3" // "3": packages other than apps are not results at all (0.9.45)
 
 // dropSystemJunk removes .DS_Store and the like that an index made before
 // they were ignored still holds (once): each folder holding one is listed
@@ -158,6 +158,8 @@ func junkFolders(s *index.Store) []Change {
 		id := it.Next()
 		if !s.IsDir(id) && scan.IsSystemJunk(s.Name(id)) {
 			dirs[filepath.Dir(s.Path(id))] = true
+		} else if s.IsDir(id) && scan.IsHiddenPackage(s.Name(id), opts) {
+			dirs[filepath.Dir(s.Path(id))] = true // listing its folder again leaves it out
 		} else if s.IsDir(id) && len(s.Children(id)) > 0 && scan.IsOpaque(s.Name(id), opts) {
 			dirs[s.Path(id)] = true
 		}

@@ -89,10 +89,10 @@ func TestADrivesOlderIndexLosesItsJunkFiles(t *testing.T) {
 	expect(t, dnames(t, m.ld, "trip"), "trip.mp4")
 }
 
-// Document packages are one result, like apps (the owner: "fix it like
+// Document packages are not results (apps are) (the owner: "fix it like
 // Spotlight", after the pictures inside Ulysses sheets flooded a search for
 // screenshots); an index made before loses what it held inside them.
-func TestDocumentPackagesAreOneResult(t *testing.T) {
+func TestDocumentPackagesAreNotResults(t *testing.T) {
 	saved := scan.DefaultOpaqueExts
 	scan.DefaultOpaqueExts = slices.DeleteFunc(slices.Clone(saved), func(e string) bool { return e == "ulysses" || e == "rtfd" })
 	ld, root := newCore(t)
@@ -117,9 +117,19 @@ func TestDocumentPackagesAreOneResult(t *testing.T) {
 	defer ld2.Close()
 	waitFor(t, "the pictures inside the sheet to go", func() bool { return len(dnames(t, ld2, "screenshot")) == 1 })
 	expect(t, dnames(t, ld2, "screenshot"), "Screenshot kept.png")
-	expect(t, dnames(t, ld2, "a1b2c3"), "a1b2c3.ulysses") // the sheet itself is a result
+	// Not even the sheet itself is a result (the owner: "do not include app
+	// packages, at all"); apps still are.
+	expect(t, dnames(t, ld2, "a1b2c3"))
 	expect(t, dnames(t, ld2, "txt"))
-	expect(t, dnames(t, ld2, "letter"), "Letter.rtfd")
+	expect(t, dnames(t, ld2, "letter"))
+	// A sheet made later, and a change reported inside one: still nothing.
+	writeAged(t, filepath.Join(root, "Writing/later.ulysses/Content.xml"), []byte("x"))
+	if _, err := ld2.ApplyChanges([]Change{{Path: filepath.Join(root, "Writing")}, {Path: filepath.Join(root, "Writing/later.ulysses")},
+		{Path: filepath.Join(root, "Writing/later.ulysses/Content.xml")}}); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, dnames(t, ld2, "later"))
+	expect(t, dnames(t, ld2, "content"))
 	// A fresh index never takes them in.
 	ld3, root3 := newCore(t)
 	writeAged(t, filepath.Join(root3, "Notes/x.ulysses/Media/Screenshot.png"), []byte("x"))

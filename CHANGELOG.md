@@ -3,6 +3,16 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.45
+
+- Recent files come first: among names that match your words equally well, the one changed most recently is on top
+  (a better match still wins).
+- Files that live inside a document — a Ulysses sheet, an RTFD, an Xcode project, a Final Cut or iMovie library — and
+  the document itself are no longer results at all. Apps still are.
+- **⌘T** opens the More panel of tools from the keyboard; ↑↓ move through it, Return opens, Esc closes.
+- Find Duplicates, Storage and Settings match the search screen: coloured bands with icons, the rounded bar, and
+  folders shown as Finder names them.
+
 ## 0.9.44
 
 - Files kept inside documents are no longer results, as in Spotlight: a Ulysses sheet, an RTFD, a Scrivener or Xcode

@@ -159,4 +159,6 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
      like its neighbours, use a `Button` that opens a popover.
 20m. **New test files can collide with old test steps.** A "Beach" folder took `beach.jpg`'s place in a step that
      searched "beach". Name new fixtures with words no step searches for.
+20n. **Rank by time as people remember it.** Recency in coarse steps (today, this week…) changes the order people
+     expect without reshuffling results by seconds; the match itself still decides first.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

@@ -89,6 +89,9 @@ The engineering pillars behind them are in [`../CLAUDE.md`](../../CLAUDE.md).
    rather than one update per change; an urgent fix (something broken or unsafe) goes out at once. Fixes nobody sees
    are marked `<!-- quiet -->` so they do not announce themselves.
 
+5c. **The self-test checks English** (0.9.45, the owner); Arabic stays in the app, and a language is checked again
+    by adding it to the self-test loop.
+
 ## 6. Engagement: useful return, not time spent
 
 1. Laserdot's recurring jobs are finding files (on demand) and keeping the disk tidy. **Only tidying earns a

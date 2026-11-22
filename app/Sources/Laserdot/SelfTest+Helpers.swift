@@ -147,6 +147,7 @@ extension SelfTestRunner {
         r["start_buttons"] = model.startButtons.map(\.id)
         r["bar_buttons"] = model.barButtons.map(\.id)
         r["bar_tools"] = model.barTools.map(\.id)
+        r["tools_open"] = model.showTools
         r["dismiss_on_open"] = model.onOpened != nil
         r["sort_key"] = model.sort.rawValue
         r["more_page"] = SearchModel.morePage

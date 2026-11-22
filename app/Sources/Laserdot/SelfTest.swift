@@ -122,6 +122,13 @@ final class SelfTestRunner {
                  until: { $0.allChoices && !$0.refinements.isEmpty }, wait: 0.5),
             Step(name: "gallerycalm", typed: "sunset", after: { model.allChoices = false },
                  until: { !$0.allChoices }, wait: 0.3),
+            // ⌘T opens the More panel of tools from the keyboard (the owner:
+            // "make it consistent"); Esc closes it.
+            Step(name: "toolskey", typed: "proj", after: {
+                self.key("t", code: 17, into: overlay.panel, flags: .command)
+            }, until: { $0.showTools }, wait: 0.5),
+            Step(name: "toolsclosed", typed: "proj", after: { model.showTools = false },
+                 until: { !$0.showTools }),
             // Only a pill in the box and the choices showing: no hint
             // repeating them (the owner: a calmer screen).
             Step(name: "pillsonly", typed: "kind:document ", until: { !$0.refinements.isEmpty }, wait: 0.5),

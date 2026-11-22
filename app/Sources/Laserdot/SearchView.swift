@@ -15,8 +15,8 @@ struct SearchView: View {
     /// The hot-key overlay has a fixed size; the main window resizes.
     var fixedSize = true
     @Environment(\.controlActiveState) private var activeState
-    /// The More button's panel of tools is open.
-    @State var showTools = false
+    /// The tool the arrow keys are on in that panel.
+    @State var toolIndex = 0
     /// The selected row uses the accent colour while this window has the
     /// keyboard (the overlay always does), and grey otherwise — as lists do.
     var emphasized: Bool { fixedSize || activeState == .key }
@@ -76,13 +76,13 @@ struct SearchView: View {
                         // calmer screen); the empty box shows them all.
                         // A round button like the others (a Menu's custom label is
                         // flattened by macOS), opening a small panel of the tools.
-                        Button { showTools.toggle() } label: {
+                        Button { model.showTools.toggle() } label: {
                             VStack(spacing: 4) {
                                 Image(systemName: "ellipsis")
                                     .font(.system(size: 17, weight: .regular))
                                     .frame(width: 40, height: 40)
-                                    .foregroundStyle(showTools ? Color.white : Color.primary.opacity(0.8))
-                                    .background(Circle().fill(showTools ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.regularMaterial)))
+                                    .foregroundStyle(model.showTools ? Color.white : Color.primary.opacity(0.8))
+                                    .background(Circle().fill(model.showTools ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.regularMaterial)))
                                     .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
                                 Text(L("bar.more"))
                                     .font(.caption2)
@@ -97,11 +97,13 @@ struct SearchView: View {
                         .help(L("bar.more.help"))
                         .accessibilityLabel(L("bar.more"))
                         .accessibilityIdentifier("start-more")
-                        .popover(isPresented: $showTools, arrowEdge: .bottom) {
+                        .popover(isPresented: $model.showTools, arrowEdge: .bottom) {
+                            // Keyboard as everywhere else in Laserdot: ↑↓ move, Return
+                            // runs, Esc closes (⌘T opens it).
                             VStack(alignment: .leading, spacing: 2) {
-                                ForEach(tools, id: \.id) { t in
+                                ForEach(Array(tools.enumerated()), id: \.element.id) { i, t in
                                     Button {
-                                        showTools = false
+                                        model.showTools = false
                                         t.run()
                                     } label: {
                                         Label(t.title, systemImage: t.symbol)
@@ -111,11 +113,27 @@ struct SearchView: View {
                                     .buttonStyle(.plain)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
+                                    .foregroundStyle(i == toolIndex ? Color.white : Color.primary)
+                                    .background(RoundedRectangle(cornerRadius: 5)
+                                        .fill(i == toolIndex ? Color.accentColor : Color.clear))
+                                    .onHover { if $0 { toolIndex = i } }
                                     .accessibilityIdentifier("tool-" + t.id)
                                 }
                             }
                             .padding(6)
-                            .frame(minWidth: 200)
+                            .frame(minWidth: 220)
+                            .focusable()
+                            .focusEffectDisabled()
+                            .onKeyPress(.downArrow) { toolIndex = min(toolIndex + 1, tools.count - 1); return .handled }
+                            .onKeyPress(.upArrow) { toolIndex = max(toolIndex - 1, 0); return .handled }
+                            .onKeyPress(.return) {
+                                guard tools.indices.contains(toolIndex) else { return .ignored }
+                                model.showTools = false
+                                tools[toolIndex].run()
+                                return .handled
+                            }
+                            .onKeyPress(.escape) { model.showTools = false; return .handled }
+                            .onAppear { toolIndex = 0 }
                         }
                     }
                 }
@@ -203,6 +221,9 @@ struct SearchView: View {
             Button("") { model.copyPath() }.keyboardShortcut("c", modifiers: [.command, .shift])
             Button("") { model.quickLook() }.keyboardShortcut("y", modifiers: .command)
             Button("") { model.toggleActions() }.keyboardShortcut("k", modifiers: .command)
+            // ⌘T: the More panel of tools (while searching; the empty box shows them as buttons).
+            Button("") { model.showTools.toggle() }.keyboardShortcut("t", modifiers: .command)
+                .disabled(model.barTools.isEmpty)
             Button("") { model.viewMode = model.viewMode.next }.keyboardShortcut("j", modifiers: .command)
             Button("") { model.resizeTiles(by: 24) }.keyboardShortcut("+", modifiers: .command)
                 .disabled(model.viewMode != .grid)

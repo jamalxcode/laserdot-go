@@ -490,7 +490,7 @@
 "search.reset" = "Reset Search (words, choices, place and order)";
 "refine.leaveOut" = "Leave Out";
 "bar.more" = "More";
-"bar.more.help" = "Find Duplicates, Storage, Drives, Index a Folder, Settings";
+"bar.more.help" = "Find Duplicates, Storage, Drives, Index a Folder, Settings (⌘T)";
 "refine.more" = "More choices (%d)";
 "refine.fewer" = "Fewer choices";
 "refine.more.help" = "Show every choice, including ones that would leave nothing";

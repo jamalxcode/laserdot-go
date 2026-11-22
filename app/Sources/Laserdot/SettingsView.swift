@@ -196,7 +196,8 @@ struct ContentSettings: View {
                     Label {
                         VStack(alignment: .leading) {
                             Text(URL(fileURLWithPath: f).lastPathComponent)
-                            Text(f).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                            Text(shortPath(f)).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                                .help(f)
                         }
                     } icon: {
                         Image(nsImage: NSWorkspace.shared.icon(forFile: f)).resizable().frame(width: 20, height: 20)
@@ -341,7 +342,9 @@ struct FoldersSettings: View {
                 Label {
                     VStack(alignment: .leading) {
                         Text(f == "/" ? "/" : URL(fileURLWithPath: f).lastPathComponent)
-                        Text(f).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                        // Where it is, as Finder says it (the full path on hover).
+                        Text(shortPath(f)).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                            .help(f)
                     }
                 } icon: {
                     Image(nsImage: NSWorkspace.shared.icon(forFile: f)).resizable().frame(width: 18, height: 18)

@@ -312,6 +312,8 @@ final class SearchModel: ObservableObject {
     var undoStep: UndoStep? { undoStack.last }
     @Published var undoBannerVisible = false
     /// Words from inside the selected document (content matches).
+    /// The More button's panel of tools is open (⌘T).
+    @Published var showTools = false
     @Published var snippet: String?
     /// Show More is fetching the next page (SearchModel+Home).
     var loadingMore = false

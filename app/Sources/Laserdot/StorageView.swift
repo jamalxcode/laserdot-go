@@ -136,6 +136,7 @@ struct StorageView: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
             }
+            .band("where")
             .padding(.horizontal, 12).padding(.top, 8)
             if let m = model.message {
                 Text(m).foregroundStyle(.secondary).padding(12)
@@ -159,6 +160,16 @@ struct StorageView: View {
         }
     }
 
+    /// A file kind's band family: pictures, videos and songs, everything else.
+    static func family(_ kind: String) -> String {
+        switch kind {
+        case "image": return "photo"
+        case "video": return "picture"
+        case "audio": return "music"
+        default: return "file"
+        }
+    }
+
     private var files: some View {
         List(model.largest, id: \.path) { h in
             HStack(spacing: 10) {
@@ -168,7 +179,10 @@ struct StorageView: View {
                     Text(shortPath(h.path)).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                 }
                 Spacer()
+                // The size, on the band colour of the file's kind (as on the search screen).
                 Text(bytes(h.size)).font(.callout.monospacedDigit())
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(SearchView.bandColor(Self.family(h.kind)).opacity(0.15), in: Capsule())
             }
             .contentShape(Rectangle())
             .onTapGesture(count: 2) { Finder.reveal(URL(fileURLWithPath: h.path)) }

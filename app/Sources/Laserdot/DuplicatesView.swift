@@ -400,6 +400,16 @@ struct DuplicatesView: View {
         return parts.joined(separator: " · ")
     }
 
+    /// The band a group is drawn in, as on the search screen: identical
+    /// copies (any file), similar pictures, re-encoded videos.
+    static func family(_ kind: String) -> String {
+        switch kind {
+        case "exact": return "where"
+        case "reencoded_video": return "time"
+        default: return "picture"
+        }
+    }
+
     private func kindTitle(_ kind: String) -> String {
         switch kind {
         case "exact": return L("dupes.kind.exact")
@@ -436,6 +446,7 @@ struct DuplicatesView: View {
                         .keyboardShortcut(.defaultAction)
                         .disabled(model.scanning)
                 }
+                .capsuleBar()
                 DisclosureGroup(L("dupes.advanced"), isExpanded: $showAdvanced) {
                     TextField(L("dupes.scope"), text: $model.scope)
                         .textFieldStyle(.roundedBorder)
@@ -511,11 +522,8 @@ struct DuplicatesView: View {
                         LazyVStack(alignment: .leading, spacing: 14) {
                             ForEach(Array(groups.enumerated()), id: \.offset) { _, g in
                                 VStack(alignment: .leading, spacing: 8) {
-                                    HStack(spacing: 6) {
-                                        Text(kindTitle(g.kind)).font(.headline)
-                                        Text(String(format: L("dupes.reclaim"), bytes(g.reclaimable))).foregroundStyle(.secondary)
-                                        Spacer()
-                                    }
+                                    BandTitle(family: Self.family(g.kind), title: kindTitle(g.kind),
+                                              detail: String(format: L("dupes.reclaim"), bytes(g.reclaimable)))
                                     ScrollView(.horizontal, showsIndicators: false) {
                                         HStack(alignment: .top, spacing: 12) {
                                             ForEach(g.files, id: \.path) { f in tile(f, group: g) }
@@ -523,8 +531,7 @@ struct DuplicatesView: View {
                                         .padding(.bottom, 2)
                                     }
                                 }
-                                .padding(12)
-                                .background(RoundedRectangle(cornerRadius: 10).fill(Color.secondary.opacity(0.08)))
+                                .band(Self.family(g.kind))
                             }
                         }
                         .padding(12)

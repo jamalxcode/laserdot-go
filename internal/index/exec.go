@@ -11,6 +11,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/RoaringBitmap/roaring/v2"
 
@@ -406,9 +407,11 @@ func nameClauses(q *query.Compiled) [][]*query.NameMatcher {
 	return out
 }
 
-// relevanceKey: match quality, then shorter names, then shallower paths
-// (§10.1). Lower is better.
-func (s *Store) relevanceKey(clauses [][]*query.NameMatcher, penalty uint32, id uint32, boost uint8) uint64 {
+// relevanceKey: match quality, then opened more, files before folders, then
+// changed more recently (0.9.45, the owner: recent files first, as Spotlight
+// weighs them), then shorter names, then shallower paths (§10.1). Lower is
+// better.
+func (s *Store) relevanceKey(clauses [][]*query.NameMatcher, penalty uint32, id uint32, boost uint8, now int64) uint64 {
 	name := s.FoldedName(id)
 	q := uint64(penalty)
 	for _, clause := range clauses {
@@ -431,8 +434,29 @@ func (s *Store) relevanceKey(clauses [][]*query.NameMatcher, penalty uint32, id 
 		q += uint64(best)
 	}
 	// match quality (13 bits) · opened less (8) · file/folder/hidden (2) ·
-	// name length (16) · depth (20)
-	return q<<50 | uint64(255-boost)<<42 | s.demotion(id)<<40 | uint64(min(len(name), 0xFFFF))<<20 | uint64(s.depth[id])
+	// age (4) · name length (16) · depth (20)
+	return q<<50 | uint64(255-boost)<<42 | s.demotion(id)<<40 | ageBucket(now-s.Modified(id))<<36 |
+		uint64(min(len(name), 0xFFFF))<<20 | uint64(s.depth[id])
+}
+
+// ageBucket: how long ago something changed, coarsely (so a name match is
+// not reordered by seconds): today, this week, this month, this quarter, this
+// year, older. 0–5, lower is newer.
+func ageBucket(age int64) uint64 {
+	const day = 86400
+	switch {
+	case age < day:
+		return 0
+	case age < 7*day:
+		return 1
+	case age < 31*day:
+		return 2
+	case age < 92*day:
+		return 3
+	case age < 366*day:
+		return 4
+	}
+	return 5
 }
 
 // demotion orders equally good matches the way Spotlight does: files first,
@@ -518,10 +542,11 @@ func (s *Store) Rank(hits *roaring.Bitmap, q *query.Compiled, page Page, penalty
 	// Relevance without name words (kind:video, jpg): newest first, but
 	// files before folders before hidden items, as with name words.
 	filterOnly := page.Sort == Relevance && len(clauses) == 0
+	now := time.Now().Unix()
 	key := func(id uint32) RankKey {
 		switch srt {
 		case Relevance:
-			return RankKey{Num: s.relevanceKey(clauses, penalty, id, page.Boost[id])}
+			return RankKey{Num: s.relevanceKey(clauses, penalty, id, page.Boost[id], now)}
 		case ByName, ByKind:
 			return RankKey{Text: s.sortText(srt, id), IsText: true, Desc: page.Reverse}
 		}
