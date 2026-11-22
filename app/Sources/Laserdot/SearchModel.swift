@@ -30,7 +30,7 @@ final class SearchModel: ObservableObject {
     /// The results in sections, like Spotlight: Top Hit, then Applications,
     /// Documents, Images… in the order their best result ranks. `results` is
     /// in this display order, so ↑/↓ and ⌘1–9 follow what is on screen.
-    @Published private(set) var sections: [ResultSection] = []
+    @Published var sections: [ResultSection] = []
     /// Clickable completions for the word being typed (spec §8.2).
     @Published private(set) var completionChips: [Completion] = []
     /// What the results have to choose from (resolutions, sound, type…).
@@ -179,14 +179,14 @@ final class SearchModel: ObservableObject {
             }
         }
     }
-    @Published private(set) var total: UInt64 = 0
+    @Published var total: UInt64 = 0
     @Published private(set) var elapsedMs: Double = 0
     /// The results on screen are for an earlier query; the current one is
     /// still being answered.
     @Published var searching = false
     /// Changes with every answer, so the result list is rebuilt rather than
     /// patched (a patched lazy list could keep rows of the previous query).
-    @Published private(set) var resultsID = 0
+    @Published var resultsID = 0
     /// Bumped by Edit ▸ Find (⌘F): the search field takes the keyboard.
     @Published var focusRequest = 0
     /// The overlay reopened with a search in the field: select it all.
