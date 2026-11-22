@@ -174,10 +174,13 @@ they are notifications made on your Mac), automatic updates (and
 indexed, and what Laserdot couldn't read, with how to fix it), **Content Search**, **Drives**, and **Privacy** (what is kept and its size, Clear History, **Erase All
 Laserdot Data**). **Help** has the search syntax, the
 welcome tour, What's New, and **Save Diagnostics** (a file for a bug report, with every path removed; it also shows
-how long Laserdot took to start, any bugs the engine caught and how often it was restarted).
+how long Laserdot took to start, any bugs the engine caught, how often it was restarted, and the health log). After
+an update with something new, a small blue dot on the menu-bar icon leads to **What's New** in its menu; no window
+pops up.
 
 **If something goes wrong** Laserdot recovers by itself: a bug in the search engine is caught and logged and the
-engine keeps running; if the engine stops or hangs it is restarted within a minute; a drive that stops answering is
+engine keeps running; if the engine stops or hangs it is restarted within a minute (one still loading a big index is
+given time); the choices under the search box never hold up typing; a drive that stops answering is
 skipped after 30 seconds; indexing waits for free space instead of failing halfway; and if Laserdot fails to start
 twice in a row it offers to start with a fresh index (your files are never touched).
 
@@ -188,6 +191,8 @@ Finder**):
 
 - `index.db` — names, sizes, dates, media details; `index.db.snapshot` — a copy for a fast start.
 - `laserdotd-crash.log` — bugs the engine caught and kept running through (never sent; Save Diagnostics includes it).
+- `health-log.txt` — one line per launch: how long it took to start, items indexed, restarts, how the app is signed.
+  Kept for later and never shown or sent; Save Diagnostics includes its end. `update-log.txt` — each update's steps.
 - `content.db` — the words inside documents (your whole home folder unless you change **Settings → Content Search**;
   hidden folders such as `.obsidian` or `.git` are never read).
 - `archives.db` — the names of the files inside your zip archives (only each zip's table of contents is read).
@@ -293,7 +298,8 @@ Releases publish themselves: when CI passes on `main` and the newest version in 
 the **Release** workflow builds that exact commit, launch-tests it and publishes `Laserdot-<version>.dmg` with that
 version's notes. (A `v*` tag or a run by hand still work.) A version marked `<!-- quiet -->` in CHANGELOG.md is
 released without a What's New message. User-facing changes are released in batches, about weekly, unless a fix is
-urgent. The app's checks run on two Macs side by side (about 7 minutes; 13 before); the self-test runs in English. Documents-only commits skip the Mac jobs, and a job GitHub leaves without a machine retries by itself. The **perf-big** workflow measures a million files weekly.
+urgent. The app's checks run on two Macs side by side, about 8 minutes (13 before): one runs the self-test, in
+English (Laserdot itself also speaks Arabic), the other every other check. Documents-only commits skip the Mac jobs, and a job GitHub leaves without a machine retries by itself. The **perf-big** workflow measures a million files weekly.
 
 ## Documents
 

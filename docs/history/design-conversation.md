@@ -894,3 +894,8 @@ log records each launch's start-up time on the owner's Mac, kept for later, in S
   a calmer screen, a richer self-test, two-Mac CI, smaller files and the documents arranged. Three CI runs caught a
   Swift access error from the file split, a fixture name clash and a flattened More button before release; the
   screenshots were read in both languages each time.
+- 0.9.45 took two CI rounds beyond the first: the self-test's ⌘T was sent to the window directly, which skips
+  macOS's shortcut handling (sent through the app since), and the first Storage screenshot showed its band filling
+  the window (a stripe that took all the height offered, now drawn behind the content). Both were caught on CI's
+  screenshots before release. Two of the owner's words were read one way and flagged for confirmation: "app
+  packages" (packages made by apps; applications stay) and "remove Arabic" (from the self-test; the app keeps it).

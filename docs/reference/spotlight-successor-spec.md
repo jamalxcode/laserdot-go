@@ -491,6 +491,9 @@ white       = " " | "\t" | "\n" ;
 
 ## 10. Result Presentation
 
+- **10.1** *(0.9.45)* Relevance with words orders by match quality, then how often a file was opened, files before
+  folders, then how recently it changed (today, this week, month, quarter, year, older), then shorter names and
+  shallower paths; without words, newest first.
 - **10.1** Sort modes: relevance (default), date modified, date created, size, and for media: resolution, duration, bitrate, `taken` — toggleable, remembered per session; backed by pre-sorted orders (2.1.1f)
 - **10.2** Grouping option: by kind (Videos / Audio / Images / Documents / Other)
 - **10.3** Result row content per type: name, path, size, date; media rows add resolution, codec, channels, duration badges
@@ -598,6 +601,7 @@ white       = " " | "\t" | "\n" ;
 - **13.6a** *Default scope (v1.20, the owner's critique):* nothing to set up. The app indexes the apps and the home folder once, without asking (no first-run prompt). In `~/Library` only `Mobile Documents` (iCloud Drive) is indexed (`OnlyChildren`); the rest is app data and caches. Indexing runs on its own connection to the daemon, so searches are never held up
 - **13.6** User-configurable index scopes and ignore patterns (node_modules, .venv, caches), with churn detection auto-excluding hot directories; auto-excluded directories can be permanently re-included
   - *Decided (v1.19, the owner's report that `claude.app` found nothing):* macOS packages are opaque like `.git`: a folder named `*.app`, `.appex`, `.framework`, `.bundle`, `.plugin`, `.kext`, `.xpc`, `.prefPane`, `.qlgenerator`, `.mdimporter`, `.saver`, `.photoslibrary` or `.musiclibrary` is one result (apps are `kind:app`; the type word `apps` finds them) and its contents are not indexed; contents indexed before this leave the index on the next refresh. The app indexes `/Applications`, `/System/Applications` and `~/Applications` once, without asking, since apps are what people look for first
+  - *Decided (0.9.44–0.9.45, the owner: "fix it like Spotlight", then "do not include app packages, at all"):* only apps (`.app`) stay results; every other package — the ones above and document packages made by apps (`.ulysses`, `.rtfd`, `.scriv`, `.xcodeproj`, `.fcpbundle`, `.imovielibrary`, `.sparsebundle`…) — is left out entirely, with everything inside it (`scan.IsHiddenPackage`); an older index is cleared of them once.
   - Defaults never indexed: `node_modules`, `.venv`, `__pycache__`, `.cache`, `.Trash`, `.Trashes`, `.Spotlight-V100`, `.fseventsd`, `.DocumentRevisions-V100`, `.TemporaryItems`, `.laserdot`, and the index database itself
   - *Decided (v1.47, 0.9.30; the owner: ".DS_Store … an internal file that no one is interested in"):* system
     bookkeeping files are never indexed, by exact name — `.DS_Store`, `.localized`, `.apdisk`, `.VolumeIcon.icns`,
