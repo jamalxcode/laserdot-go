@@ -81,7 +81,7 @@ jobs:
   # Two Macs side by side (the owner: "make things faster"): the Arabic leg
   # runs the Swift tests and the self-test in Arabic (which used to follow the
   # English one, about 4 min); the English leg runs the rest. A change is
-  # tested in about 8 minutes instead of 13.
+  # tested in about 7 minutes instead of 13.
   app:
     needs: tested
     if: needs.tested.outputs.already != 'true'

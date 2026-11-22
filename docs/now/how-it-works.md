@@ -56,7 +56,7 @@ One page, kept current: what is true today. The history and the reasons are in
   ("iCloud Drive › Ulysses", `PathText.Root.iCloudApp`).
 - **While searching** the round buttons show the kinds of files and the tools fold into **More** (`barButtons`,
   `barTools`); the hint hides when only pills are in the box and the choices show.
-- **Checks**: CI's app checks run on two Macs side by side (English, and Arabic with the Swift tests), about 8 minutes.
+- **Checks**: CI's app checks run on two Macs side by side (English, and Arabic with the Swift tests), about 7 minutes.
 - **Show in Finder** (`Finder.reveal`, `RevealPlan`): a file inside a package (a .ulysses sheet, an app) is shown in a
   window on its own folder, as Show Package Contents would; Finder alone stops outside the package.
 - **Menu-bar dot:** flashes red, white, blue, green while Laserdot works (indexing, details, a drive, duplicates, a

@@ -76,7 +76,8 @@ for `>` commands, after a trailing space, or while moving through the results.
    and the choice is remembered. Band colours are the colour-blind-safe Okabe–Ito set, each band with its own icon:
    colour is never the only cue.
 2. Only choices that narrow the results are shown.
-2a. **While searching, the kinds stay and the tools fold into More** (0.9.44); the empty box shows every button.
+2a. **While searching, the kinds stay and the tools fold into More** (0.9.44), a round button like the others that
+    opens a small panel of the tools; the empty box shows every button.
     The hint explains what is being typed, never what the choices already show.
 2b. **Every choice can be reached:** a long group (cameras, folders) wraps onto the next lines; nothing runs off
     the edge of the window.

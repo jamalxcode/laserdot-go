@@ -152,4 +152,11 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 20j. **Package lists grow with the owner's apps.** Apps were packages from the start, but document packages (a
      Ulysses sheet) were not, and their insides flooded searches. When a result looks like noise, ask whether macOS
      treats its folder as one document.
+20k. **Moving Swift code to another file can break `private(set)`.** A setter that is private is private to its
+     file; an extension in a new file cannot use it. When splitting a type, list every property the moved code
+     assigns (including `&+=` and tuple assignments) and loosen those, or keep the code where it was.
+20l. **A macOS `Menu` flattens its label.** A custom VStack label became a line of text. For a button that looks
+     like its neighbours, use a `Button` that opens a popover.
+20m. **New test files can collide with old test steps.** A "Beach" folder took `beach.jpg`'s place in a step that
+     searched "beach". Name new fixtures with words no step searches for.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

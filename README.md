@@ -14,7 +14,9 @@ file search should be, and a robot that types into it on every change to prove i
 ## What it does
 
 - 🟣 **Looks like Spotlight, shows everything.** One screen in every window: a rounded bar, round buttons for
-  Videos, Images, Music, Documents, Apps, Downloads and Big Files, then Duplicates, Storage, Drives and Settings.
+  Videos, Images, Music, Documents, Apps, Downloads and Big Files, then Duplicates, Storage, Drives and Settings
+  (which fold under **More** while you search). Like Spotlight, a document package — a Ulysses sheet, an app, an
+  Xcode project — is one result, not the hundreds of files inside it.
 - 🔎 **Finds things the way you say them.** `jpg`, `photos last week`, `big videos`, `pdf yesterday`,
   `invoice march`, `4k hdr` — and Arabic: `صور الاسبوع الماضي`, `فاتورة ٢٠٢٤`. A hint under the box shows how it read
   you (*“last week means since:7d”*), so you pick up the precise language for free.
@@ -69,7 +71,9 @@ The app is signed ad hoc, not with an Apple Developer ID, so the first launch ma
 Press **⌥Space** anywhere (change it in **Settings**), or use the Laserdot window — both show the same screen, in
 Spotlight's style: a rounded search bar, then round buttons for **Videos, Images, Music, Documents, Apps, Recent
 Downloads, Big Files** (each adds its filter to what you typed; click again to take it out), then **Find Duplicates,
-Storage, Drives** (while a drive is connected), **Index a Folder** and **Settings**; then the choices and results. If
+Storage, Drives** (while a drive is connected), **Index a Folder** and **Settings** — while you search these wait
+under a round **More** button, so the screen stays calm; then the choices and results. Paths read as Finder shows
+them ("iCloud Drive › Ulysses"). If
 a search limited to one place finds nothing, **Search Everywhere** looks everywhere else. While Laserdot is busy
 (indexing, reading photo and video details, a drive, duplicates), the dot in its menu-bar icon flashes red, white,
 blue and green.
@@ -288,7 +292,7 @@ Releases publish themselves: when CI passes on `main` and the newest version in 
 the **Release** workflow builds that exact commit, launch-tests it and publishes `Laserdot-<version>.dmg` with that
 version's notes. (A `v*` tag or a run by hand still work.) A version marked `<!-- quiet -->` in CHANGELOG.md is
 released without a What's New message. User-facing changes are released in batches, about weekly, unless a fix is
-urgent. The app's checks run on two Macs side by side (about 8 minutes). Documents-only commits skip the Mac jobs, and a job GitHub leaves without a machine retries by itself. The **perf-big** workflow measures a million files weekly.
+urgent. The app's checks run on two Macs side by side (about 7 minutes; 13 before). Documents-only commits skip the Mac jobs, and a job GitHub leaves without a machine retries by itself. The **perf-big** workflow measures a million files weekly.
 
 ## Documents
 

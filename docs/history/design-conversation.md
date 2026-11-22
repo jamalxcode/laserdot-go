@@ -810,13 +810,22 @@ ten folders and a Ulysses sheet, so CI shows the calm choices and proves package
 
 For "6 make things faster, do what is needed": the Mac mini is not connected to the cloud sessions (Remote Control
 is not set up), so the gain came from CI itself: the app's checks now run on two Macs side by side (English; Arabic
-with the Swift tests), about 8 minutes instead of 13. A Swift build cache was considered and left out: a fresh
+with the Swift tests), about 7 minutes instead of 13 (measured on the release run). A Swift build cache was considered and left out: a fresh
 checkout touches every file, so nothing would be reused. For "8": `core.go` (1,345 lines) became core, snapshotting,
 indexing, updating and searching; `drives.go` (1,161) became drives, drives_list, drives_index and drives_attach;
 `SearchModel.swift` lost its empty-box and editing half to `SearchModel+Home.swift` — no behavior changed, the tests
 unchanged and passing. For "9": the documents moved into `docs/now/` (true today), `docs/history/` (only added to)
 and `docs/reference/` (the spec), with a map (`docs/README.md`) that says where each kind of change is written, so a
 change no longer goes into six places. Nothing was dropped: every file was moved whole, links updated.
+
+## 65. Two mistakes caught before 0.9.44 went out
+
+Three CI runs were needed. The file split broke the app's build: code moved into `SearchModel+Home.swift` still set
+three values (`sections`, `total`, `resultsID`) whose setters were private to the original file; Swift allows that
+only within one file. Then the new gallery folder "Beach" took the place of `beach.jpg` in the ⌘C step, so it became
+"Coast". And the first More button, a SwiftUI `Menu` with a custom label, was drawn by macOS as a small "··· More"
+text at the top; it became a round button like the others, opening a small panel of the tools. Nothing reached the
+owner before all three were fixed and the screenshots read.
 
 ## Chat conventions
 
@@ -859,3 +868,7 @@ change no longer goes into six places. Nothing was dropped: every file was moved
   installer disk image made and mounted, the More/Fewer choices steps, a file inside a package), and the choice
   screens were checked in English and Arabic before release; CI's Mac cannot open Finder, so the package fix is
   proven there only up to what Finder is asked to do.
+- 0.9.44 took the owner's second critique (items 1–3, 5, 6, 8, 9) in one release: results like Spotlight, app names,
+  a calmer screen, a richer self-test, two-Mac CI, smaller files and the documents arranged. Three CI runs caught a
+  Swift access error from the file split, a fixture name clash and a flattened More button before release; the
+  screenshots were read in both languages each time.

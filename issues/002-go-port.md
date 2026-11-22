@@ -139,15 +139,16 @@ Binding unless revisited deliberately; each is also in the spec.
   Trash with the usual confirmation and Undo.
 - **Split files, two-Mac CI, docs arranged (0.9.44):** `internal/core/core.go` → `core.go`, `snapshotting.go`,
   `indexing.go`, `updating.go`, `searching.go`; `drives.go` → `drives.go`, `drives_list.go`, `drives_index.go`,
-  `drives_attach.go`; `SearchModel+Home.swift` (empty box, editing, sections, Show More, snippet; `tip` and `snippet`
-  lost `private(set)` so the extension can set them, `loadingMore` stays in the class). CI `app` job: matrix
+  `drives_attach.go`; `SearchModel+Home.swift` (empty box, editing, sections, Show More, snippet; `tip`, `snippet`, `sections`,
+  `total` and `resultsID` lost `private(set)` so the extension can set them, `loadingMore` stays in the class). CI `app` job: matrix
   `lang: [en, ar]` (`ar` runs `swift build`/`swift test` and its self-test; `en` everything else). Docs moved to
   `docs/now|history|reference/` with `docs/README.md`.
 - **Packages, app names, calmer bar (0.9.44):** `scan.DefaultOpaqueExts` gains document packages; `junkFolders` also
   lists packages holding indexed children (outermost only, `insideAnother`), run once per `junkRules` ("2") and on
   drive attach; test `TestDocumentPackagesAreOneResult`. Swift: `PathText.Root.iCloudApp(name:container:)`
   (`appName(fromContainer:)`, display name from `FileManager.displayName`), `SearchModel.barButtons`/`barTools`
-  (More menu while searching), `visibleHint` hidden when only pills and the choices show. Self-test: `pillsonly`,
+  (More button while searching: a round `Button` with a `.popover` of the tools — `SearchView.showTools`; a `Menu`
+  label was flattened by macOS), `visibleHint` hidden when only pills and the choices show. Self-test: `pillsonly`,
   `gallery`/`galleryall`/`gallerycalm` over a 30-picture Gallery fixture and a Ulysses sheet.
 - **Reveal inside packages (0.9.43):** `LaserdotKit.RevealPlan` (`.isPackageKey` on ancestors → `.insidePackage`);
   `Finder.reveal` uses `selectFile(_:inFileViewerRootedAtPath:)` for those, `activateFileViewerSelecting` otherwise;
