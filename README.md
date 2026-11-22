@@ -116,7 +116,7 @@ downloads.
 | ⌘K | actions: Open, Quick Look, Show in Finder, Copy Path, More Like This, Search in This Folder, Move to Trash — then **Open With…** and **More Actions…** (Copy file or link, Share, Tags…, Compress, Move to…, Open in Terminal, Rename) |
 | ⌥⌘Z | undo the last Move to Trash, Rename, Move to…, Compress or tag change (or click **Undo** on the bar); press again for the one before — Laserdot remembers 20 steps for a week, even after quitting |
 | ↑ in the empty box | your earlier searches |
-| ⌘↩ / ⌘⇧C | Show in Finder / copy the path |
+| ⌘↩ / ⌘⇧C | Show in Finder (even for a file inside a package, like a Ulysses sheet or an app) / copy the path |
 | ⌘D | pin the search (pins show on the empty box) |
 | ⌘J | the next view: rows, columns (click a header to sort, like Finder), thumbnails |
 | ⌘R | refresh: look at every indexed folder again (deleted files leave the index) |
@@ -196,7 +196,8 @@ Finder**):
 
 **External drives** keep their own index on the drive, in a hidden `/Volumes/<drive>/.laserdot/` folder
 (`index.db`, `volume.json`), with paths relative to the drive — so it works on any Mac. Laserdot asks before indexing
-a drive and can encrypt the index with a passphrase that is never written down (unless you tick **Remember in my
+a drive (not a disk image you opened to install an app — those are left alone, though you can still index one from
+the Drives list) and can encrypt the index with a passphrase that is never written down (unless you tick **Remember in my
 Keychain**: then macOS's Keychain keeps it and the drive unlocks by itself). A big drive is searchable while it is
 being indexed (top folders, recently changed ones and the folders you search in come first), uses little memory
 whatever its size, and if you unplug or eject it halfway, it picks up where it stopped next time. **Drives ▸ your

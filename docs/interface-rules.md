@@ -12,7 +12,7 @@ People already know Spotlight. Laserdot matches it wherever it can, and adds its
 |---|---|
 | ⌥Space-style shortcut opens a floating box | ⌥Space (changeable), a slim bar that grows when there are results |
 | completes the top hit's name as you type | the same: the rest shown selected; → or Tab takes it, Delete drops it |
-| Return opens the top hit, ⌘Return shows it in Finder | the same |
+| Return opens the top hit, ⌘Return shows it in Finder | the same, and it reaches files inside packages (a Ulysses sheet, an app), where Finder alone stops outside |
 | Esc clears, Esc again closes | the same |
 | reopens with the last search selected | the same |
 | ⌘↑ / ⌘↓ jump between categories | the same |

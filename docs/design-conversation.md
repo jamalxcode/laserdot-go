@@ -830,3 +830,8 @@ Package Contents does); if Finder refuses, the package is selected.
   under the index lock, a start-up restart loop, unguarded background jobs. Newer pushes replaced unfinished branch
   runs instead of releasing twice, so 0.9.39 and 0.9.40 each carried several changes; every UI change was checked in
   the self-test's screenshots before release. A function name clashed with a constant once, caught by CI's Mac.
+- 0.9.41–0.9.43 answered three more screenshots from the owner's Mac (an installer image offered for indexing, crowded
+  choice bands, Show in Finder stopping outside a Ulysses sheet). Each change came with a test on CI's Mac (a real
+  installer disk image made and mounted, the More/Fewer choices steps, a file inside a package), and the choice
+  screens were checked in English and Arabic before release; CI's Mac cannot open Finder, so the package fix is
+  proven there only up to what Finder is asked to do.
