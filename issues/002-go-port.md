@@ -9,7 +9,7 @@
 
 ## Decision
 
-The owner decided to reimplement laserdot in Go, based on the spec (`docs/spotlight-successor-spec.md`). The Rust
+The owner decided to reimplement laserdot in Go, based on the spec (`docs/reference/spotlight-successor-spec.md`). The Rust
 implementation in `jamalxcode/laserdot` (M0–M8 plus the memory-mapped snapshot) is the reference and stays as is.
 
 Choices made by the owner (2026-11-10):
@@ -48,7 +48,7 @@ Choices made by the owner (2026-11-10):
 
 ## Design decision log (the app, 2026-11-10 → 12)
 
-Decisions the owner made while using the app (the conversation and the reasons: `docs/design-conversation.md`).
+Decisions the owner made while using the app (the conversation and the reasons: `docs/history/design-conversation.md`).
 Binding unless revisited deliberately; each is also in the spec.
 
 - **Network:** only the Laserdot Updater helper may use the network, and only to reach github.com for releases
@@ -133,10 +133,16 @@ Binding unless revisited deliberately; each is also in the spec.
   while measuring), counted as apps; numbers formatted; "Empty".
 - **Calm and batched (0.9.26):** one "…" menu for refresh, order, pin and filters; choices wrap; a plain word's meaning
   is explained three times; drive indexing can be stopped and continued; releases batched about weekly unless urgent;
-  a one-page `docs/how-it-works.md` kept current. Measured and not adopted: streaming this Mac's own folders.
+  a one-page `docs/now/how-it-works.md` kept current. Measured and not adopted: streaming this Mac's own folders.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Split files, two-Mac CI, docs arranged (0.9.44):** `internal/core/core.go` → `core.go`, `snapshotting.go`,
+  `indexing.go`, `updating.go`, `searching.go`; `drives.go` → `drives.go`, `drives_list.go`, `drives_index.go`,
+  `drives_attach.go`; `SearchModel+Home.swift` (empty box, editing, sections, Show More, snippet; `tip` and `snippet`
+  lost `private(set)` so the extension can set them, `loadingMore` stays in the class). CI `app` job: matrix
+  `lang: [en, ar]` (`ar` runs `swift build`/`swift test` and its self-test; `en` everything else). Docs moved to
+  `docs/now|history|reference/` with `docs/README.md`.
 - **Packages, app names, calmer bar (0.9.44):** `scan.DefaultOpaqueExts` gains document packages; `junkFolders` also
   lists packages holding indexed children (outermost only, `insideAnother`), run once per `junkRules` ("2") and on
   drive attach; test `TestDocumentPackagesAreOneResult`. Swift: `PathText.Root.iCloudApp(name:container:)`
@@ -495,7 +501,7 @@ Binding unless revisited deliberately; each is also in the spec.
   (refresh, sort, pin, filters; ⌘R ⌘D ⌘/ via hidden buttons), `FlowLayout` for the choice row (at most ~3 lines),
   type-word hints shown three times per word (`laserdot.hintsShown`), `RefineLogic` (pure, `RefineLogicTests`),
   `EjectWatcher` on common run-loop modes; CI: the real app indexing a 30,000-file drive that is ejected with
-  `diskutil`; `docs/how-it-works.md`; business rule §5.6 (batched releases). **Tried and not kept:** streaming this
+  `diskutil`; `docs/now/how-it-works.md`; business rule §5.6 (batched releases). **Tried and not kept:** streaming this
   Mac's own first index — measured slower (4.9 s against 2.9 s at 400,000 files) and heavier (406 MB against 301 MB
   peak) than the bulk path on a fast disk; the million-file slowdown it was meant to fix is the memory limit instead.
   **Not done, and why:** one worker per index and Swift async/await (deep refactors; the new real-situation tests come

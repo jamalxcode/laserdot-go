@@ -21,7 +21,7 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 
 6. "Is it indexing or stuck?", "the computer pauses with no indication", "I'm not sure if something is happening":
    three requests, one lesson. Anything slow shows its step, a count and the time; see
-   [`interface-rules.md`](interface-rules.md) §2.
+   [`../now/interface-rules.md`](../now/interface-rules.md) §2.
 7. **A clock that waits for the engine looks frozen when the engine is busy.** The elapsed time now ticks on its own.
 
 5b. **Hold a lock for the change, not for the looking.** Re-checking an 8 TB drive held the index lock while it
@@ -147,4 +147,9 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
      signing failure was swallowed with no trace. Re-sign at launch too, and keep the last failure for diagnostics.
 20h. **Finder doesn't go into packages.** `activateFileViewerSelecting` on a file inside a .ulysses sheet opened an
      outer folder. `selectFile(_:inFileViewerRootedAtPath:)` with the file's own folder reaches it.
+20i. **Write each fact once.** Every change was being copied into six documents, which was slow and let them drift.
+     The map in `docs/README.md` gives each kind of fact one home; most changes need two or three.
+20j. **Package lists grow with the owner's apps.** Apps were packages from the start, but document packages (a
+     Ulysses sheet) were not, and their insides flooded searches. When a result looks like noise, ask whether macOS
+     treats its folder as one document.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

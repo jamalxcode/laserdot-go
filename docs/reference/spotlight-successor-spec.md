@@ -4,7 +4,7 @@
 
 **Version:** 1.49 (draft; v1.44–v1.49 are the Go port's 0.9.27–0.9.37)
 **Date:** 2026-11-11 — v1.18–v1.22 record the owner's decisions while using the app; the conversation behind them is
-in `docs/design-conversation.md`
+in `docs/history/design-conversation.md`
 **Target platform:** macOS 14+, Apple Silicon
 **Distribution:** Direct download, signed + notarized, non-sandboxed
 

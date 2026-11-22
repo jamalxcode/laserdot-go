@@ -806,6 +806,18 @@ their contents once; an app's iCloud folder is named by the app, as Finder does;
 into a More button and the hint stops repeating the choices. 5: the self-test gets a gallery of thirty pictures in
 ten folders and a Ulysses sheet, so CI shows the calm choices and proves package contents stay out.
 
+## 64. Faster checks, smaller files, the documents arranged (0.9.44)
+
+For "6 make things faster, do what is needed": the Mac mini is not connected to the cloud sessions (Remote Control
+is not set up), so the gain came from CI itself: the app's checks now run on two Macs side by side (English; Arabic
+with the Swift tests), about 8 minutes instead of 13. A Swift build cache was considered and left out: a fresh
+checkout touches every file, so nothing would be reused. For "8": `core.go` (1,345 lines) became core, snapshotting,
+indexing, updating and searching; `drives.go` (1,161) became drives, drives_list, drives_index and drives_attach;
+`SearchModel.swift` lost its empty-box and editing half to `SearchModel+Home.swift` — no behavior changed, the tests
+unchanged and passing. For "9": the documents moved into `docs/now/` (true today), `docs/history/` (only added to)
+and `docs/reference/` (the spec), with a map (`docs/README.md`) that says where each kind of change is written, so a
+change no longer goes into six places. Nothing was dropped: every file was moved whole, links updated.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

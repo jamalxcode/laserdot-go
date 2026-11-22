@@ -288,21 +288,23 @@ Releases publish themselves: when CI passes on `main` and the newest version in 
 the **Release** workflow builds that exact commit, launch-tests it and publishes `Laserdot-<version>.dmg` with that
 version's notes. (A `v*` tag or a run by hand still work.) A version marked `<!-- quiet -->` in CHANGELOG.md is
 released without a What's New message. User-facing changes are released in batches, about weekly, unless a fix is
-urgent. Documents-only commits skip the Mac jobs, and a job GitHub leaves without a machine retries by itself. The **perf-big** workflow measures a million files weekly.
+urgent. The app's checks run on two Macs side by side (about 8 minutes). Documents-only commits skip the Mac jobs, and a job GitHub leaves without a machine retries by itself. The **perf-big** workflow measures a million files weekly.
 
 ## Documents
 
+They are arranged in [`docs/`](docs/README.md): **now/** (what is true today, edited in place), **history/** (how it
+got here, only added to) and **reference/** (the spec); the map also says where each kind of change is written.
 Start with whichever sounds most interesting:
 
-- [`docs/design-conversation.md`](docs/design-conversation.md) — the story: what the owner asked for, release by
+- [`docs/history/design-conversation.md`](docs/history/design-conversation.md) — the story: what the owner asked for, release by
   release, and what was decided and why.
-- [`docs/lessons-learned.md`](docs/lessons-learned.md) — the things building it taught us, mostly the hard way.
-- [`docs/how-it-works.md`](docs/how-it-works.md) — one page: how Laserdot works now.
-- [`docs/business-rules.md`](docs/business-rules.md) — what Laserdot promises and will never do (privacy, files,
+- [`docs/history/lessons-learned.md`](docs/history/lessons-learned.md) — the things building it taught us, mostly the hard way.
+- [`docs/now/how-it-works.md`](docs/now/how-it-works.md) — one page: how Laserdot works now.
+- [`docs/now/business-rules.md`](docs/now/business-rules.md) — what Laserdot promises and will never do (privacy, files,
   duplicates, updates, reminders).
-- [`docs/interface-rules.md`](docs/interface-rules.md) — how it looks and behaves, and how it copies Spotlight.
-- [`docs/design-ideas.md`](docs/design-ideas.md) — the ideas behind it, and the ones still waiting their turn.
-- [`docs/spotlight-successor-spec.md`](docs/spotlight-successor-spec.md) — the spec, the source of truth for behavior.
+- [`docs/now/interface-rules.md`](docs/now/interface-rules.md) — how it looks and behaves, and how it copies Spotlight.
+- [`docs/now/design-ideas.md`](docs/now/design-ideas.md) — the ideas behind it, and the ones still waiting their turn.
+- [`docs/reference/spotlight-successor-spec.md`](docs/reference/spotlight-successor-spec.md) — the spec, the source of truth for behavior.
 - [`issues/001-spotlight-successor.md`](issues/001-spotlight-successor.md) — the epic and the Design Decision Log.
 - [`issues/002-go-port.md`](issues/002-go-port.md) — the Go port: mapping from Rust, progress, as-built notes.
 - [`CHANGELOG.md`](CHANGELOG.md) — what's new in each version, in plain words.

@@ -1,8 +1,8 @@
 # Business rules
 
 What Laserdot promises, and what it will never do. These are product rules, not preferences: a change that breaks
-one needs the owner's say-so, and is recorded in [`design-conversation.md`](design-conversation.md) and the spec.
-The engineering pillars behind them are in [`../CLAUDE.md`](../CLAUDE.md).
+one needs the owner's say-so, and is recorded in [`../history/design-conversation.md`](../history/design-conversation.md) and the spec.
+The engineering pillars behind them are in [`../CLAUDE.md`](../../CLAUDE.md).
 
 ## 1. Privacy
 

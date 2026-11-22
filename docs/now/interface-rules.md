@@ -1,7 +1,7 @@
 # Interface rules
 
 How Laserdot looks and behaves. Each rule came from using the app (see
-[`design-conversation.md`](design-conversation.md)); the self-test checks most of them on the real screen, in
+[`../history/design-conversation.md`](../history/design-conversation.md)); the self-test checks most of them on the real screen, in
 English and Arabic, on every commit.
 
 ## 1. Behave like Spotlight, then add

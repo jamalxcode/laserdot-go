@@ -15,10 +15,16 @@ feature, read its code and tests there, and port the tests first.
 
 ## Key documents
 
-- `docs/how-it-works.md` — one page: how Laserdot works now (keep it current with every behaviour change).
-- `docs/design-conversation.md` — what the owner asked for while using the app, and what was decided and why.
+`docs/README.md` is the map: **now/** (true today, edited in place), **history/** (only added to), **reference/**
+(the spec), and a table of where each kind of change is written — each fact once, usually two or three places, not
+every document.
+
+- `docs/now/how-it-works.md` — one page: how Laserdot works now (keep it current with every behaviour change).
+- `docs/now/business-rules.md`, `docs/now/interface-rules.md` — the promises and the screen's rules.
+- `docs/history/lessons-learned.md` — what went wrong and what it taught; read before repeating a pattern.
+- `docs/history/design-conversation.md` — what the owner asked for while using the app, and what was decided and why.
   Read it before changing app behavior; Issue 002's "Design decision log (the app)" lists the binding rules.
-- `docs/spotlight-successor-spec.md` — full feature spec. Section numbers (§) below refer to it. Written for the
+- `docs/reference/spotlight-successor-spec.md` — full feature spec. Section numbers (§) below refer to it. Written for the
   Rust build; where Go changes a mechanism (not a behavior), Issue 002 records the mapping.
 - `issues/001-spotlight-successor.md` — the epic: user stories, decisions, per-milestone notes from the Rust build,
   and the **Design Decision Log** (binding unless revisited deliberately).
@@ -134,7 +140,8 @@ Run gofmt, vet and the full test suite before committing.
   `completions`, `filters` and `cheat_sheet` ops on a connection of its own; when the daemon is not running or lacks
   them, `Guidance.swift` answers from `Registry.generated.swift`. Rerun `app/scripts/build-go.sh` after changing the
   registry (CI fails on a stale file) and add the filter's Arabic description in `Guidance.swift` too (a Swift test
-  enforces it). Swift compiles only on macOS: the CI `app` job builds, tests and bundles it.
+  enforces it). Swift compiles only on macOS: the CI `app` job builds, tests and bundles it, on two Macs
+  side by side — `app (en)` runs the checks and the English self-test, `app (ar)` the Swift tests and the Arabic one.
 - **Self-test (the app's real screen):** CI runs the bundled app with `LASERDOT_SELFTEST` (`SelfTest.swift`): it
   types into the ⌥Space window with key events, presses ↓/Space/⌘K, opens Settings, and writes a report that
   `app/scripts/check-selftest.py` judges, in English and Arabic; the screenshots are printed base64 in the job log
