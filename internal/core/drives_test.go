@@ -5,13 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/jamalxcode/laserdot-go/internal/scan"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/jamalxcode/laserdot-go/internal/scan"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
 )
