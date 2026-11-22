@@ -137,6 +137,11 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Choices budget, news dot, health log (0.9.45):** `core.RefineBudget` with `late()` in `add`/`facets` (chosen
+  values always added); `TestChoicesStayWithinTheirBudget`, `BenchmarkRefinements1M` (`bigStore`). App:
+  `menuBarIconWithNews`, `AppDelegate.restingIcon` (`whatsNewPending` didSet), "● What's New" in `StatusMenu`;
+  `LaserdotKit.HealthLog` (`health-log.txt`, 500 lines), `AppDelegate.noteHealth` on the first ready status, tail in
+  Save Diagnostics. Self-test: `news_dot`/`news_dot_gone`; ⌘T sent through `performKeyEquivalent`/`NSApp.sendEvent`.
 - **Recency, hidden packages, one look (0.9.45):** `index.relevanceKey` gains `ageBucket(now-Modified)` (4 bits at
   36, name length 16 bits); test `TestRecentFilesRankFirstAmongEqualMatches`. `scan.ShownPackageExts` (["app"]) and
   `scan.IsHiddenPackage` in `skip` (every listing, bulk too); `junkFolders` relists a hidden package's folder;

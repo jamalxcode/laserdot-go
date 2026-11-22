@@ -154,6 +154,8 @@ check(ga.get("refine_hidden", 0) > 0, f"the calm view leaves some choices out of
 check(gall.get("refine_shown_count", 0) > ga.get("refine_shown_count", 0), f"More choices shows more (calm {ga.get('refine_shown_count')}, all {gall.get('refine_shown_count')})")
 check(steps["toolskey"].get("tools_open") is True, "⌘T opens the More panel of tools")
 check(steps["toolsclosed"].get("tools_open") is False, "and it closes again")
+check(report.get("news_dot") is True and report.get("news_dot_gone") is True,
+      f"after an update the menu-bar icon carries a dot, gone once read (got {report.get('news_dot')}, {report.get('news_dot_gone')})")
 po = steps["pillsonly"]
 check(po.get("refine_row") is True and po.get("visible_hint", "") == "",
       f"only pills in the box: the choices show and no hint repeats them (row {po.get('refine_row')}, hint {po.get('visible_hint')!r})")

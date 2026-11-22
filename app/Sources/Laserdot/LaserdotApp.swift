@@ -66,7 +66,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     /// The welcome tour (first launch, or Help ▸ Welcome Tour).
     @Published var showTour = false
     /// This version's notes, until seen (Help ▸ What's New).
-    @Published var whatsNewPending = false
+    /// An update brought something new: the menu-bar icon carries a blue dot
+    /// until the notes are opened from the menu.
+    @Published var whatsNewPending = false {
+        didSet { if flashTimer == nil { menuIcon = restingIcon } }
+    }
+
+    /// The icon when Laserdot is not working.
+    var restingIcon: NSImage { whatsNewPending ? menuBarIconWithNews : menuBarIcon }
     var sharedEngine: Engine? { engine }
     var engine: Engine?
     var duplicates: NSWindow?
@@ -123,6 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             if let self, self.readyMS < 0, status.running {
                 self.readyMS = msSinceProcessStart()
                 LaunchTimer.mark("daemon")
+                self.noteHealth(entries: status.entries)
             }
             self?.show(status)
             if !SelfTest.active { self?.indexDefaultsOnce(status) }
@@ -356,6 +364,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
         }
     }
 
+    /// One line in the health log for this launch (kept for later; nothing
+    /// shown): start-up times on this Mac, the index's size, how it is signed.
+    func noteHealth(entries: UInt64) {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+        let (launch, ready, restarts) = (launchMS, readyMS, watchdog?.restarts ?? 0)
+        let app = Bundle.main.bundleURL
+        DispatchQueue.global(qos: .utility).async {
+            HealthLog.note(HealthLog.line(version: version, launchMS: launch, readyMS: ready, entries: entries,
+                                          restarts: restarts, signed: LocalSigner.signatureKind(of: app).rawValue))
+        }
+    }
+
     func askPermissionsThenStart() {
         Permissions.askAll(waiting: { [weak self] place in
             guard self?.engineStarted == false else { return }
@@ -552,7 +572,7 @@ extension AppDelegate {
         } else if !working, let t = flashTimer {
             t.invalidate()
             flashTimer = nil
-            menuIcon = menuBarIcon
+            menuIcon = restingIcon
         }
     }
 

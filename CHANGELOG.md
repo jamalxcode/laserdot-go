@@ -12,6 +12,10 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 - **⌘T** opens the More panel of tools from the keyboard; ↑↓ move through it, Return opens, Esc closes.
 - Find Duplicates, Storage and Settings match the search screen: coloured bands with icons, the rounded bar, and
   folders shown as Finder names them.
+- After an update with something new, the menu-bar icon shows a small blue dot; **What's New** in its menu opens the
+  notes and the dot goes away.
+- The choices under the search box never hold up typing: on a huge search they are counted for a moment at most,
+  and what was counted by then is shown.
 
 ## 0.9.44
 

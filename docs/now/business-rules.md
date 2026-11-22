@@ -89,6 +89,8 @@ The engineering pillars behind them are in [`../CLAUDE.md`](../../CLAUDE.md).
    rather than one update per change; an urgent fix (something broken or unsafe) goes out at once. Fixes nobody sees
    are marked `<!-- quiet -->` so they do not announce themselves.
 
+5b2. **Laserdot doesn't show its health; it writes it down** (0.9.45, the owner: "user doesn't care"): a local
+    health log for later, part of Save Diagnostics, never sent.
 5c. **The self-test checks English** (0.9.45, the owner); Arabic stays in the app, and a language is checked again
     by adding it to the self-test loop.
 

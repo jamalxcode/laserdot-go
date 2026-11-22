@@ -111,6 +111,34 @@ func flashingMenuBarIcon(dot: NSColor) -> NSImage {
 /// white blue green whenever there is laserdot activity").
 let menuBarFlashColors: [NSColor] = [.systemRed, .white, .systemBlue, .systemGreen]
 
+/// The menu-bar icon after an update with something new (the owner: "What's
+/// New" as a dot, not a window): the usual icon with a small blue dot at its
+/// corner; the notes open from the menu.
+let menuBarIconWithNews: NSImage = {
+    let img = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { r in
+        let isDark = NSAppearance.currentDrawing().bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        (isDark ? NSColor.white : NSColor.black).set()
+        let ring = NSBezierPath(ovalIn: r.insetBy(dx: 3.5, dy: 3.5))
+        ring.lineWidth = 1.5
+        ring.stroke()
+        NSBezierPath(ovalIn: NSRect(x: 6.75, y: 6.75, width: 4.5, height: 4.5)).fill()
+        let ticks = NSBezierPath()
+        ticks.lineWidth = 1.5
+        for (from, to) in [((9.0, 0.5), (9.0, 3.5)), ((0.5, 9.0), (3.5, 9.0))] {
+            ticks.move(to: NSPoint(x: from.0, y: from.1))
+            ticks.line(to: NSPoint(x: to.0, y: to.1))
+        }
+        ticks.stroke()
+        let badge = NSBezierPath(ovalIn: NSRect(x: 12.0, y: 12.0, width: 6.0, height: 6.0))
+        NSColor.systemBlue.setFill()
+        badge.fill()
+        return true
+    }
+    img.isTemplate = false
+    img.accessibilityDescription = "Laserdot (what's new)"
+    return img
+}()
+
 /// Milliseconds since this process started (launch time).
 func msSinceProcessStart() -> Int {
     var info = kinfo_proc()

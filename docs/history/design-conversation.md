@@ -840,6 +840,15 @@ file-before-folder, before name length; `IsHiddenPackage` skips every package bu
 older index is cleared once; CI's two Macs are now "selftest" (English) and "checks"; Duplicates, Storage and
 Settings use the bands, the rounded bar and Finder-style folder names.
 
+## 67. The explained items, decided (0.9.45)
+
+Asked to say what each would be, about ten words a line, the owner chose: "do not do a health page, keep a health
+log, for later, user doesn't care. do 3, do 4, 6 add to health log". Done: the choices get a 150 ms budget and a
+million-entry benchmark (about 50 ms today, so the limit is a safety net); after an update with news the menu-bar icon
+shows a blue dot and What's New moves into its menu (a correction recorded here: there was no automatic What's New
+window before either — the notes showed in the install question and as a button in the main window); and a health
+log records each launch's start-up time on the owner's Mac, kept for later, in Save Diagnostics.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

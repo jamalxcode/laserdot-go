@@ -125,10 +125,24 @@ final class SelfTestRunner {
             // ⌘T opens the More panel of tools from the keyboard (the owner:
             // "make it consistent"); Esc closes it.
             Step(name: "toolskey", typed: "proj", after: {
-                self.key("t", code: 17, into: overlay.panel, flags: .command)
+                // Through the app, as a real key press arrives: macOS hands
+                // ⌘-keys to the window's shortcuts from there (a key sent to
+                // the window itself skips them).
+                overlay.panel.makeKeyAndOrderFront(nil)
+                if let e = self.keyEvent("t", code: 17, kind: .keyDown, window: overlay.panel, flags: .command),
+                   !overlay.panel.performKeyEquivalent(with: e) {
+                    NSApp.sendEvent(e)
+                }
             }, until: { $0.showTools }, wait: 0.5),
-            Step(name: "toolsclosed", typed: "proj", after: { model.showTools = false },
-                 until: { !$0.showTools }),
+            Step(name: "toolsclosed", typed: "proj", after: {
+                model.showTools = false
+                // After an update with news, the menu-bar icon carries a dot
+                // (not a window); opening the notes takes it away.
+                self.app.whatsNewPending = true
+                self.extra["news_dot"] = self.app.restingIcon === menuBarIconWithNews
+                self.app.whatsNewPending = false
+                self.extra["news_dot_gone"] = self.app.restingIcon === menuBarIcon
+            }, until: { !$0.showTools }),
             // Only a pill in the box and the choices showing: no hint
             // repeating them (the owner: a calmer screen).
             Step(name: "pillsonly", typed: "kind:document ", until: { !$0.refinements.isEmpty }, wait: 0.5),

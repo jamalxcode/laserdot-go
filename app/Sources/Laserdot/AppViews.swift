@@ -26,6 +26,10 @@ struct StatusMenu: View {
             ContentMenu(model: content)
         }
         Divider()
+        if delegate.whatsNewPending {
+            // The blue dot on the icon leads here.
+            Button("● " + L("menu.whatsNew")) { delegate.showWhatsNew() }
+        }
         if let r = updates.ready {
             Button(String(format: L("update.button"), r.latest ?? "")) { updates.offerInstall() }
         }

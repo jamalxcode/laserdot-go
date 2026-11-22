@@ -124,6 +124,11 @@ extension AppDelegate {
                 "Recent laserdotd log (paths removed):",
             ]
             lines += engine.logTail().map(scrub)
+            let health = HealthLog.tail()
+            if !health.isEmpty {
+                lines += ["", "Health log (one line per launch on this Mac):"]
+                lines += health
+            }
             let updateLog = UpdateLog.tail()
             if !updateLog.isEmpty {
                 lines += ["", "Recent updates (steps and how long each took):"]

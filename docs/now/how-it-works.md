@@ -54,6 +54,13 @@ One page, kept current: what is true today. The history and the reasons are in
   (Ulysses sheets, RTFD, Scrivener, Xcode projects, Final Cut and iMovie libraries, frameworks, Photos and Music
   libraries…) is not a result at all, nor anything inside it (`scan.IsHiddenPackage`, 0.9.45); an older index is
   cleared of them once (`junkRules` "3").
+- **Choices' time limit**: `core.RefineBudget` (150 ms); past it the groups counted so far are offered (a chosen
+  value always is). Over a million entries they take about 50 ms (`BenchmarkRefinements1M`).
+- **What's New**: after an update with news, a blue dot on the menu-bar icon (`menuBarIconWithNews`) and a What's New
+  item in its menu; no window opens by itself.
+- **Health log**: `health-log.txt` beside the index, one line per launch (start-up and ready times on this Mac,
+  entries, watchdog restarts, signature); never shown, never sent; the end is in Save Diagnostics; erased with
+  everything else.
 - **Ranking** with words: match quality, then opened more, files before folders, then changed more recently (today,
   this week, month, quarter, year, older), then shorter names and shallower paths; without words, newest first. An app's iCloud folder shows as the app
   ("iCloud Drive › Ulysses", `PathText.Root.iCloudApp`).

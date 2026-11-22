@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/RoaringBitmap/roaring/v2"
 
@@ -83,6 +84,13 @@ func refineRank(id string) (int, string) {
 // RefineFacetLimit: values offered for a text attribute (codec, camera…).
 const RefineFacetLimit = 6
 
+// RefineBudget: how long the choices may take to count (0.9.46, the owner:
+// "do 3"). A huge search ("Images" over a million files) has hundreds of
+// values to count; past this, the groups counted so far are offered, so the
+// choices never hold typing up. A choice already in the query is always
+// offered (it must stay removable). Tests change it.
+var RefineBudget = 150 * time.Millisecond
+
 type refineCandidate struct {
 	group, token, label, key string
 }
@@ -129,6 +137,8 @@ var (
 // in q come back marked Selected, with their token as written in q.
 func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	out := []RefineGroup{}
+	deadline := time.Now().Add(RefineBudget)
+	late := func() bool { return time.Now().After(deadline) }
 	if strings.TrimSpace(q) == "" || strings.HasPrefix(strings.TrimSpace(q), ">") {
 		return out, nil
 	}
@@ -257,6 +267,9 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 			return
 		}
 		written, sel := isSelected(group, o.Token)
+		if !sel && late() {
+			return // out of time: the groups so far are offered
+		}
 		if !sel {
 			if b := countBase(o.Token); b == 0 || b >= total {
 				return // nothing to choose: no result, or every result, has it
@@ -291,6 +304,9 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 		}
 	}
 	facets := func(group, key string, id query.FilterID, scope query.Scope, titled bool) {
+		if late() {
+			return
+		}
 		seen := map[string]bool{}
 		var values []string
 		for _, src := range sources {
