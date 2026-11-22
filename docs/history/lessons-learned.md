@@ -161,4 +161,6 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
      searched "beach". Name new fixtures with words no step searches for.
 20n. **Rank by time as people remember it.** Recency in coarse steps (today, this week…) changes the order people
      expect without reshuffling results by seconds; the match itself still decides first.
+20o. **A SwiftUI shape takes all the height it is offered.** A band's stripe as a Capsule in an HStack made
+     Storage's band fill the window; draw it as a background of the content instead, so it is as tall as the content.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

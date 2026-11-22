@@ -7,17 +7,23 @@ import SwiftUI
 struct BandBackground: ViewModifier {
     let family: String
     func body(content: Content) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Capsule()
-                .fill(SearchView.bandColor(family))
-                .frame(width: 4)
-            content
-        }
-        .padding(.leading, 4)
-        .padding(.trailing, 8)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(SearchView.bandColor(family).opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+        // The stripe is drawn behind the content, as tall as it (in an HStack
+        // a Capsule takes all the height it is offered: Storage's band filled
+        // the window).
+        content
+            .padding(.leading, 16)
+            .padding(.trailing, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(alignment: .leading) {
+                Capsule()
+                    .fill(SearchView.bandColor(family))
+                    .frame(width: 4)
+                    .padding(.vertical, 4)
+                    .padding(.leading, 4)
+            }
+            .background(SearchView.bandColor(family).opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+            .fixedSize(horizontal: false, vertical: true)
     }
 }
 
