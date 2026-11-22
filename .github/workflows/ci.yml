@@ -78,9 +78,17 @@ jobs:
         if: runner.os == 'macOS'
         run: app/scripts/perf-mac.sh
 
+  # Two Macs side by side (the owner: "make things faster"): the Arabic leg
+  # runs the Swift tests and the self-test in Arabic (which used to follow the
+  # English one, about 4 min); the English leg runs the rest. A change is
+  # tested in about 8 minutes instead of 13.
   app:
     needs: tested
     if: needs.tested.outputs.already != 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        lang: [en, ar]
     runs-on: macos-latest
     timeout-minutes: 45
     permissions:
@@ -96,17 +104,21 @@ jobs:
       - name: Build laserdotd, the CLI and the app's registry
         run: app/scripts/build-go.sh
       - name: The committed registry is current
+        if: matrix.lang == 'en'
         run: git diff --exit-code app/Sources/LaserdotKit/Registry.generated.swift
       - name: Only the updater helper may use the network (spec 7.4 exception)
+        if: matrix.lang == 'en'
         run: |
           if grep -rnE 'URLSession|NWConnection|CFNetwork|CFSocket|import Network' app/Sources --include='*.swift' | grep -v '^app/Sources/LaserdotUpdater/'; then
             echo "::error::network code outside app/Sources/LaserdotUpdater"
             exit 1
           fi
       - name: Build the app
+        if: matrix.lang == 'ar' # balances the two Macs
         working-directory: app
         run: swift build
       - name: Swift tests (Swift → Unix socket → laserdotd, network denied)
+        if: matrix.lang == 'ar' # balances the two Macs
         working-directory: app
         env:
           LASERDOTD: ${{ github.workspace }}/app/build/go/laserdotd
@@ -137,12 +149,12 @@ jobs:
           app/scripts/make-dmg.sh "$PWD/Laserdot.dmg"
       - name: GitHub vouches for this build (keyless proof, as for releases)
         id: attest
-        if: github.event_name == 'push'
+        if: matrix.lang == 'en' && (github.event_name == 'push')
         uses: actions/attest-build-provenance@v2
         with:
           subject-path: Laserdot.dmg
       - name: The app accepts GitHub's proof for this build only (changed file, other workflow, other repo, bad signature refused)
-        if: github.event_name == 'push'
+        if: matrix.lang == 'en' && (github.event_name == 'push')
         env:
           LASERDOT_PROOF_FILE: ${{ github.workspace }}/Laserdot.dmg
           LASERDOT_PROOF_BUNDLE: ${{ steps.attest.outputs.bundle-path }}
@@ -151,8 +163,10 @@ jobs:
           (cd app && swift test --filter ReleaseProofTests) 2>&1 | tee proof.log
           if grep -qE "[1-9][0-9]* tests? skipped" proof.log; then echo "::error::the real proof was not checked"; exit 1; fi
       - name: The real app signed the way an update is on a user's Mac (its own key), then launched
+        if: matrix.lang == 'en'
         run: (cd app && LASERDOT_APP="$PWD/build/Laserdot.app" swift test --filter testSignsTheRealBuiltApp)
       - name: Launch the bundled app, as a user would (smoke test)
+        if: matrix.lang == 'en'
         run: |
           d=$(mktemp -d)
           ditto -x -k Laserdot-unsigned.zip "$d"
@@ -170,6 +184,7 @@ jobs:
           cat "$d/app.log"
           echo "Laserdot.app launched and kept running"
       - name: A drive Laserdot has indexed can be ejected while laserdotd runs (removable media aware)
+        if: matrix.lang == 'en'
         run: |
           d=$(mktemp -d)
           # Sparse: 1 GB as far as Laserdot is concerned (it wants 512 MB free
@@ -230,7 +245,7 @@ jobs:
           # A folder Laserdot may not read: listed under "couldn't read".
           mkdir -p "$fx/Locked" && echo x > "$fx/Locked/inside.txt" && chmod 000 "$fx/Locked"
           status=0
-          for lang in en ar; do
+          for lang in ${{ matrix.lang }}; do
             echo trash me > "$fx/trashme.txt" # the run before moved it to the Trash
             rm -rf "$fx/Moved Here" "$fx/renamed ok.txt" "$fx"/beach.jpg*.zip
             echo rename me > "$fx/renameme.txt"
@@ -272,6 +287,7 @@ jobs:
           done
           exit $status
       - name: Real situation — eject a drive from Finder while the app is indexing it
+        if: matrix.lang == 'en'
         # After the self-test: macOS finishing this eject must not disturb it.
         run: |
           # The owner's case: the app runs, a drive is being indexed, and the
@@ -310,6 +326,7 @@ jobs:
           [ -n "$alive" ] || { echo "::error::the app did not survive the eject"; exit 1; }
           echo "ejected mid-index in ${took}s, the app still running"
       - name: The updater finds and downloads the newest release (no token, no API)
+        if: matrix.lang == 'en'
         env:
           GH_TOKEN: ${{ github.token }} # only for this check's `gh release view`
         run: |
@@ -331,6 +348,7 @@ jobs:
           fi
           test -f "app/build/Laserdot.app/Contents/Helpers/Laserdot Updater.app/Contents/Resources/AppIcon.icns"
       - uses: actions/upload-artifact@v4
+        if: matrix.lang == 'en'
         with:
           name: Laserdot-unsigned
           path: |
