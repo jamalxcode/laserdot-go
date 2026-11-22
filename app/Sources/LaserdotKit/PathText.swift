@@ -7,7 +7,13 @@ import Foundation
 /// tooltip.
 public enum PathText {
     /// Where a folder starts.
-    public enum Root: Equatable, Sendable { case home, iCloud, temporary, drive(String), computer }
+    /// `iCloudApp`: an app's own iCloud folder (Ulysses, Pages…), by the
+    /// app's name as Finder shows it (`container` is its path, for asking
+    /// macOS that name; `name` the guess from its id when macOS cannot say).
+    public enum Root: Equatable, Sendable {
+        case home, iCloud, temporary, drive(String), computer
+        case iCloudApp(name: String, container: String)
+    }
 
     /// The folder `dir` as its root and the folders under it.
     public static func components(_ dir: String, home: String) -> (root: Root, folders: [String]) {
@@ -20,6 +26,20 @@ public enum PathText {
         }
         let icloud = home + "/Library/Mobile Documents/com~apple~CloudDocs"
         if d == icloud || d.hasPrefix(icloud + "/") { return (.iCloud, rest(icloud)) }
+        // An app's iCloud folder ("X5AZV975AG~com~soulmen~ulysses3"): the
+        // owner saw "…/Mobile Documents/X5AZ…~ulysses3/Documents/…" where
+        // Finder says "iCloud Drive › Ulysses". Its Documents folder is
+        // implied, as in Finder.
+        let mobile = home + "/Library/Mobile Documents/"
+        if d.hasPrefix(mobile) {
+            var parts = rest(mobile)
+            if let id = parts.first {
+                let container = mobile + id
+                parts.removeFirst()
+                if parts.first == "Documents" { parts.removeFirst() }
+                return (.iCloudApp(name: appName(fromContainer: id), container: container), parts)
+            }
+        }
         if d == home || d.hasPrefix(home + "/") { return (.home, rest(home)) }
         if d.hasPrefix("/Volumes/") {
             let parts = rest("/Volumes/")
@@ -35,6 +55,14 @@ public enum PathText {
             return (.temporary, rest(d.hasPrefix("/var/tmp") ? "/var/tmp" : "/tmp"))
         }
         return (.computer, d.split(separator: "/").map(String.init))
+    }
+
+    /// "X5AZV975AG~com~soulmen~ulysses3" → "Ulysses": the id's last part,
+    /// without a version number, capitalised.
+    public static func appName(fromContainer id: String) -> String {
+        var last = String(id.split(separator: "~").last ?? Substring(id))
+        while let c = last.last, c.isNumber, last.count > 1 { last.removeLast() }
+        return last.prefix(1).uppercased() + last.dropFirst()
     }
 
     /// Root first, then the folders; long paths keep the last `keep` folders.

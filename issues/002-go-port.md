@@ -137,6 +137,12 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Packages, app names, calmer bar (0.9.44):** `scan.DefaultOpaqueExts` gains document packages; `junkFolders` also
+  lists packages holding indexed children (outermost only, `insideAnother`), run once per `junkRules` ("2") and on
+  drive attach; test `TestDocumentPackagesAreOneResult`. Swift: `PathText.Root.iCloudApp(name:container:)`
+  (`appName(fromContainer:)`, display name from `FileManager.displayName`), `SearchModel.barButtons`/`barTools`
+  (More menu while searching), `visibleHint` hidden when only pills and the choices show. Self-test: `pillsonly`,
+  `gallery`/`galleryall`/`gallerycalm` over a 30-picture Gallery fixture and a Ulysses sheet.
 - **Reveal inside packages (0.9.43):** `LaserdotKit.RevealPlan` (`.isPackageKey` on ancestors → `.insidePackage`);
   `Finder.reveal` uses `selectFile(_:inFileViewerRootedAtPath:)` for those, `activateFileViewerSelecting` otherwise;
   every Show in Finder in the app goes through it. Test: `RevealPlanTests`.

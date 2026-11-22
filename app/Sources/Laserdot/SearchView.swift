@@ -38,7 +38,8 @@ struct SearchView: View {
     /// again to take it out); the typed words stay.
     @ViewBuilder var choiceBar: some View {
         if !model.isCommandMode {
-            let buttons = model.startButtons
+            let buttons = model.barButtons
+            let tools = model.barTools
             // Wraps onto more lines in a narrow window (the owner: "let the
             // icons wrap around if the window is small").
             Group {
@@ -67,6 +68,37 @@ struct SearchView: View {
                         .accessibilityLabel(b.title)
                         .accessibilityAddTraits(on ? .isSelected : [])
                         .accessibilityIdentifier("start-" + b.id)
+                    }
+                    if !tools.isEmpty {
+                        // While searching, the tools wait here (the owner: a
+                        // calmer screen); the empty box shows them all.
+                        Menu {
+                            ForEach(tools, id: \.id) { t in
+                                Button { t.run() } label: { Label(t.title, systemImage: t.symbol) }
+                            }
+                        } label: {
+                            VStack(spacing: 4) {
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 17, weight: .regular))
+                                    .frame(width: 40, height: 40)
+                                    .foregroundStyle(Color.primary.opacity(0.8))
+                                    .background(Circle().fill(.regularMaterial))
+                                    .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
+                                Text(L("bar.more"))
+                                    .font(.caption2)
+                                    .lineLimit(1)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(minWidth: 58)
+                            .contentShape(Rectangle())
+                        }
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .fixedSize()
+                        .padding(.leading, 12)
+                        .help(L("bar.more.help"))
+                        .accessibilityLabel(L("bar.more"))
+                        .accessibilityIdentifier("start-more")
                     }
                 }
                 .padding(.horizontal, 16)

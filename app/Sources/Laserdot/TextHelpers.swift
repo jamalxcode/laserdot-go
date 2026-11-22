@@ -16,6 +16,11 @@ func shortPath(_ path: String) -> String {
         case .temporary: return L("path.temporary")
         case let .drive(name): return name
         case .computer: return L("path.computer")
+        case let .iCloudApp(name, container):
+            // Finder's own name for it ("Ulysses"), else the guess.
+            let shown = FileManager.default.displayName(atPath: container)
+            let app = shown.contains("~") || shown.isEmpty ? name : shown
+            return L("path.icloud") + (appLayoutDirection == .rightToLeft ? " / " : " › ") + app
         }
     }
     // › is a mirrored character: right to left it turns into ‹, so Arabic

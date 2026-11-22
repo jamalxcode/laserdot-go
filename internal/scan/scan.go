@@ -32,9 +32,18 @@ var DefaultOpaqueDirs = []string{".git", ".hg", ".svn"}
 // is a folder of thousands of files). Like Finder and Spotlight, Laserdot lists
 // the package as one result and does not index its contents. Photos and Music
 // libraries are personal-data stores (spec pillar 4), so they stay closed too.
+// Document packages too (0.9.44, the owner: "fix it like Spotlight", after a
+// search for screenshots was flooded by the pictures inside Ulysses sheets):
+// a Ulysses sheet, an RTFD, a Scrivener project, an Xcode project, a Final Cut
+// or iMovie library is one document, not a folder of results.
 var DefaultOpaqueExts = []string{
 	"app", "appex", "framework", "bundle", "plugin", "kext", "xpc", "prefpane", "qlgenerator",
 	"mdimporter", "saver", "photoslibrary", "musiclibrary", "photolibrary",
+	// document packages
+	"ulysses", "ulgroup", "ulysses-library", "rtfd", "pages", "numbers", "key", "scriv", "textbundle", "dtbase2",
+	"sparsebundle", "xcodeproj", "xcworkspace", "playground", "xcarchive", "dsym",
+	"fcpbundle", "imovielibrary", "tvlibrary", "theater", "logicx", "band", "aplibrary", "photoboothlibrary",
+	"lrlibrary", "pkg", "mpkg", "workflow", "action", "component", "vst", "vst3", "wdgt",
 }
 
 // PartialDownloadExts are downloads in progress: never indexed (story 12).

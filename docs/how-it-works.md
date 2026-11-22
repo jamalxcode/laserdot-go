@@ -50,6 +50,12 @@ One page, kept current: what is true today. The history and the reasons are in
   hints, choices and results; recent files when the box is empty.
 - **Reset:** the ✕ in the box clears words, pills, the search place and the order; a place whose folder is gone
   counts as Everywhere. A search shows up to 1,000 results, and Show More adds 1,000 at a time.
+- **Packages are one result** (`scan.DefaultOpaqueExts`): apps, frameworks, Photos and Music libraries, and since
+  0.9.44 document packages (Ulysses sheets, RTFD, Scrivener, Xcode projects, Final Cut and iMovie libraries…), as in
+  Spotlight; an older index loses their contents once (`junkRules` "2"). An app's iCloud folder shows as the app
+  ("iCloud Drive › Ulysses", `PathText.Root.iCloudApp`).
+- **While searching** the round buttons show the kinds of files and the tools fold into **More** (`barButtons`,
+  `barTools`); the hint hides when only pills are in the box and the choices show.
 - **Show in Finder** (`Finder.reveal`, `RevealPlan`): a file inside a package (a .ulysses sheet, an app) is shown in a
   window on its own folder, as Show Package Contents would; Finder alone stops outside the package.
 - **Menu-bar dot:** flashes red, white, blue, green while Laserdot works (indexing, details, a drive, duplicates, a

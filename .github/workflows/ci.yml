@@ -213,6 +213,20 @@ jobs:
           cp internal/media/testdata/song.mp3 "$fx/song.mp3"
           cp internal/media/testdata/dupes/clip.mp4 "$fx/clip copy.mp4"
           echo trash me > "$fx/trashme.txt"
+          # A gallery big enough for the calm choices to leave some out (the
+          # owner's real searches): ten folders of pictures, each a size and
+          # shape of its own (portrait, landscape, square; SD to 1080p).
+          i=0
+          for f in Beach City Forest Desert Snow River Night Garden Market Harbour; do
+            mkdir -p "$fx/Gallery/$f"
+            for wh in "480 640" "1080 1920" "300 300"; do
+              i=$((i+1)); set -- $wh
+              sips -z "$(( $1 + i ))" "$(( $2 + i ))" app/Resources/AppIcon.png --out "$fx/Gallery/$f/sunset-$i.png" >/dev/null
+            done
+          done
+          # A Ulysses sheet: a package, so the picture inside is not a result.
+          mkdir -p "$fx/Writing/a1b2c3.ulysses/Media"
+          cp "$fx/Gallery/Beach/sunset-1.png" "$fx/Writing/a1b2c3.ulysses/Media/sunset-inside.png"
           # A folder Laserdot may not read: listed under "couldn't read".
           mkdir -p "$fx/Locked" && echo x > "$fx/Locked/inside.txt" && chmod 000 "$fx/Locked"
           status=0

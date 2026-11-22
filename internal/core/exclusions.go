@@ -109,14 +109,19 @@ func (ld *Laserdot) Include(path string) ([]string, error) {
 	return paths, nil
 }
 
-// junkCleanedKey: the index was cleared of system junk files once.
+// junkCleanedKey: the index was cleared of system junk files, and of what
+// is inside packages, once for each version of the rules (junkRules).
 const junkCleanedKey = "system_junk_cleaned"
+
+// junkRules: bumped when the rules leave out more ("2": document packages,
+// 0.9.44), so an index made before is cleared again once.
+const junkRules = "2"
 
 // dropSystemJunk removes .DS_Store and the like that an index made before
 // they were ignored still holds (once): each folder holding one is listed
 // again, and the scan rules leave them out.
 func (ld *Laserdot) dropSystemJunk() {
-	if v, _ := ld.db.Setting(junkCleanedKey); v == "1" {
+	if v, _ := ld.db.Setting(junkCleanedKey); v == junkRules {
 		return
 	}
 	ld.mu.RLock()
@@ -127,7 +132,7 @@ func (ld *Laserdot) dropSystemJunk() {
 			return // tried again next time
 		}
 	}
-	ld.db.SetSetting(junkCleanedKey, "1")
+	ld.db.SetSetting(junkCleanedKey, junkRules)
 }
 
 // dropDriveJunk does the same for a drive's index (indexed before system
@@ -142,19 +147,37 @@ func (ld *Laserdot) dropDriveJunk(d *drive) {
 	}
 }
 
-// junkFolders: the folders of s holding a system file, to list again.
+// junkFolders: the folders of s holding a system file, and the packages
+// whose contents were indexed (before they counted as packages), to list
+// again: the scan rules leave both out.
 func junkFolders(s *index.Store) []Change {
 	dirs := map[string]bool{}
+	opts := scan.DefaultOptions()
 	it := s.Live().Iterator()
 	for it.HasNext() {
 		id := it.Next()
 		if !s.IsDir(id) && scan.IsSystemJunk(s.Name(id)) {
 			dirs[filepath.Dir(s.Path(id))] = true
+		} else if s.IsDir(id) && len(s.Children(id)) > 0 && scan.IsOpaque(s.Name(id), opts) {
+			dirs[s.Path(id)] = true
 		}
 	}
 	changes := make([]Change, 0, len(dirs))
 	for d := range dirs {
+		if insideAnother(d, dirs) {
+			continue // a package inside a package: listing the outer one drops it
+		}
 		changes = append(changes, Change{Path: d})
 	}
 	return changes
+}
+
+// insideAnother: some other folder of dirs holds d.
+func insideAnother(d string, dirs map[string]bool) bool {
+	for p := filepath.Dir(d); p != d && p != "." && p != "/"; d, p = p, filepath.Dir(p) {
+		if dirs[p] {
+			return true
+		}
+	}
+	return false
 }

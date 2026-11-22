@@ -113,6 +113,18 @@ final class SelfTestRunner {
                  until: { $0.allChoices && !$0.refinements.isEmpty }, wait: 0.5),
             Step(name: "fewerchoices", typed: "proj", after: { model.allChoices = false },
                  until: { !$0.allChoices && !$0.refinements.isEmpty }, wait: 0.5),
+            // A real-sized search (thirty pictures in ten folders): the calm
+            // view leaves choices out and says how many; a picture inside a
+            // package (a Ulysses sheet) is not among the results.
+            Step(name: "gallery", typed: "sunset", before: { model.allChoices = false },
+                 until: { $0.results.count >= 30 && !$0.refinements.isEmpty }, wait: 0.5),
+            Step(name: "galleryall", typed: "sunset", after: { model.allChoices = true },
+                 until: { $0.allChoices && !$0.refinements.isEmpty }, wait: 0.5),
+            Step(name: "gallerycalm", typed: "sunset", after: { model.allChoices = false },
+                 until: { !$0.allChoices }, wait: 0.3),
+            // Only a pill in the box and the choices showing: no hint
+            // repeating them (the owner: a calmer screen).
+            Step(name: "pillsonly", typed: "kind:document ", until: { !$0.refinements.isEmpty }, wait: 0.5),
             Step(name: "refined", typed: "proj", after: {
                 if let pdf = model.refinements.flatMap(\.options).first(where: { $0.token == "ext:pdf" }) {
                     model.applyRefinement(pdf)

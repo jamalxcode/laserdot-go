@@ -489,6 +489,8 @@
 "place.nothingThere" = "Nothing in %@ — Search Everywhere";
 "search.reset" = "Reset Search (words, choices, place and order)";
 "refine.leaveOut" = "Leave Out";
+"bar.more" = "More";
+"bar.more.help" = "Find Duplicates, Storage, Drives, Index a Folder, Settings";
 "refine.more" = "More choices (%d)";
 "refine.fewer" = "Fewer choices";
 "refine.more.help" = "Show every choice, including ones that would leave nothing";

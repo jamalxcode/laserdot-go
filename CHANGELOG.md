@@ -3,6 +3,17 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.44
+
+- Files kept inside documents are no longer results, as in Spotlight: a Ulysses sheet, an RTFD, a Scrivener or Xcode
+  project, a Final Cut or iMovie library is one result, not hundreds of pictures with long random names. What your
+  index already held from inside them is removed by itself.
+- An app's iCloud folder reads as the app, as in Finder: "iCloud Drive › Ulysses" instead of
+  "Mobile Documents › X5AZV975AG~com~soulmen~ulysses3 › Documents".
+- A calmer search screen: while you search, the round buttons show the kinds of files, and Find Duplicates, Storage,
+  Drives, Index a Folder and Settings wait under **More**; the empty box shows them all. The hint line no longer
+  repeats the choices when only pills are in the box.
+
 ## 0.9.43
 
 - **Show in Finder** reaches files kept inside packages — pictures inside a Ulysses sheet, files inside an app or a

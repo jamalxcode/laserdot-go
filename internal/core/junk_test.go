@@ -2,6 +2,7 @@ package core
 
 import (
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/jamalxcode/laserdot-go/internal/scan"
@@ -86,4 +87,44 @@ func TestADrivesOlderIndexLosesItsJunkFiles(t *testing.T) {
 	}
 	waitFor(t, "the drive's old .DS_Store to go", func() bool { return len(dnames(t, m.ld, "ds_store")) == 0 })
 	expect(t, dnames(t, m.ld, "trip"), "trip.mp4")
+}
+
+// Document packages are one result, like apps (the owner: "fix it like
+// Spotlight", after the pictures inside Ulysses sheets flooded a search for
+// screenshots); an index made before loses what it held inside them.
+func TestDocumentPackagesAreOneResult(t *testing.T) {
+	saved := scan.DefaultOpaqueExts
+	scan.DefaultOpaqueExts = slices.DeleteFunc(slices.Clone(saved), func(e string) bool { return e == "ulysses" || e == "rtfd" })
+	ld, root := newCore(t)
+	for _, n := range []string{
+		"Writing/a1b2c3.ulysses/Media/Screenshot 2023.png", "Writing/a1b2c3.ulysses/Content.xml",
+		"Writing/Letter.rtfd/TXT.rtf", "Writing/Screenshot kept.png",
+	} {
+		writeAged(t, filepath.Join(root, n), []byte("x"))
+	}
+	if _, err := ld.Index(root); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, dnames(t, ld, "screenshot"), "Screenshot 2023.png", "Screenshot kept.png") // as before
+	ld.db.SetSetting(junkCleanedKey, "1")                                                // cleared under the old rules
+	db := ld.DBPath()
+	ld.Close()
+	scan.DefaultOpaqueExts = saved
+	ld2, err := Open(db)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ld2.Close()
+	waitFor(t, "the pictures inside the sheet to go", func() bool { return len(dnames(t, ld2, "screenshot")) == 1 })
+	expect(t, dnames(t, ld2, "screenshot"), "Screenshot kept.png")
+	expect(t, dnames(t, ld2, "a1b2c3"), "a1b2c3.ulysses") // the sheet itself is a result
+	expect(t, dnames(t, ld2, "txt"))
+	expect(t, dnames(t, ld2, "letter"), "Letter.rtfd")
+	// A fresh index never takes them in.
+	ld3, root3 := newCore(t)
+	writeAged(t, filepath.Join(root3, "Notes/x.ulysses/Media/Screenshot.png"), []byte("x"))
+	if _, err := ld3.Index(root3); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, dnames(t, ld3, "screenshot"))
 }

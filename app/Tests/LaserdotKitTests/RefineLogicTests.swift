@@ -145,8 +145,14 @@ final class PathTextTests: XCTestCase {
             case .temporary: return "Temporary"
             case let .drive(n): return n
             case .computer: return "Mac"
+            case let .iCloudApp(n, _): return "iCloud Drive › " + n
             }
         }
+        // An app's iCloud folder reads as the app (Finder: "iCloud Drive › Ulysses").
+        let ul = PathText.components("/Users/j/Library/Mobile Documents/X5AZV975AG~com~soulmen~ulysses3/Documents/Library/Groups", home: home)
+        XCTAssertEqual(ul.root, .iCloudApp(name: "Ulysses", container: "/Users/j/Library/Mobile Documents/X5AZV975AG~com~soulmen~ulysses3"))
+        XCTAssertEqual(ul.folders, ["Library", "Groups"])
+        XCTAssertEqual(PathText.appName(fromContainer: "com~apple~Pages"), "Pages")
         XCTAssertEqual(PathText.parts("/Users/j/a/b/c/d", home: home, rootName: name), ["Home", "…", "b", "c", "d"])
     }
 

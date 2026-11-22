@@ -198,6 +198,10 @@ final class SearchModel: ObservableObject {
     var visibleHint: String? {
         if let note = refreshNote { return note }
         guard let h = hint, !isGenericHint(h, lang: appLang) else { return nil }
+        // Nothing typed beside the pills while the choices show: the hint
+        // would only repeat them ("kind: video audio image…", the owner's
+        // screenshot). It explains what is being typed.
+        if showsRefinements && fieldText.trimmingCharacters(in: .whitespaces).isEmpty { return nil }
         // A plain word's meaning ("jpg means ext:jpg…") is explained the
         // first few times only; then the choice row teaches the rest. Help
         // for a filter being typed (res: …) always shows.

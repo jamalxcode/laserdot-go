@@ -794,6 +794,18 @@ instead: "show in finder doesn't really take us to the finder location". Finder 
 package. Decided: such a file is shown in a Finder window opened on its own folder, the file selected (as Show
 Package Contents does); if Finder refuses, the package is selected.
 
+## 63. A second critique: packages, app names, a calmer screen (0.9.44)
+
+The owner asked for another critique, then chose: "1 fix it like spotlight" (results inside packages — pictures
+inside Ulysses sheets flooded a search for screenshots), "2 yes use app name" (paths like
+"…cf42968…ulysses › Media"), "3 ok" (a calmer screen), "4 can't do anything about that" (release churn: kept as it
+is), "5 yes" (richer self-test files), "6 make things faster, do what is needed", "7 leave that for now" (a Developer
+ID), "8 yes fix it" (split the biggest files), "9 reorganize docs, preserve all lessons learned and changes and
+documentation". Decided for 1–3: document packages join apps as single results and an older index is cleared of
+their contents once; an app's iCloud folder is named by the app, as Finder does; while searching, the tools fold
+into a More button and the hint stops repeating the choices. 5: the self-test gets a gallery of thirty pictures in
+ten folders and a Ulysses sheet, so CI shows the calm choices and proves package contents stay out.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

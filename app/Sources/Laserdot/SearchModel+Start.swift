@@ -19,6 +19,19 @@ extension SearchModel {
         let run: () -> Void
     }
 
+    /// The round buttons as shown: all of them on the empty box; while
+    /// searching only the kinds of files (the tools wait in the "More"
+    /// button's menu: `barTools`), so the screen stays calm.
+    var barButtons: [StartButton] {
+        let all = startButtons
+        return query.trimmingCharacters(in: .whitespaces).isEmpty ? all : all.filter { !$0.isTool }
+    }
+
+    /// The tools folded into the "More" button while searching.
+    var barTools: [StartButton] {
+        query.trimmingCharacters(in: .whitespaces).isEmpty ? [] : startButtons.filter(\.isTool)
+    }
+
     var startButtons: [StartButton] {
         func search(_ id: String, _ symbol: String, _ title: String, _ tokens: [String]) -> StartButton {
             StartButton(id: id, symbol: symbol, title: title, pills: tokens) { [weak self] in

@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "gallery", "galleryall", "gallerycalm", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -139,6 +139,22 @@ check(steps.get("start", {}).get("compact") is False, "one full screen from the 
 sb = steps.get("start", {}).get("start_buttons", [])
 check(all(b in sb for b in ("videos", "images", "music", "documents", "apps", "downloads", "big", "dupes", "storage", "index", "settings")) and sb.index("big") < sb.index("dupes"),
       f"the choice bar offers kinds and searches, then the menu's tools (got {sb})")
+# A calmer screen (the owner): while searching, the tools fold into More and
+# the hint does not repeat the choices.
+st, pj = steps.get("start", {}), steps["proj"]
+check(st.get("bar_tools") == [] and "dupes" in st.get("bar_buttons", []), f"the empty box shows every button (got {st.get('bar_buttons')})")
+check("dupes" not in pj.get("bar_buttons", []) and "dupes" in pj.get("bar_tools", []) and "videos" in pj.get("bar_buttons", []),
+      f"while searching the tools wait in More (buttons {pj.get('bar_buttons')}, tools {pj.get('bar_tools')})")
+# A real-sized search: the calm view hides some choices, More shows them; the
+# picture inside the Ulysses sheet (a package) is never a result.
+ga, gall = steps["gallery"], steps["galleryall"]
+check(len(ga["results"]) >= 30 and not any("inside" in r for r in ga["results"]),
+      f"thirty sunsets, none from inside a package (got {len(ga['results'])}: {[r for r in ga['results'] if 'inside' in r]})")
+check(ga.get("refine_hidden", 0) > 0, f"the calm view leaves some choices out of a big search (hidden {ga.get('refine_hidden')})")
+check(gall.get("refine_shown_count", 0) > ga.get("refine_shown_count", 0), f"More choices shows more (calm {ga.get('refine_shown_count')}, all {gall.get('refine_shown_count')})")
+po = steps["pillsonly"]
+check(po.get("refine_row") is True and po.get("visible_hint", "") == "",
+      f"only pills in the box: the choices show and no hint repeats them (row {po.get('refine_row')}, hint {po.get('visible_hint')!r})")
 np_, npo = steps["noneplace"], steps["noneplaceoff"]
 check(np_["results"] == [] and np_.get("place_pill") is True, f"nothing in the place: an empty list with Search Everywhere (got {np_['results']}, {np_.get('place_pill')})")
 check("archive-2023.zip" in npo["results"] and npo.get("place_pill") is False, f"Search Everywhere finds it elsewhere (got {npo['results']})")
