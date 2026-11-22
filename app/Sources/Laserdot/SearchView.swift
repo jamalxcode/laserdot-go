@@ -15,6 +15,8 @@ struct SearchView: View {
     /// The hot-key overlay has a fixed size; the main window resizes.
     var fixedSize = true
     @Environment(\.controlActiveState) private var activeState
+    /// The More button's panel of tools is open.
+    @State var showTools = false
     /// The selected row uses the accent colour while this window has the
     /// keyboard (the overlay always does), and grey otherwise — as lists do.
     var emphasized: Bool { fixedSize || activeState == .key }
@@ -72,17 +74,15 @@ struct SearchView: View {
                     if !tools.isEmpty {
                         // While searching, the tools wait here (the owner: a
                         // calmer screen); the empty box shows them all.
-                        Menu {
-                            ForEach(tools, id: \.id) { t in
-                                Button { t.run() } label: { Label(t.title, systemImage: t.symbol) }
-                            }
-                        } label: {
+                        // A round button like the others (a Menu's custom label is
+                        // flattened by macOS), opening a small panel of the tools.
+                        Button { showTools.toggle() } label: {
                             VStack(spacing: 4) {
                                 Image(systemName: "ellipsis")
                                     .font(.system(size: 17, weight: .regular))
                                     .frame(width: 40, height: 40)
-                                    .foregroundStyle(Color.primary.opacity(0.8))
-                                    .background(Circle().fill(.regularMaterial))
+                                    .foregroundStyle(showTools ? Color.white : Color.primary.opacity(0.8))
+                                    .background(Circle().fill(showTools ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.regularMaterial)))
                                     .overlay(Circle().strokeBorder(Color.primary.opacity(0.12)))
                                 Text(L("bar.more"))
                                     .font(.caption2)
@@ -92,13 +92,31 @@ struct SearchView: View {
                             .frame(minWidth: 58)
                             .contentShape(Rectangle())
                         }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-                        .fixedSize()
+                        .buttonStyle(.plain)
                         .padding(.leading, 12)
                         .help(L("bar.more.help"))
                         .accessibilityLabel(L("bar.more"))
                         .accessibilityIdentifier("start-more")
+                        .popover(isPresented: $showTools, arrowEdge: .bottom) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ForEach(tools, id: \.id) { t in
+                                    Button {
+                                        showTools = false
+                                        t.run()
+                                    } label: {
+                                        Label(t.title, systemImage: t.symbol)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .accessibilityIdentifier("tool-" + t.id)
+                                }
+                            }
+                            .padding(6)
+                            .frame(minWidth: 200)
+                        }
                     }
                 }
                 .padding(.horizontal, 16)
