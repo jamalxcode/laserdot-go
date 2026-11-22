@@ -137,6 +137,9 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Reveal inside packages (0.9.43):** `LaserdotKit.RevealPlan` (`.isPackageKey` on ancestors → `.insidePackage`);
+  `Finder.reveal` uses `selectFile(_:inFileViewerRootedAtPath:)` for those, `activateFileViewerSelecting` otherwise;
+  every Show in Finder in the app goes through it. Test: `RevealPlanTests`.
 - **Calm choices (0.9.42):** `RefineLogic.compact(_:expanded:perGroup:bandLimit:)` (count-0 values out, top 4 by
   count per group in their order, first 4 families; returns the hidden count); `SearchModel.openRefinements`,
   `hiddenChoices`, `allChoices` (UserDefaults `laserdot.allChoices`); `moreChoicesButton`; `bandColor` (Okabe–Ito) and

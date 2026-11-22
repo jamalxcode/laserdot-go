@@ -145,4 +145,6 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 20g. **Every way in must keep the signature.** Updates were re-signed with this Mac's key, but a version installed by
      hand from the disk image was ad hoc again, so macOS asked for Full Disk Access again on a new Mac. And a
      signing failure was swallowed with no trace. Re-sign at launch too, and keep the last failure for diagnostics.
+20h. **Finder doesn't go into packages.** `activateFileViewerSelecting` on a file inside a .ulysses sheet opened an
+     outer folder. `selectFile(_:inFileViewerRootedAtPath:)` with the file's own folder reaches it.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

@@ -70,7 +70,7 @@ extension SearchModel {
         list += [
             ActionItem(id: "quicklook", title: L("action.quickLook"), symbol: "eye", shortcut: "⌘Y") { [weak self] in self?.quickLook(first) },
             ActionItem(id: "reveal", title: L("action.reveal"), symbol: "folder", shortcut: "⌘↩") { [weak self] in
-                NSWorkspace.shared.activateFileViewerSelecting(urls)
+                Finder.reveal(urls)
                 self?.onOpened?()
             },
             ActionItem(id: "copyFile", title: L(many ? "action.copyFiles" : "action.copyFile"), symbol: "doc.on.doc") {

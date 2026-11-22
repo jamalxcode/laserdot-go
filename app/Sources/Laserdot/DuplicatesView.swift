@@ -655,7 +655,7 @@ struct DuplicatesView: View {
         .contextMenu {
             Button(L("action.open")) { DiskAccessPrompt.shared.open(URL(fileURLWithPath: f.path)) }
             Button(L("action.quickLook")) { QuickLook.shared.show(group.files.map { URL(fileURLWithPath: $0.path) }, at: group.files.firstIndex { $0.path == f.path } ?? 0) }
-            Button(L("action.reveal")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: f.path)]) }
+            Button(L("action.reveal")) { Finder.reveal(URL(fileURLWithPath: f.path)) }
         }
         .accessibilityElement(children: .combine)
     }
@@ -689,7 +689,7 @@ struct DuplicatesView: View {
         }
         .contextMenu {
             Button(L("action.reveal")) {
-                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: f.path)])
+                Finder.reveal(URL(fileURLWithPath: f.path))
             }
             Button(L("action.open")) { DiskAccessPrompt.shared.open(URL(fileURLWithPath: f.path)) }
         }

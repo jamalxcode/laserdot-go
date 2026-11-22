@@ -183,7 +183,7 @@ extension SearchModel {
         guard let h = hit ?? selected else { return }
         remember()
         noteOpened(h)
-        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: h.path)])
+        Finder.reveal(URL(fileURLWithPath: h.path))
         onOpened?()
     }
 

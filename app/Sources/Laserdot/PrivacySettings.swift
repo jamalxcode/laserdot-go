@@ -27,7 +27,7 @@ struct PrivacySettings: View {
                             Text(ByteCountFormatter.string(fromByteCount: item.bytes, countStyle: .file))
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
-                            Button { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.path)]) } label: {
+                            Button { Finder.reveal(URL(fileURLWithPath: item.path)) } label: {
                                 Image(systemName: "magnifyingglass.circle")
                             }
                             .buttonStyle(.borderless)

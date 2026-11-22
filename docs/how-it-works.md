@@ -50,6 +50,8 @@ One page, kept current: what is true today. The history and the reasons are in
   hints, choices and results; recent files when the box is empty.
 - **Reset:** the ✕ in the box clears words, pills, the search place and the order; a place whose folder is gone
   counts as Everywhere. A search shows up to 1,000 results, and Show More adds 1,000 at a time.
+- **Show in Finder** (`Finder.reveal`, `RevealPlan`): a file inside a package (a .ulysses sheet, an app) is shown in a
+  window on its own folder, as Show Package Contents would; Finder alone stops outside the package.
 - **Menu-bar dot:** flashes red, white, blue, green while Laserdot works (indexing, details, a drive, duplicates, a
   refresh); the engine is asked every 5 s with one small request at background priority, never two at once, so the
   nicety never holds up real work. The round buttons wrap in a narrow window.

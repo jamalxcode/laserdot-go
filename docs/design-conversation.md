@@ -787,6 +787,13 @@ default — no choice that gives nothing, four values a group (the biggest, in t
 **More choices (N)** / **Fewer choices** (remembered); bands are a coloured stripe on a faint tint instead of a filled
 box, in the Okabe–Ito colours, each with an icon.
 
+## 62. Show in Finder inside packages (0.9.43)
+
+A screenshot: a screenshot found inside a Ulysses sheet (`….ulysses/Media`), and Finder showing the Ulysses folder
+instead: "show in finder doesn't really take us to the finder location". Finder will not select a file inside a
+package. Decided: such a file is shown in a Finder window opened on its own folder, the file selected (as Show
+Package Contents does); if Finder refuses, the package is selected.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

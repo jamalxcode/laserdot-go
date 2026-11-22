@@ -3,6 +3,11 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.43
+
+- **Show in Finder** reaches files kept inside packages — pictures inside a Ulysses sheet, files inside an app or a
+  library bundle. Finder used to stop at an outer folder; now it opens the file's own folder with the file selected.
+
 ## 0.9.42
 
 - The choices under the search box are calmer: choices that would leave nothing are hidden, each group shows its

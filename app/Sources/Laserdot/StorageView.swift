@@ -144,11 +144,11 @@ struct StorageView: View {
                 StorageRow(item: item, total: max(model.report?.bytes ?? 1, 1))
                     .contentShape(Rectangle())
                     .onTapGesture(count: 2) {
-                        if item.isDir { model.load(item.path) } else { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.path)]) }
+                        if item.isDir { model.load(item.path) } else { Finder.reveal(URL(fileURLWithPath: item.path)) }
                     }
                     .contextMenu {
                         if item.isDir { Button(L("storage.open")) { model.load(item.path) } }
-                        Button(L("action.reveal")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: item.path)]) }
+                        Button(L("action.reveal")) { Finder.reveal(URL(fileURLWithPath: item.path)) }
                         Divider()
                         Button(L("storage.trash.menu")) {
                             model.moveToTrash(path: item.path, name: item.name, bytes: item.bytes)
@@ -171,9 +171,9 @@ struct StorageView: View {
                 Text(bytes(h.size)).font(.callout.monospacedDigit())
             }
             .contentShape(Rectangle())
-            .onTapGesture(count: 2) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: h.path)]) }
+            .onTapGesture(count: 2) { Finder.reveal(URL(fileURLWithPath: h.path)) }
             .contextMenu {
-                Button(L("action.reveal")) { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: h.path)]) }
+                Button(L("action.reveal")) { Finder.reveal(URL(fileURLWithPath: h.path)) }
                 Button(L("action.quickLook")) { QuickLook.shared.show(URL(fileURLWithPath: h.path)) }
                 Divider()
                 Button(L("storage.trash.menu")) { model.moveToTrash(path: h.path, name: h.name, bytes: h.size) }
