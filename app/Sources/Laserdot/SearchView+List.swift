@@ -176,6 +176,11 @@ extension SearchView {
                 if hit.kind == "video" {
                     // Move the pointer across it to flip through the video.
                     ScrubThumb(path: hit.path, size: model.tileSize)
+                } else if hit.kind == "image" {
+                    // Rest the pointer on it: the picture, larger, beside it.
+                    FileIcon(path: hit.path, size: model.tileSize, thumbnail: true)
+                        .frame(width: model.tileSize + 8, height: model.tileSize * 0.92)
+                        .modifier(PhotoPeek(model: model, path: hit.path))
                 } else {
                     FileIcon(path: hit.path, size: model.tileSize, thumbnail: true)
                         .frame(width: model.tileSize + 8, height: model.tileSize * 0.92)

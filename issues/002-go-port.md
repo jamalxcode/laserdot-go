@@ -142,7 +142,7 @@ Binding unless revisited deliberately; each is also in the spec.
   (+ `NavigationTests`, `TimelineTests`, `BatchRenameTests`); `SearchModel.arrowRight/arrowLeft/focusChoices/
   moveChoice/moveChoiceGroup/chooseFocusedChoice/chooseMonths/renameFiles`, `choiceFocus`, `folderTrail`,
   `smartCounts`, `timeline`; `SearchField.onRight/onLeft`; `TimelineStrip`, `RenamePreview`, `ScrubThumb`;
-  `tileSizes` 64…384. Self-test: `timeline`, `timelinechosen`, `choicekeys`, `choicepicked`, `folderin` (in and back
+  `tileSizes` 64…384; `PhotoPeek` (hover 0.6 s → `peekPath` → popover with a 420 pt thumbnail), self-test `peek`/`peekgone`. Self-test: `timeline`, `timelinechosen`, `choicekeys`, `choicepicked`, `folderin` (in and back
   out), `renamemany`/`renamedmany`, home's smart counts; the Gallery fixture's dates spread over 2024.
 - **The window stays (0.9.46):** `OverlayController`: no `model.onOpened` hide; `collectionBehavior`
   `[.moveToActiveSpace, .fullScreenAuxiliary]` (was `.canJoinAllSpaces`); `toggle()` hides only when visible, on the

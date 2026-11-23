@@ -148,6 +148,7 @@ extension SelfTestRunner {
         r["bar_buttons"] = model.barButtons.map(\.id)
         r["bar_tools"] = model.barTools.map(\.id)
         r["tools_open"] = model.showTools
+        r["peek"] = model.peekPath.map { ($0 as NSString).lastPathComponent } ?? ""
         r["timeline_months"] = model.timeline.count
         r["timeline_shown"] = model.showsTimeline
         r["choice_focus"] = model.choiceFocus ?? -1

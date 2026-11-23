@@ -867,6 +867,13 @@ field's own keys (→/← only act when browsing results, in the grid, or with t
 moves while typing); the timeline is a new daemon op so it counts every result, not just the loaded page; batch
 rename is all or nothing, with one undo step.
 
+## 70. A fourth review: pictures up close (0.9.47)
+
+Eight ideas were offered (arrows mirrored for Arabic, showing the new keys, photo dates on the timeline, editable
+smart lists, date patterns in rename, a steadier self-test, VoiceOver for the new parts, a larger preview for
+pictures). The owner chose "do 8": resting the pointer on a picture in the grid shows it larger beside its tile,
+after a moment so passing over tiles shows nothing.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

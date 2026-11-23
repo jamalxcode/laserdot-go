@@ -302,6 +302,11 @@ final class SelfTestRunner {
             }),
             // Bigger thumbnails (the size slider, ⌘+): fewer to a row.
             Step(name: "gridbig", typed: "kind:image", before: { model.tileSize = 220 }),
+            // Resting on a picture shows it larger beside its tile.
+            Step(name: "peek", typed: "kind:image", after: {
+                model.peekPath = model.results.first { $0.kind == "image" }?.path
+            }, until: { $0.peekPath != nil }, wait: 0.6),
+            Step(name: "peekgone", typed: "kind:image", after: { model.peekPath = nil }, until: { $0.peekPath == nil }),
             // Columns, as in Finder: a click on Size sorts largest first, a
             // second click smallest first; one flat list.
             Step(name: "columns", typed: "kind:image", before: {

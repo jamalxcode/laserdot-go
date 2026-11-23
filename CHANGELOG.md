@@ -17,6 +17,8 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
   new names before anything changes. One undo puts them all back.
 - **Videos you can scrub**: in the thumbnail grid, move the pointer across a video to flip through it. Thumbnails can
   be bigger too.
+- **Pictures up close**: in the thumbnail grid, rest the pointer on a picture and it shows larger beside its tile;
+  move away and it goes.
 
 ## 0.9.46
 

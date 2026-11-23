@@ -76,7 +76,9 @@ One page, kept current: what is true today. The history and the reasons are in
   (`TimelineLogic.months`, last 120) and a click or drag adds `modified:YYYY-MM[..YYYY-MM]`, replacing a date filter.
 - **Rename several files** (`BatchRename`, `renameFiles`): ## becomes the number, extensions kept, all or nothing
   (through temporary names), one undo step.
-- **Grid**: videos scrub under the pointer (`ScrubThumb`, ten frames via AVAssetImageGenerator); tiles up to 384 pt.
+- **Grid**: videos scrub under the pointer (`ScrubThumb`, ten frames via AVAssetImageGenerator); a picture the
+  pointer rests on (0.6 s) shows 420 pt wide in a popover beside its tile (`PhotoPeek`, `SearchModel.peekPath`);
+  tiles up to 384 pt.
 - **The search window** (`OverlayController`) stays open until closed (Esc, ⌥Space) — opening a result no longer
   hides it; when another app comes forward it drops from floating to a normal window, and floats again when it takes
   the keyboard. It belongs to the desktop it was opened on (`.moveToActiveSpace`): ⌥Space or the menu brings it to

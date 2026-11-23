@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "renamemany", "renamedmany", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "renamemany", "renamedmany", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "peek", "peekgone", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -252,6 +252,7 @@ check(g["grid"] is True and len(g["results"]) >= 3, f"the grid shows the images 
 check(len(g["sections"]) == 1 and g["sections"][0]["title"] == "", f"the grid is one plain grid, no Top Hit or kind sections (got {g['sections']})")
 check(g["grid_columns"] >= 2, f"several thumbnails to a row (got {g['grid_columns']})")
 check(steps["multi"]["grid"] is False, "back to the list")
+check(steps["peek"].get("peek", "") != "" and steps["peekgone"].get("peek") == "", f"a picture shows larger beside its tile, and goes (got {steps['peek'].get('peek')!r})")
 gb = steps["gridbig"]
 check(gb["tile_size"] == 220 and gb["grid_columns"] < g["grid_columns"], f"bigger thumbnails, fewer to a row ({g['grid_columns']} → {gb['grid_columns']})")
 check(steps["columns"]["kind_width"] == 180, f"a column keeps the width it was given (got {steps['columns']['kind_width']})")

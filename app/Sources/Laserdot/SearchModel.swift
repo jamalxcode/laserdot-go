@@ -317,6 +317,8 @@ final class SearchModel: ObservableObject {
     @Published var timeline: [MonthCount] = []
     /// How many results each smart list and pinned search has now (by query).
     @Published var smartCounts: [String: UInt64] = [:]
+    /// The picture shown larger beside its tile in the grid (pointer resting on it).
+    @Published var peekPath: String?
     /// The choice the keyboard is on (Tab into the choices; nil: the field).
     @Published var choiceFocus: Int?
     /// → into folders: each step's query before and after, for ←.
