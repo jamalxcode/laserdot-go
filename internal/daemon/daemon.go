@@ -508,6 +508,8 @@ func (s *Server) handle(req *ipc.Request) ipc.Response {
 		return ok(query.Completions(req.Query, req.Cursor, query.LangFromCode(req.Lang)))
 	case ipc.OpRefine:
 		return result(s.ld.Refinements(req.Query))
+	case ipc.OpTimeline:
+		return result(s.ld.Timeline(req.Query))
 	case ipc.OpMoreLike:
 		return result(s.ld.MoreLike(req.Path))
 	case ipc.OpTouched:

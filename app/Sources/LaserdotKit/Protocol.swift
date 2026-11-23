@@ -52,6 +52,8 @@ public enum DaemonRequest: Encodable, Sendable {
     case completions(query: String, cursor: Int, lang: String)
     /// What a search's results have to choose from (resolutions, sound, type…).
     case refine(query: String)
+    /// A search's results counted by month (the timeline strip).
+    case timeline(query: String)
     /// A query for files like the one at `path` (More Like This).
     case moreLike(path: String)
     /// The app changed files in this folder: list it again now.
@@ -124,6 +126,7 @@ public enum DaemonRequest: Encodable, Sendable {
         case .sectionAt: return "section_at"
         case .completions: return "completions"
         case .refine: return "refine"
+        case .timeline: return "timeline"
         case .moreLike: return "more_like"
         case .touched: return "touched"
         case .filters: return "filters"
@@ -161,7 +164,7 @@ public enum DaemonRequest: Encodable, Sendable {
             try c.encode(request, forKey: .request)
         case let .setContentSettings(settings):
             try c.encode(settings, forKey: .settings)
-        case let .coach(query), let .refine(query):
+        case let .coach(query), let .refine(query), let .timeline(query):
             try c.encode(query, forKey: .query)
         case let .hint(query, cursor, lang), let .completions(query, cursor, lang):
             try c.encode(query, forKey: .query)

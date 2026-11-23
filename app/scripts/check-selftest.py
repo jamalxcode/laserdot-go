@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -156,6 +156,16 @@ check(steps["toolskey"].get("tools_open") is True, "⌘T opens the More panel of
 check(steps["toolsclosed"].get("tools_open") is False, "and it closes again")
 check(report.get("news_dot") is True and report.get("news_dot_gone") is True,
       f"after an update the menu-bar icon carries a dot, gone once read (got {report.get('news_dot')}, {report.get('news_dot_gone')})")
+tl, tc = steps["timeline"], steps["timelinechosen"]
+check(tl.get("timeline_shown") is True and tl.get("timeline_months", 0) >= 6, f"the timeline strip shows the sunsets' months (got {tl.get('timeline_months')})")
+check("modified:2024-03" in tc["query"] and 0 < len(tc["results"]) < len(tl["results"]), f"a click on March narrows to it (got {tc['query']!r}, {len(tc['results'])} of {len(tl['results'])})")
+ck, cp = steps["choicekeys"], steps["choicepicked"]
+check(ck.get("choice_focus", -1) == 1, f"Tab goes into the choices and → moves (focus {ck.get('choice_focus')})")
+check(cp["query"].strip() != "sunset" and cp.get("choice_focus") == -1, f"Return picks the focused choice (got {cp['query']!r})")
+fi = steps["folderin"]
+check(fi["query"].startswith("in:") and "Gallery" in fi["query"], f"→ on a folder goes into it (got {fi['query']!r})")
+check(steps["home"].get("smart_counts", 0) >= 4, f"the empty box counts its smart lists (got {steps['home'].get('smart_counts')})")
+check(report.get("folder_back") == "Gallery", f"← comes back out (got {report.get('folder_back')!r})")
 po = steps["pillsonly"]
 check(po.get("refine_row") is True and po.get("visible_hint", "") == "",
       f"only pills in the box: the choices show and no hint repeats them (row {po.get('refine_row')}, hint {po.get('visible_hint')!r})")

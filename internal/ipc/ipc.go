@@ -77,6 +77,9 @@ const (
 	// OpRefine: the attributes a search's results have to choose from
 	// (resolutions, sound, shape, camera, type…), with counts (Query).
 	OpRefine = "refine"
+	// OpTimeline: a search's results counted by month (Query), for the
+	// timeline strip.
+	OpTimeline = "timeline"
 	// OpMoreLike: a query for files like the one at Path (same type,
 	// similar size, near date), for the search field.
 	OpMoreLike = "more_like"

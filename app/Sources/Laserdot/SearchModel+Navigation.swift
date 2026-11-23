@@ -193,3 +193,98 @@ extension SearchModel {
         NSPasteboard.general.setString(h.path, forType: .string)
     }
 }
+
+// MARK: → into folders, ← back; the choices by keyboard
+
+extension SearchModel {
+    /// → while in the results: on a folder, search inside it (in the grid:
+    /// the next tile); with the choices focused, the next choice. False: the
+    /// field moves its caret as usual.
+    func arrowRight() -> Bool {
+        if choiceFocus != nil {
+            moveChoice(1)
+            return true
+        }
+        guard browsing, !showActions, !isCommandMode, !results.isEmpty else { return false }
+        if gridView {
+            selection = min(results.count - 1, selection + 1)
+            anchor = selection
+            return true
+        }
+        guard let h = selected, h.isDir else { return false }
+        let before = query
+        let after = FolderNav.entering(h.path, from: query)
+        folderTrail.append((before, after))
+        query = after
+        selection = 0
+        browsing = true // still in the results: → again goes deeper, ← back
+        return true
+    }
+
+    /// ← while in the results: back out of the folder → went into (in the
+    /// grid: the previous tile); with the choices focused, the previous one.
+    func arrowLeft() -> Bool {
+        if choiceFocus != nil {
+            moveChoice(-1)
+            return true
+        }
+        guard !showActions, !isCommandMode else { return false }
+        if browsing, gridView, !results.isEmpty {
+            selection = max(0, selection - 1)
+            anchor = selection
+            return true
+        }
+        // Back out while in the results, or with nothing typed (only pills).
+        guard browsing || fieldText.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        guard let last = folderTrail.last, last.after == query else {
+            folderTrail.removeAll() // the search changed since: nothing to go back to
+            return false
+        }
+        folderTrail.removeLast()
+        query = last.before
+        selection = 0
+        browsing = true
+        return true
+    }
+
+    var flatChoices: [(group: RefineGroup, option: RefineOption)] { ChoiceNav.flat(visibleRefinements) }
+
+    /// Tab with nothing to complete: into the choices.
+    func focusChoices() {
+        guard showsRefinements, !flatChoices.isEmpty else { return }
+        choiceFocus = 0
+    }
+
+    func moveChoice(_ delta: Int) {
+        let n = flatChoices.count
+        guard n > 0, let f = choiceFocus else { choiceFocus = nil; return }
+        choiceFocus = (min(f, n - 1) + delta + n) % n
+    }
+
+    /// Tab or ↑↓ with the choices focused: the next or previous group.
+    func moveChoiceGroup(_ delta: Int) {
+        guard let f = choiceFocus else { return }
+        choiceFocus = ChoiceNav.groupStart(visibleRefinements, from: f, delta: delta)
+    }
+
+    /// Return on a focused choice: choose it (it becomes a pill).
+    func chooseFocusedChoice() {
+        let all = flatChoices
+        guard let f = choiceFocus, all.indices.contains(f) else { choiceFocus = nil; return }
+        choiceFocus = nil
+        applyRefinement(all[f].option, in: all[f].group)
+    }
+}
+
+// MARK: the timeline strip
+
+extension SearchModel {
+    /// The strip shows when the results span more than one month.
+    var showsTimeline: Bool { timeline.count > 1 && !isHome && !isCommandMode && timeline.contains { $0.count > 0 } }
+
+    /// A click (one month) or a drag (a span) on the strip: the results from
+    /// then, in place of any date filter.
+    func chooseMonths(from a: String, to b: String) {
+        query = TimelineLogic.applying(TimelineLogic.token(from: a, to: b), to: query)
+    }
+}

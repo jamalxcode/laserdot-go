@@ -198,3 +198,37 @@ final class PathTextTests: XCTestCase {
         XCTAssertEqual(all.hidden, 0)
     }
 }
+
+final class NavigationTests: XCTestCase {
+    /// → into a folder keeps the pills, replaces a folder pill, drops the words.
+    func testEnteringAFolderMakesItAPill() {
+        XCTAssertEqual(FolderNav.entering("/Users/j/Trips", from: "kind:image beach"), "kind:image in:\"/Users/j/Trips\" ")
+        XCTAssertEqual(FolderNav.entering("/Users/j/Trips/2023", from: "in:\"/Users/j/Trips\" "), "in:\"/Users/j/Trips/2023\" ")
+    }
+
+    /// Tab and ↑↓ go from group to group; the choices read in order.
+    func testChoicesInOrderAndGroupStarts() {
+        func o(_ t: String) -> RefineOption { RefineOption(token: t, label: t, key: nil, count: 1) }
+        let groups = [RefineGroup(id: "folder", options: [o("a"), o("b")]), RefineGroup(id: "kind", options: [o("k")]),
+                      RefineGroup(id: "size", options: [o("s1"), o("s2")])]
+        XCTAssertEqual(ChoiceNav.flat(groups).map(\.option.token), ["a", "b", "k", "s1", "s2"])
+        XCTAssertEqual(ChoiceNav.groupStart(groups, from: 1, delta: 1), 2)
+        XCTAssertEqual(ChoiceNav.groupStart(groups, from: 2, delta: 1), 3)
+        XCTAssertEqual(ChoiceNav.groupStart(groups, from: 4, delta: 1), 3, "stays on the last group")
+        XCTAssertEqual(ChoiceNav.groupStart(groups, from: 3, delta: -1), 2)
+    }
+}
+
+final class TimelineTests: XCTestCase {
+    /// Empty months between the first and the last are filled in; a click
+    /// is one month, a drag a span; it replaces a date filter.
+    func testMonthsAndTokens() {
+        let m = TimelineLogic.months([MonthCount(month: "2023-11", count: 2), MonthCount(month: "2024-02", count: 5)])
+        XCTAssertEqual(m.map(\.month), ["2023-11", "2023-12", "2024-01", "2024-02"])
+        XCTAssertEqual(m.map(\.count), [2, 0, 0, 5])
+        XCTAssertEqual(TimelineLogic.token(from: "2024-05", to: "2024-03"), "modified:2024-03..2024-05")
+        XCTAssertEqual(TimelineLogic.token(from: "2024-03", to: "2024-03"), "modified:2024-03")
+        XCTAssertEqual(TimelineLogic.applying("modified:2024-03", to: "since:7d trip"), "modified:2024-03 trip")
+        XCTAssertEqual(TimelineLogic.applying("modified:2024-03", to: "kind:image "), "modified:2024-03 kind:image ")
+    }
+}

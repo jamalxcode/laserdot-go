@@ -312,6 +312,15 @@ final class SearchModel: ObservableObject {
     var undoStep: UndoStep? { undoStack.last }
     @Published var undoBannerVisible = false
     /// Words from inside the selected document (content matches).
+    /// The results by month, for the timeline strip (every month from the
+    /// first to the last, empty ones included).
+    @Published var timeline: [MonthCount] = []
+    /// How many results each smart list and pinned search has now (by query).
+    @Published var smartCounts: [String: UInt64] = [:]
+    /// The choice the keyboard is on (Tab into the choices; nil: the field).
+    @Published var choiceFocus: Int?
+    /// → into folders: each step's query before and after, for ←.
+    var folderTrail: [(before: String, after: String)] = []
     /// The More button's panel of tools is open (⌘T).
     @Published var showTools = false
     @Published var snippet: String?
@@ -421,6 +430,7 @@ final class SearchModel: ObservableObject {
     }
 
     func queryChanged() {
+        choiceFocus = nil // typing (or a choice taken) leaves the choices
         if historyIndex >= 0 && (historyIndex >= history.count || history[historyIndex] != query) {
             historyIndex = -1
         }
@@ -507,9 +517,11 @@ final class SearchModel: ObservableObject {
         guideQueue.async { [weak self] in
             guard let self, gen == self.currentGeneration() else { return }
             let groups = engine.refinements(query: q)
+            let months = TimelineLogic.months(engine.timeline(query: q))
             DispatchQueue.main.async {
                 guard gen == self.generation else { return }
                 self.refinements = groups
+                self.timeline = months
             }
         }
     }

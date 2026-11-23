@@ -32,6 +32,10 @@ struct SearchField: NSViewRepresentable {
     var onCopy: () -> Bool = { false }
     /// Delete in an empty field: remove the last pill; true if one was.
     var onDeleteEmpty: () -> Bool = { false }
+    /// → and ← when Laserdot uses them (into a folder, out again, through the
+    /// choices); false: the caret moves.
+    var onRight: () -> Bool = { false }
+    var onLeft: () -> Bool = { false }
 
     func makeNSView(context: Context) -> NSTextField {
         let f = NSTextField(string: text)
@@ -192,7 +196,10 @@ struct SearchField: NSViewRepresentable {
             case #selector(NSResponder.moveUpAndModifySelection(_:)): parent.onExtend(-1)
             case #selector(NSResponder.moveDownAndModifySelection(_:)): parent.onExtend(1)
             case #selector(NSResponder.moveRight(_:)):
-                guard let f = control as? NSTextField, acceptInline(f) else { return false }
+                if let f = control as? NSTextField, acceptInline(f) { return true }
+                return parent.onRight()
+            case #selector(NSResponder.moveLeft(_:)):
+                return parent.onLeft()
             case #selector(NSResponder.moveToEndOfDocument(_:)): parent.onJump(1)
             case #selector(NSResponder.moveToBeginningOfDocument(_:)): parent.onJump(-1)
             case #selector(NSResponder.insertTab(_:)):

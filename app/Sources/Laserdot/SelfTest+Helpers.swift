@@ -148,6 +148,10 @@ extension SelfTestRunner {
         r["bar_buttons"] = model.barButtons.map(\.id)
         r["bar_tools"] = model.barTools.map(\.id)
         r["tools_open"] = model.showTools
+        r["timeline_months"] = model.timeline.count
+        r["timeline_shown"] = model.showsTimeline
+        r["choice_focus"] = model.choiceFocus ?? -1
+        r["smart_counts"] = model.smartCounts.count
         r["stays_open_on_open"] = model.onOpened == nil
         r["sort_key"] = model.sort.rawValue
         r["more_page"] = SearchModel.morePage

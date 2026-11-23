@@ -19,17 +19,25 @@ extension SearchView {
                 text: $model.fieldText,
                 placeholder: L("search.placeholder"),
                 focusToken: model.focusRequest,
-                onMove: { d in model.showCheatSheet ? model.moveCheat(d) : model.move(d) },
+                onMove: { d in
+                    if model.showCheatSheet { model.moveCheat(d) } else if model.choiceFocus != nil { model.moveChoiceGroup(d) } else { model.move(d) }
+                },
                 onExtend: { d in model.extend(d) },
                 onSpace: { model.spaceKey() },
-                onTab: { model.showCheatSheet ? model.nextCheatSection() : model.acceptCompletion() },
-                onSubmit: { model.showCheatSheet ? model.insertSelectedCheat() : model.submit() },
-                onEscape: { model.escape(close: close) },
+                onTab: {
+                    if model.showCheatSheet { model.nextCheatSection() } else if model.choiceFocus != nil { model.moveChoiceGroup(1) } else { model.acceptCompletion() }
+                },
+                onSubmit: {
+                    if model.showCheatSheet { model.insertSelectedCheat() } else if model.choiceFocus != nil { model.chooseFocusedChoice() } else { model.submit() }
+                },
+                onEscape: { if model.choiceFocus != nil { model.choiceFocus = nil } else { model.escape(close: close) } },
                 inlineSuffix: model.inlineSuffix,
                 selectAllToken: model.selectAllRequest,
                 onJump: { d in model.jumpSection(d) },
                 onCopy: { model.copyFiles() },
-                onDeleteEmpty: { model.removeLastPill() }
+                onDeleteEmpty: { model.removeLastPill() },
+                onRight: { model.arrowRight() },
+                onLeft: { model.arrowLeft() }
             )
             .frame(height: 30)
             // Reset: the words, the pills, the place and the order, at once.
@@ -230,7 +238,8 @@ extension SearchView {
     @ViewBuilder var chips: some View {
         let completions = model.completionChips
         let pins = model.isHome ? model.pinned : []
-        if !completions.isEmpty || !pins.isEmpty {
+        let smart = model.isHome ? SmartList.builtIn.filter { (model.smartCounts[$0.query] ?? 0) > 0 } : []
+        if !completions.isEmpty || !pins.isEmpty || !smart.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
                     // ⌥1–⌥9 press a chip without the mouse (shown in its tooltip).
@@ -241,12 +250,37 @@ extension SearchView {
                                 .modifier(ChipKey(index: i))
                         }
                     } else {
-                        Image(systemName: "pin").foregroundStyle(.secondary).accessibilityHidden(true)
+                        // Smart lists: ready-made searches with live counts,
+                        // then the pinned searches (your own), counted too.
+                        if !smart.isEmpty {
+                            Image(systemName: "sparkles").foregroundStyle(.secondary).accessibilityHidden(true)
+                            ForEach(smart, id: \.id) { s in
+                                Button {
+                                    model.query = s.query + " "
+                                } label: {
+                                    Text(L("smart." + s.id) + " ") + Text(Self.count(model.smartCounts[s.query] ?? 0)).foregroundColor(.secondary)
+                                }
+                                .help(s.query)
+                                .accessibilityIdentifier("smart-" + s.id)
+                            }
+                        }
+                        if !pins.isEmpty {
+                            Image(systemName: "pin").foregroundStyle(.secondary).accessibilityHidden(true)
+                                .padding(.leading, smart.isEmpty ? 0 : 8)
+                        }
                         ForEach(Array(pins.enumerated()), id: \.element) { i, q in
-                            Button(q) { model.query = q }
-                                .help(Self.chipKey(i).trimmingCharacters(in: .whitespaces))
-                                .modifier(ChipKey(index: i))
-                                .contextMenu { Button(String(format: L("pin.unpin"), q)) { model.togglePin(q) } }
+                            Button {
+                                model.query = q
+                            } label: {
+                                if let n = model.smartCounts[q] {
+                                    Text(q + " ") + Text(Self.count(n)).foregroundColor(.secondary)
+                                } else {
+                                    Text(q)
+                                }
+                            }
+                            .help(Self.chipKey(i).trimmingCharacters(in: .whitespaces))
+                            .modifier(ChipKey(index: i))
+                            .contextMenu { Button(String(format: L("pin.unpin"), q)) { model.togglePin(q) } }
                         }
                     }
                 }
@@ -330,7 +364,9 @@ extension SearchView {
     /// row holds open choices only). Click: search only this; the "−" shown
     /// on hover (or ⌥-click, or right-click ▸ Leave Out): leave it out.
     func refineChip(_ o: RefineOption, in g: RefineGroup) -> some View {
-        ChoiceChip(
+        let all = model.flatChoices
+        let focused = model.choiceFocus.map { all.indices.contains($0) && all[$0].option.token == o.token && all[$0].group.id == g.id } ?? false
+        return ChoiceChip(
             label: Self.refineLabel(o),
             count: Self.count(o.count),
             enabled: o.count > 0,
@@ -338,7 +374,8 @@ extension SearchView {
             help: String(format: L("refine.choose.help"), Self.refineLabel(o)),
             leaveOutHelp: String(format: L("refine.leaveOut.help"), Self.refineLabel(o)),
             onChoose: { refineClick(o, in: g) },
-            onLeaveOut: { model.excludeRefinement(o) }
+            onLeaveOut: { model.excludeRefinement(o) },
+            focused: focused
         )
         .contextMenu {
             Button(L("refine.leaveOut")) { model.excludeRefinement(o) }
@@ -435,6 +472,8 @@ struct ChoiceChip: View {
     let leaveOutHelp: String
     let onChoose: () -> Void
     let onLeaveOut: () -> Void
+    /// The keyboard is on it (Tab into the choices).
+    var focused = false
     @State private var hovering = false
 
     var body: some View {
@@ -458,5 +497,6 @@ struct ChoiceChip: View {
             }
         }
         .onHover { hovering = $0 }
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.accentColor, lineWidth: focused ? 2 : 0).padding(-2))
     }
 }

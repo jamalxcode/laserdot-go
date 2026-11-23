@@ -122,6 +122,29 @@ final class SelfTestRunner {
                  until: { $0.allChoices && !$0.refinements.isEmpty }, wait: 0.5),
             Step(name: "gallerycalm", typed: "sunset", after: { model.allChoices = false },
                  until: { !$0.allChoices }, wait: 0.3),
+            // The timeline strip: the sunsets span 2024's months; a click on
+            // March narrows to it.
+            Step(name: "timeline", typed: "sunset", until: { $0.showsTimeline }, wait: 0.5),
+            Step(name: "timelinechosen", typed: "sunset", after: { model.chooseMonths(from: "2024-03", to: "2024-03") },
+                 until: { $0.query.contains("modified:2024-03") && !$0.results.isEmpty }, wait: 0.5),
+            // Tab with nothing to complete goes into the choices; → moves;
+            // Return picks (it becomes a pill).
+            Step(name: "choicekeys", typed: "sunset ", after: { model.focusChoices(); model.moveChoice(1) },
+                 until: { $0.choiceFocus != nil }, wait: 0.3),
+            Step(name: "choicepicked", typed: "sunset ", before: { model.focusChoices() }, after: { model.chooseFocusedChoice() },
+                 until: { $0.query != "sunset " && $0.choiceFocus == nil }, wait: 0.5),
+            // → on a folder goes into it (a pill), ← comes back out.
+            Step(name: "folderin", typed: "Gallery", after: {
+                if let i = model.results.firstIndex(where: { $0.isDir && $0.name == "Gallery" }) {
+                    model.selection = i
+                    model.browsing = true
+                    _ = model.arrowRight()
+                    self.extra["folder_in"] = model.query
+                    _ = model.arrowLeft() // and back out
+                    self.extra["folder_back"] = model.query
+                    _ = model.arrowRight() // in again, for the screenshot
+                }
+            }, until: { $0.query.hasPrefix("in:") }, wait: 0.5),
             // ⌘T opens the More panel of tools from the keyboard (the owner:
             // "make it consistent"); Esc closes it.
             Step(name: "toolskey", typed: "proj", after: {
@@ -362,7 +385,7 @@ final class SelfTestRunner {
                 engine.recordOpen(path: folder + "/beach.jpg")
                 model.loadHome()
                 model.showHomeList = true // ↓ or Recently Opened
-            }),
+            }, until: { $0.smartCounts.count >= SmartList.builtIn.count }, wait: 0.3),
             // Limited to a place where nothing matches: Search Everywhere.
             Step(name: "noneplace", typed: "quokka", before: {
                 UserDefaults.standard.set(folder + "/Trips/2023", forKey: SearchPlace.key)

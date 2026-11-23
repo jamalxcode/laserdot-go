@@ -31,7 +31,9 @@ extension SearchModel {
         guideQueue.async { [weak self] in
             let c = engine.completions(query: q, cursor: caret, lang: appLang).first
             DispatchQueue.main.async {
-                guard let self, let c, self.query == q else { return }
+                guard let self, self.query == q else { return }
+                // Nothing to complete: Tab goes into the choices.
+                guard let c else { return self.focusChoices() }
                 self.replace(Int(c.replaceStart), Int(c.replaceEnd), with: c.insert)
             }
         }

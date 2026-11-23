@@ -157,6 +157,7 @@ struct SearchView: View {
                 hintLine
                 chips
                 refinementChips
+                if model.showsTimeline { TimelineStrip(model: model) }
                 Divider()
                 Group {
                     if model.showCheatSheet {

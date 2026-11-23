@@ -21,6 +21,7 @@ extension SearchModel {
         let engine = self.engine
         let gen = generation
         let lastTip = tip?.id ?? UserDefaults.standard.string(forKey: "laserdot.lastTip")
+        let pins = pinned
         queue.async { [weak self] in
             // A tip from this Mac's own files, a different one each time.
             let tip = Tips.pick(counts: (try? engine.valueCounts()) ?? [], after: lastTip)
@@ -28,6 +29,13 @@ extension SearchModel {
                 self?.tip = tip
                 if let id = tip?.id { UserDefaults.standard.set(id, forKey: "laserdot.lastTip") }
             }
+            // The smart lists' and pins' counts, live (a list with nothing in
+            // it is not shown).
+            var counts: [String: UInt64] = [:]
+            for q in SmartList.builtIn.map(\.query) + pins {
+                counts[q] = (try? engine.search(query: q, limit: 1).total) ?? 0
+            }
+            DispatchQueue.main.async { self?.smartCounts = counts }
             let recent = engine.recentOpens(limit: 6)
             let downloads = (try? engine.search(query: "in:~/Downloads since:30d -kind:folder", limit: 6).hits) ?? []
             DispatchQueue.main.async {

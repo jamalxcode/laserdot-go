@@ -536,3 +536,9 @@
 "storage.trash.text" = "This frees about %@. Nothing is deleted: you can put it back from the Trash, or with Undo (⌥⌘Z).";
 "storage.trash.confirm" = "Move to Trash";
 "storage.trash.hint" = "Right-click an item to show it in Finder or move it to the Trash.";
+
+"smart.screenshots" = "Screenshots this week";
+"smart.photos" = "Photos this month";
+"smart.bigvideos" = "Big videos";
+"smart.tidy" = "Downloads to tidy";
+"timeline.hint" = "Click a month, or drag across several";
