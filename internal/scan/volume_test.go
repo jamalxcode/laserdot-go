@@ -35,7 +35,7 @@ func TestEstimateCountsFilesFoldersBytes(t *testing.T) {
 	dir := t.TempDir()
 	write(t, filepath.Join(dir, "a/one.txt"), "hello")
 	write(t, filepath.Join(dir, "two.txt"), "abc")
-	files, dirs, bytes, err := Estimate(dir, DefaultOptions())
+	files, dirs, bytes, _, err := EstimateWithin(dir, DefaultOptions(), 0)
 	if err != nil || files != 2 || dirs != 2 || bytes != 8 {
 		t.Errorf("files %d dirs %d bytes %d err %v", files, dirs, bytes, err)
 	}

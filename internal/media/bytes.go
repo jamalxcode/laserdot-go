@@ -62,17 +62,6 @@ func u64Or(b []byte, i int, d uint64) uint64 {
 	return d
 }
 
-// sub is b[i:j] clamped to b (empty when out of range).
-func sub(b []byte, i, j int) []byte {
-	if i < 0 || i > len(b) {
-		return nil
-	}
-	if j > len(b) || j < i {
-		j = len(b)
-	}
-	return b[i:j]
-}
-
 // from is b[i:] (empty when out of range).
 func from(b []byte, i int) []byte {
 	if i < 0 || i > len(b) {

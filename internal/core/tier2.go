@@ -31,15 +31,14 @@ type DeepStats struct {
 }
 
 type deepJob struct {
-	id     uint32
-	dbID   int64
-	path   string
-	size   uint64
-	mtime  int64
-	full   bool // no Tier 1 record: a full probe
-	hdr    bool // HDR10 video: look for HDR10+
-	vfr    bool // container where Tier 1 can't tell VFR
-	codecs string
+	id    uint32
+	dbID  int64
+	path  string
+	size  uint64
+	mtime int64
+	full  bool // no Tier 1 record: a full probe
+	hdr   bool // HDR10 video: look for HDR10+
+	vfr   bool // container where Tier 1 can't tell VFR
 }
 
 var vfrContainers = map[string]bool{"mkv": true, "webm": true, "avi": true, "ts": true, "m2ts": true, "mts": true, "mpg": true, "mpeg": true, "flv": true}

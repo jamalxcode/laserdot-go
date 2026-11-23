@@ -2,8 +2,6 @@
 // (§8.8), the parser, and compilation to regexes and filters.
 package query
 
-import "strings"
-
 // Scope is the track a filter applies to (spec §2.7 "Track scope").
 type Scope int
 
@@ -191,12 +189,4 @@ func EditDistance(a, b string) int {
 		prev, cur = cur, prev
 	}
 	return prev[len(br)]
-}
-
-// scopedKey writes the key the way the example does (s.lang:).
-func (f *FilterDef) scopedKey() string {
-	if p, _, ok := strings.Cut(f.Example, "."); ok && len(p) == 1 {
-		return p + "." + f.Key
-	}
-	return f.Key
 }

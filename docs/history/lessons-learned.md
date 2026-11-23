@@ -163,4 +163,8 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
      expect without reshuffling results by seconds; the match itself still decides first.
 20o. **A SwiftUI shape takes all the height it is offered.** A band's stripe as a Capsule in an HStack made
      Storage's band fill the window; draw it as a background of the content instead, so it is as tall as the content.
+20p. **Sweep for dead code with tools, not memory.** `deadcode` and `staticcheck -checks U1000` (run for darwin too,
+     so build-tagged code counts) found Go functions nothing called; Swift has no such tool on Linux, so a script
+     counts each declared name's uses, and another lists interface strings no code asks for (0.9.47 removed the
+     app's old sandbox helper, an uncalled launch prompt and 22 unused strings).
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

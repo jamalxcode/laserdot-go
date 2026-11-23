@@ -29,12 +29,4 @@ public enum DiskAccess {
         }
         return true
     }
-
-    /// Paths macOS protects without Full Disk Access.
-    public static func isProtected(_ path: String) -> Bool {
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let guarded = ["Documents", "Desktop", "Downloads", "Pictures", "Movies", "Music", "Library"]
-        return guarded.contains { path == home + "/" + $0 || path.hasPrefix(home + "/" + $0 + "/") }
-            || path.hasPrefix("/Volumes/")
-    }
 }

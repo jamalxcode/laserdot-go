@@ -5,7 +5,6 @@
 "results.count" = "%lld نتيجة · %.1f مللي ثانية";
 "results.searching" = "جارٍ البحث…";
 "results.none" = "لا توجد نتائج";
-"results.examples" = "جرّب:";
 "network.blocked" = "محرك البحث: الشبكة محظورة بواسطة macOS";
 "network.open" = "محرك البحث: الشبكة غير محظورة";
 "daemon.starting" = "جارٍ تشغيل الفهرس…";
@@ -61,11 +60,8 @@
 "dupes.moveTo" = "النقل إلى";
 "dupes.trash" = "سلة المهملات";
 "dupes.folder" = "مجلد…";
-"dupes.review" = "مراجعة %lld ملف (%@)…";
 "dupes.recommended" = "احتفظ";
 "dupes.markRemove" = "انقل هذه النسخة";
-"dupes.confirm.title" = "نقل هذه الملفات؟";
-"dupes.confirm.text" = "سيُنقل %lld ملف (%@) إلى %@. لن يُحذف أي شيء.";
 "dupes.confirm.move" = "نقل";
 "dupes.moved" = "نُقل %lld ملف (%@).";
 "results.inside" = "فيه %@";
@@ -75,15 +71,11 @@
 "content.add" = "إضافة مجلد…";
 "content.remove" = "إيقاف فهرسة المحتوى";
 "content.refresh" = "تحديث";
-"menu.hotkey" = "اختصار التشغيل: %@";
 "hotkey.taken.title" = "الاختصار %@ يستخدمه تطبيق آخر";
 "hotkey.taken.text" = "يستخدم تطبيق آخر (Spotlight أو Raycast أو Alfred…) هذا الاختصار. اختر اختصارًا آخر لـ Laserdot:";
-"pin.help" = "تثبيت هذا الاستعلام (⌘D)";
 "pin.add" = "تثبيت الاستعلام";
 "pin.remove" = "إلغاء تثبيت الاستعلام";
 "pin.unpin" = "إلغاء تثبيت «%@»";
-"results.pinned" = "المثبّتة:";
-"results.historyHint" = "↑ يستعيد عمليات البحث الأخيرة";
 "coach.title" = "جرّب:";
 "coach.index" = "فهرسة المجلد «%@»";
 "coach.fix" = "استخدم «%@» بدلًا من «%@» (%lld نتيجة)";
@@ -101,10 +93,6 @@
 "index.running" = "جارٍ فهرسة %@…";
 "index.failed" = "تعذّرت فهرسة «%@»";
 "index.failedHelp" = "إذا كان المجلد داخل المستندات أو سطح المكتب أو التنزيلات، فاسمح لـ Laserdot في إعدادات النظام ← الخصوصية والأمن ← الوصول الكامل إلى القرص، ثم حاول مجددًا.";
-"firstrun.title" = "لم تتم فهرسة أي شيء بعد";
-"firstrun.body" = "يبحث Laserdot في المجلدات التي تفهرسها فقط. فهرس مجلد المنزل الآن (يستغرق دقيقة أو دقيقتين)، أو اختر مجلدًا.";
-"firstrun.home" = "فهرسة مجلد المنزل";
-"firstrun.choose" = "اختيار مجلد…";
 "menu.checkUpdates" = "التحقق من التحديثات…";
 "menu.library" = "المكتبة";
 "update.checking" = "جارٍ التحقق من التحديثات…";
@@ -121,14 +109,10 @@
 "move.text" = "يعمل Laserdot من صورة قرص أو من مجلد التنزيلات. في مجلد التطبيقات يمكنه تحديث نفسه.";
 "move.move" = "النقل إلى التطبيقات";
 "menu.showWindow" = "إظهار نافذة Laserdot";
-"menu.fullDiskAccess" = "الوصول الكامل إلى القرص…";
 "fda.title" = "اسمح لـ Laserdot برؤية كل ملفاتك";
 "fda.launch" = "يحتاج Laserdot إلى «الوصول الكامل إلى القرص» للبحث في الملفات وفتحها في المستندات وسطح المكتب والتنزيلات والصور وعلى الأقراص. يطلب macOS منك تفعيله بنفسك.";
-"fda.open" = "منع macOS برنامج Laserdot من فتح «%@» لأنه لا يملك «الوصول الكامل إلى القرص» بعد.";
 "fda.steps" = "في إعدادات النظام ← الخصوصية والأمن ← الوصول الكامل إلى القرص، فعّل Laserdot (استخدم + لإضافته إن لم يظهر). سيعرض Laserdot إعادة التشغيل عندما يرى التغيير.";
 "fda.openSettings" = "فتح إعدادات النظام";
-"fda.tryAnyway" = "المحاولة على أي حال";
-"fda.dontAsk" = "لا تسألني مجددًا";
 "fda.already" = "يملك Laserdot «الوصول الكامل إلى القرص» بالفعل.";
 "fda.grantedTitle" = "تم تفعيل الوصول الكامل إلى القرص";
 "fda.grantedText" = "أعد تشغيل Laserdot ليطبّق macOS التغيير.";
@@ -170,7 +154,6 @@
 "preview.modified" = "آخر تعديل";
 "preview.media" = "التفاصيل";
 "preview.drive" = "القرص";
-"search.clear" = "مسح";
 "home.recent" = "فُتحت مؤخرًا";
 "home.downloads" = "تنزيلات حديثة";
 "home.empty" = "اكتب للبحث في جهازك";
@@ -444,8 +427,6 @@
 "refine.group.folder" = "المجلد";
 "refine.drive.local" = "هذا الماك";
 "place.searchingIn" = "البحث في %@";
-"place.everywhere" = "ابحث في كل مكان";
-"place.everywhere.help" = "ابحث في كل مكان هذه المرة (الإعدادات ▸ عام ▸ البحث في تحدد أين يبحث)";
 "settings.searchIn" = "البحث في";
 "settings.searchIn.everywhere" = "كل مكان";
 "settings.searchIn.folder" = "مجلد…";
@@ -468,9 +449,6 @@
 "place.choose" = "اختر مجلدًا…";
 "place.help.everywhere" = "البحث في كل مكان — انقر لاختيار مكان البحث";
 "start.downloads" = "التنزيلات الأخيرة";
-"start.photos" = "صور هذا الشهر";
-"start.videos" = "الفيديو";
-"start.documents" = "مستندات هذا الأسبوع";
 "start.big" = "الملفات الكبيرة";
 "refine.leaveOut.help" = "استبعد %@ من النتائج";
 "path.home" = "الرئيسية";
@@ -484,8 +462,6 @@
 "quality.high" = "جودة عالية";
 "quality.good" = "جودة جيدة";
 "quality.low" = "جودة منخفضة";
-"start.recent" = "المفتوحة مؤخرًا";
-"search.placeholderStart" = "ابحث في الملفات والوسائط والأقراص — ↓ للملفات الأخيرة";
 "place.nothingThere" = "لا شيء في %@ — ابحث في كل مكان";
 "search.reset" = "إعادة تعيين البحث (الكلمات والاختيارات والمكان والترتيب)";
 "refine.leaveOut" = "استبعد";

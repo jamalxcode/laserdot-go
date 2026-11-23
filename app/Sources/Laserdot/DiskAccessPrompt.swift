@@ -7,21 +7,14 @@ import LaserdotKit
 /// the switch and offers to restart Laserdot, which macOS requires.
 final class DiskAccessPrompt {
     static let shared = DiskAccessPrompt()
-    private static let quietKey = "laserdot.fullDiskAccess.dontAsk"
     private var watching = false
-
-    /// Launch: ask once, unless granted or the user said not to ask.
-    func checkAtLaunch() {
-        guard !DiskAccess.granted, !UserDefaults.standard.bool(forKey: Self.quietKey) else { return }
-        ask(reason: L("fda.launch"), allowDontAsk: true)
-    }
 
     /// From the menu: always ask (or say it is already on).
     func askFromMenu() {
         if DiskAccess.granted {
             info(L("fda.already"))
         } else {
-            ask(reason: L("fda.launch"), allowDontAsk: false)
+            ask(reason: L("fda.launch"))
         }
     }
 
@@ -32,28 +25,16 @@ final class DiskAccessPrompt {
         NSWorkspace.shared.open(url)
     }
 
-    private func ask(reason: String, allowDontAsk: Bool, tryAnyway: URL? = nil) {
+    private func ask(reason: String) {
         NSApp.activate(ignoringOtherApps: true)
         let a = NSAlert()
         a.messageText = L("fda.title")
         a.informativeText = reason + "\n\n" + L("fda.steps")
         a.addButton(withTitle: L("fda.openSettings"))
         a.addButton(withTitle: L("drive.notNow"))
-        if tryAnyway != nil { a.addButton(withTitle: L("fda.tryAnyway")) }
-        if allowDontAsk {
-            a.showsSuppressionButton = true
-            a.suppressionButton?.title = L("fda.dontAsk")
-        }
-        let r = a.runFront()
-        if a.suppressionButton?.state == .on { UserDefaults.standard.set(true, forKey: Self.quietKey) }
-        switch r {
-        case .alertFirstButtonReturn:
+        if a.runFront() == .alertFirstButtonReturn {
             NSWorkspace.shared.open(DiskAccess.settingsURL)
             watchForGrant()
-        case .alertThirdButtonReturn:
-            if let u = tryAnyway { NSWorkspace.shared.open(u) }
-        default:
-            break
         }
     }
 

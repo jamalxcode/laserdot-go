@@ -107,10 +107,6 @@ public struct UpdateCandidate {
 }
 
 public final class Updater {
-    /// Where releases are published; opened in the user's browser (the app
-    /// itself never connects anywhere).
-    public static let releasesPage = URL(string: "https://github.com/jamalxcode/laserdot-go/releases/latest")!
-
     /// The running app's bundle.
     public let current: URL
     public let bundleID: String

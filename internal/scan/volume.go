@@ -100,14 +100,8 @@ func ListVolumes(dir string, mountsOnly bool) []Volume {
 	return out
 }
 
-// Estimate counts what indexing mount would cover — files, folders and
-// bytes — without writing anything (the first-mount prompt, spec §9.3).
-func Estimate(mount string, opts Options) (files, dirs, bytes uint64, err error) {
-	files, dirs, bytes, _, err = EstimateWithin(mount, opts, 0)
-	return files, dirs, bytes, err
-}
-
-// EstimateWithin is Estimate with a time budget (0: none): a big, slow drive
+// EstimateWithin counts what indexing mount would cover — files, folders and bytes — without writing
+// anything (the first-mount prompt, spec §9.3), with a time budget (0: none): a big, slow drive
 // is counted for that long only. partial: the counts are a lower bound; bytes
 // is then the space used on the volume (asked of the file system, instantly).
 func EstimateWithin(mount string, opts Options, budget time.Duration) (files, dirs, bytes uint64, partial bool, err error) {

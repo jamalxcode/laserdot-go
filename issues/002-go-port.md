@@ -137,6 +137,11 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Dead code removed (0.9.47):** Go — `core.SearchStore`, `media.sub`, `FilterDef.scopedKey`, the unused
+  `codecs` field of Tier 2 jobs, `scan.Estimate` (tests use `EstimateWithin`); Swift — `LaserdotKit/Sandbox.swift`
+  (the app is not sandboxed, spec §7.1), `DiskAccessPrompt.checkAtLaunch` and its "don't ask" option,
+  `Updater.releasesPage`, `DiskAccess.isProtected`, 22 unused strings in both languages. Test-only seams stay
+  (`pendingCount`, `SlowFoldersForTests`, `FromFFprobe`, `HasHDR10Plus`).
 - **Navigation and fun (0.9.47):** `core.Timeline` + `ipc.OpTimeline` (`TestTimelineCountsResultsByMonth`); Swift
   `FolderNav`, `ChoiceNav`, `SmartList`, `TimelineLogic`/`MonthCount`/`Engine.timeline`, `BatchRename`
   (+ `NavigationTests`, `TimelineTests`, `BatchRenameTests`); `SearchModel.arrowRight/arrowLeft/focusChoices/

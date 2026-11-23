@@ -179,12 +179,6 @@ func (ld *Laserdot) search(q string, opts SearchOptions) (*SearchResults, error)
 	return out, nil
 }
 
-// SearchStore runs a query against any store (also used by benchmarks).
-func SearchStore(s *index.Store, q string, opts SearchOptions) (*SearchResults, error) {
-	r, _, err := searchStoreKeyed(s, nil, nil, q, opts)
-	return r, err
-}
-
 // contentClass orders content matches: documents, then other files, then
 // code, then anything hidden.
 func contentClass(s *index.Store, id uint32) int {
