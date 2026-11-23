@@ -131,7 +131,7 @@ final class SelfTestRunner {
             // Return picks (it becomes a pill).
             Step(name: "choicekeys", typed: "sunset ", after: { model.focusChoices(); model.moveChoice(1) },
                  until: { $0.choiceFocus != nil }, wait: 0.3),
-            Step(name: "choicepicked", typed: "sunset ", before: { model.focusChoices() }, after: { model.chooseFocusedChoice() },
+            Step(name: "choicepicked", typed: "sunset ", after: { model.focusChoices(); model.chooseFocusedChoice() },
                  until: { $0.query != "sunset " && $0.choiceFocus == nil }, wait: 0.5),
             // Rename several files at once from a pattern (one undo step).
             Step(name: "renamemany", typed: "batchfile", after: {
@@ -144,6 +144,7 @@ final class SelfTestRunner {
                 if let i = model.results.firstIndex(where: { $0.isDir && $0.name == "Gallery" }) {
                     model.selection = i
                     model.browsing = true
+                    self.extra["folder_before"] = model.query
                     _ = model.arrowRight()
                     self.extra["folder_in"] = model.query
                     _ = model.arrowLeft() // and back out
@@ -151,6 +152,7 @@ final class SelfTestRunner {
                     _ = model.arrowRight() // in again, for the screenshot
                 }
             }, until: { $0.query.hasPrefix("in:") }, wait: 0.5),
+            // (the typing finishes before the step starts: "Gallery" whole)
             // ⌘T opens the More panel of tools from the keyboard (the owner:
             // "make it consistent"); Esc closes it.
             Step(name: "toolskey", typed: "proj", after: {

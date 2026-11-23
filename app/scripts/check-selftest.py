@@ -168,7 +168,8 @@ check(report.get("rename_many_error") == "" and {"Batch 01.txt", "Batch 02.txt"}
 fi = steps["folderin"]
 check(fi["query"].startswith("in:") and "Gallery" in fi["query"], f"→ on a folder goes into it (got {fi['query']!r})")
 check(steps["home"].get("smart_counts", 0) >= 4, f"the empty box counts its smart lists (got {steps['home'].get('smart_counts')})")
-check(report.get("folder_back") == "Gallery", f"← comes back out (got {report.get('folder_back')!r})")
+check(report.get("folder_back") and report.get("folder_back") == report.get("folder_before"),
+      f"← comes back out to the search before (got {report.get('folder_back')!r}, was {report.get('folder_before')!r})")
 po = steps["pillsonly"]
 check(po.get("refine_row") is True and po.get("visible_hint", "") == "",
       f"only pills in the box: the choices show and no hint repeats them (row {po.get('refine_row')}, hint {po.get('visible_hint')!r})")
