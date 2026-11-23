@@ -34,7 +34,7 @@ import (
 // write to the database clears that token. Any change to the layout below
 // must bump snapshotVersion.
 
-const snapshotVersion = 1
+const snapshotVersion = 2 // 2 (0.9.48): rebuilt once so files of newly recognised video formats get the video kind
 
 var snapMagic = []byte("LDSNAP\x00\x00")
 

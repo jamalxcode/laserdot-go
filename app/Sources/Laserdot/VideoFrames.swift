@@ -20,8 +20,16 @@ enum VideoFrames {
     private static let ffmpegSlots = DispatchSemaphore(value: 2)
 
     /// Extensions of videos (by name, so formats macOS has no type for count too).
-    static let videoExtensions: Set<String> = ["mp4", "m4v", "mov", "mkv", "webm", "avi", "flv", "wmv", "ts", "m2ts",
-                                               "mts", "mpg", "mpeg", "ogv", "3gp", "3g2", "vob", "divx", "f4v", "asf"]
+    /// The same list as the engine's video kind (internal/media/kind.go).
+    static let videoExtensions: Set<String> = [
+        "mp4", "m4v", "mov", "qt", "mkv", "webm", "avi", "wmv", "flv", "f4v", "swf", "mpg", "mpeg", "mpe",
+        "m1v", "m2v", "mp2v", "mpv", "m2p", "m2ts", "mts", "ts", "trp", "3gp", "3g2", "ogv", "ogm", "vob", "evo",
+        "divx", "xvid", "rm", "rmvb", "asf", "mxf", "dv", "mjpeg", "mjpg", "nut", "y4m", "wtv", "dvr-ms", "tod",
+        "amv", "h264", "h265", "hevc", "264", "265", "insv", "lrv", "braw", "r3d",
+    ]
+
+    /// What macOS's own player plays; the rest open in their app.
+    static let playable: Set<String> = ["mp4", "m4v", "mov", "qt", "3gp", "3g2"]
 
     static func isVideo(_ path: String) -> Bool {
         let ext = (path as NSString).pathExtension.lowercased()

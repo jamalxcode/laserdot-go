@@ -86,7 +86,7 @@ struct PreviewPane: View {
     }
 
     @ViewBuilder private var visual: some View {
-        if hit.volume == nil && (hit.kind == "video" || hit.kind == "audio") {
+        if (hit.volume == nil || hit.kind == "video") && (hit.kind == "video" || hit.kind == "audio") {
             MediaPreview(path: hit.path, video: hit.kind == "video")
                 .clipShape(RoundedRectangle(cornerRadius: 6))
         } else if hit.volume == nil && ext == "pdf" {
@@ -133,9 +133,21 @@ struct MediaPreview: View {
                 PlayerView(player: player)
             } else {
                 ZStack {
-                    FileIcon(path: path, size: video ? 170 : 64, thumbnail: true, large: true)
-                        .frame(maxWidth: .infinity)
+                    if video {
+                        // Its picture, every format; move the pointer across to scrub.
+                        ScrubThumb(path: path, size: 170)
+                            .frame(maxWidth: .infinity)
+                    } else {
+                        FileIcon(path: path, size: 64, thumbnail: true, large: true)
+                            .frame(maxWidth: .infinity)
+                    }
                     Button {
+                        // A format macOS's player cannot play (MKV, AVI, WMV…)
+                        // opens in its own app instead.
+                        if video, !VideoFrames.playable.contains((path as NSString).pathExtension.lowercased()) {
+                            NSWorkspace.shared.open(URL(fileURLWithPath: path))
+                            return
+                        }
                         let p = AVPlayer(url: URL(fileURLWithPath: path))
                         player = p
                         playerFor = path

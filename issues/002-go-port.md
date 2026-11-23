@@ -139,7 +139,7 @@ Binding unless revisited deliberately; each is also in the spec.
   Trash with the usual confirmation and Undo.
 - **Video frames (0.9.48):** `VideoFrames` (AVAssetImageGenerator, else bundled `ffmpeg -ss … -frames:v 1 -f
   image2pipe`, `ffprobe` duration; NSCache; 2 concurrent; 20 s); `ThumbnailCache` falls back to it for videos with no
-  Quick Look thumbnail; `ScrubThumb` poster via `.task`, prefetch of ten frames on first hover. Self-test
+  Quick Look thumbnail; `ScrubThumb` poster via `.task`, prefetch of ten frames on first hover. `media.video` and `VideoFrames.videoExtensions` list every common container (same list); `snapshotVersion` 2 rebuilds the snapshot once so existing entries get the new kind; the preview pane uses `ScrubThumb` and opens non-`playable` formats in their app. Self-test
   `videoframes` (reel.mkv, reel.webm: poster and a middle frame).
 - **Dead code removed (0.9.47):** Go — `core.SearchStore`, `media.sub`, `FilterDef.scopedKey`, the unused
   `codecs` field of Tier 2 jobs, `scan.Estimate` (tests use `EstimateWithin`); Swift — `LaserdotKit/Sandbox.swift`

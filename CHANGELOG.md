@@ -7,6 +7,9 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
 - Every video shows its own picture again (0.9.47 showed a plain video icon in the thumbnail grid), MKV, WebM, AVI
   and other formats macOS can't preview included: the ffmpeg bundled with Laserdot reads them.
+- More video formats count as videos — QT, M2V, MXF, DV, OGM, EVO, XviD, MJPEG, H.264/H.265 streams, 360° and RED/
+  Blackmagic camera files among them — with pictures and scrubbing for all of them; the preview pane's picture
+  scrubs too, and Play opens a format macOS can't play in its own app.
 - Scrubbing works for those formats too, and on slower drives: all ten frames start loading as soon as the pointer
   is on a video, and the last frame stays while the next one loads.
 

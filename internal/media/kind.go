@@ -35,8 +35,11 @@ func set(exts ...string) map[string]bool {
 }
 
 var (
-	video = set("mp4", "m4v", "mov", "mkv", "webm", "avi", "wmv", "flv", "mpg", "mpeg", "m2ts", "mts", "ts",
-		"3gp", "ogv", "vob", "divx", "rm", "rmvb", "asf", "f4v")
+	// video: every common container (0.9.48, the owner: "add avi mpg mp4 mkv 3gp and all formats").
+	video = set("mp4", "m4v", "mov", "qt", "mkv", "webm", "avi", "wmv", "flv", "f4v", "swf", "mpg", "mpeg", "mpe",
+		"m1v", "m2v", "mp2v", "mpv", "m2p", "m2ts", "mts", "ts", "trp", "3gp", "3g2", "ogv", "ogm", "vob", "evo",
+		"divx", "xvid", "rm", "rmvb", "asf", "mxf", "dv", "mjpeg", "mjpg", "nut", "y4m", "wtv", "dvr-ms", "tod",
+		"amv", "h264", "h265", "hevc", "264", "265", "insv", "lrv", "braw", "r3d")
 	audio = set("mp3", "m4a", "aac", "flac", "wav", "aiff", "aif", "alac", "ogg", "oga", "opus", "wma", "ac3",
 		"eac3", "dts", "mka", "ape", "wv", "caf", "mid", "midi", "thd")
 	image = set("jpg", "jpeg", "png", "gif", "heic", "heif", "avif", "webp", "tif", "tiff", "bmp", "ico",
