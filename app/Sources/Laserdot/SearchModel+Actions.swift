@@ -115,6 +115,10 @@ extension SearchModel {
         ]
         if !many {
             list.append(ActionItem(id: "rename", title: L("action.rename"), symbol: "pencil") { [weak self] in self?.rename(first) })
+        } else {
+            list.append(ActionItem(id: "renameMany", title: String(format: L("action.renameMany"), hits.count), symbol: "pencil.line") { [weak self] in
+                self?.renameMany(hits)
+            })
         }
         list.append(ActionItem(id: "trash", title: L("action.trash"), symbol: "trash") { [weak self] in self?.trash(hits) })
         return list
@@ -131,6 +135,60 @@ extension SearchModel {
         a.window.initialFirstResponder = field
         guard a.runFront() == .alertFirstButtonReturn else { return }
         if let error = renameFile(h, to: field.stringValue) { NSAlert(error: error).runFront() }
+    }
+
+    /// Rename several files from a pattern, with a preview; one undo step.
+    func renameMany(_ hits: [Hit]) {
+        let a = NSAlert()
+        a.messageText = String(format: L("renameMany.title"), hits.count)
+        a.informativeText = L("renameMany.help")
+        let preview = RenamePreview(files: hits.map(\.name))
+        a.accessoryView = preview.view
+        a.addButton(withTitle: L("action.rename"))
+        a.addButton(withTitle: L("action.cancel"))
+        a.window.initialFirstResponder = preview.pattern
+        guard a.runFront() == .alertFirstButtonReturn else { return }
+        if let error = renameFiles(hits, pattern: preview.pattern.stringValue, start: preview.startNumber) {
+            NSAlert(error: error).runFront()
+        }
+    }
+
+    /// Renames several files without asking (the self-test uses it): all or
+    /// nothing — a name in use or a bad pattern renames none.
+    @discardableResult
+    func renameFiles(_ hits: [Hit], pattern: String, start: Int = 1) -> Error? {
+        let names = BatchRename.names(for: hits.map(\.name), pattern: pattern, start: start)
+        if let p = BatchRename.problem(names) {
+            return NSError(domain: "Laserdot", code: 1, userInfo: [NSLocalizedDescriptionKey: L("renameMany.problem." + p)])
+        }
+        let plan = zip(hits, names).map { h, n -> (URL, URL) in
+            let from = URL(fileURLWithPath: h.path)
+            return (from, from.deletingLastPathComponent().appendingPathComponent(n))
+        }.filter { $0.0 != $0.1 }
+        let sources = Set(plan.map(\.0.path))
+        if let taken = plan.first(where: { FileManager.default.fileExists(atPath: $0.1.path) && !sources.contains($0.1.path) }) {
+            return NSError(domain: "Laserdot", code: 2,
+                           userInfo: [NSLocalizedDescriptionKey: String(format: L("renameMany.taken"), taken.1.lastPathComponent)])
+        }
+        // Through temporary names first, so "a→b, b→a" swaps work.
+        var done: [(URL, URL)] = []
+        do {
+            var temps: [(URL, URL, URL)] = []
+            for (from, to) in plan {
+                let tmp = from.deletingLastPathComponent().appendingPathComponent(".laserdot-rename-\(UUID().uuidString)")
+                try FileManager.default.moveItem(at: from, to: tmp)
+                temps.append((from, tmp, to))
+            }
+            for (from, tmp, to) in temps {
+                try FileManager.default.moveItem(at: tmp, to: to)
+                done.append((from, to))
+            }
+        } catch {
+            return error
+        }
+        offerUndo(UndoStep(title: String(format: L("undo.renamedMany"), done.count), moves: done))
+        refreshSoon(touching: done.map(\.0.path))
+        return nil
     }
 
     /// Renames without asking (the ⌘K action and the self-test use it).

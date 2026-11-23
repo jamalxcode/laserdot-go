@@ -92,6 +92,9 @@ for `>` commands, after a trailing space, or while moving through the results.
 6. Common searches are one click on the empty box (Recent Downloads, Photos This Month, Videos…), and a scope can
    be picked rather than typed (Duplicates' Look at and folder pickers; the query is under Advanced).
 
+7b. **Every level stays searchable** (0.9.47): → into a folder, ← back; choices by keyboard (Tab, arrows, Return);
+    the timeline turns dates into a click or a drag; renaming many files shows the new names first.
+
 ## 6. Words
 
 1. Plain language. Say what happens and what to do, not internal terms. The query language never has to be read:

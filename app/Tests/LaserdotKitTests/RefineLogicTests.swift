@@ -232,3 +232,16 @@ final class TimelineTests: XCTestCase {
         XCTAssertEqual(TimelineLogic.applying("modified:2024-03", to: "kind:image "), "modified:2024-03 kind:image ")
     }
 }
+
+final class BatchRenameTests: XCTestCase {
+    /// #s become the number (padded), each file keeps its extension; with
+    /// no #, the number goes at the end.
+    func testPatternNames() {
+        let files = ["IMG_1.jpg", "IMG_2.heic", "notes"]
+        XCTAssertEqual(BatchRename.names(for: files, pattern: "Trip – ##"), ["Trip – 01.jpg", "Trip – 02.heic", "Trip – 03"])
+        XCTAssertEqual(BatchRename.names(for: files, pattern: "Trip", start: 9), ["Trip 09.jpg", "Trip 10.heic", "Trip 11"])
+        XCTAssertNil(BatchRename.problem(["a.jpg", "b.jpg"]))
+        XCTAssertEqual(BatchRename.problem(["a.jpg", "A.jpg"]), "twice")
+        XCTAssertEqual(BatchRename.problem(["a/b.jpg"]), "slash")
+    }
+}

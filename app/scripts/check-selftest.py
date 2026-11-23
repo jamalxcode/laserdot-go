@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "renamemany", "renamedmany", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -162,6 +162,9 @@ check("modified:2024-03" in tc["query"] and 0 < len(tc["results"]) < len(tl["res
 ck, cp = steps["choicekeys"], steps["choicepicked"]
 check(ck.get("choice_focus", -1) == 1, f"Tab goes into the choices and → moves (focus {ck.get('choice_focus')})")
 check(cp["query"].strip() != "sunset" and cp.get("choice_focus") == -1, f"Return picks the focused choice (got {cp['query']!r})")
+rm2 = steps["renamedmany"]["results"]
+check(report.get("rename_many_error") == "" and {"Batch 01.txt", "Batch 02.txt"} <= set(rm2),
+      f"several files renamed from one pattern (got {rm2}, error {report.get('rename_many_error')!r})")
 fi = steps["folderin"]
 check(fi["query"].startswith("in:") and "Gallery" in fi["query"], f"→ on a folder goes into it (got {fi['query']!r})")
 check(steps["home"].get("smart_counts", 0) >= 4, f"the empty box counts its smart lists (got {steps['home'].get('smart_counts')})")

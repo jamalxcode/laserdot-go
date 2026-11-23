@@ -289,7 +289,7 @@ final class SearchModel: ObservableObject {
         }
     }
     /// Thumbnail size in the grid (points), remembered.
-    static let tileSizes: ClosedRange<CGFloat> = 64...256
+    static let tileSizes: ClosedRange<CGFloat> = 64...384 // bigger previews (0.9.47)
     @Published var tileSize: CGFloat = {
         let v = UserDefaults.standard.double(forKey: "laserdot.tileSize")
         return v >= 64 ? CGFloat(min(v, 256)) : 104

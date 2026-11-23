@@ -857,6 +857,16 @@ again. Also keep the window open until I close it, even when I open one of the l
 and comes over only when called (⌥Space or the menu bar); it is never hidden by opening a result or using another app
 — it steps back behind that app (normal level) and floats again when clicked or called; Esc or ⌥Space closes it.
 
+## 69. More useful and more fun to navigate (0.9.47)
+
+"How can we make Laserdot more useful and functional and fun to navigate?" Ten ideas were offered; the owner chose
+"do 1 2 4 3 6 8": → into folders and ← back; the choices by keyboard; smart lists with live counts on the empty box;
+a timeline strip of months to click or drag; renaming several files at once from a pattern with a preview; video
+thumbnails that scrub under the pointer (and bigger thumbnails). Decided: all keyboard moves stay inside the search
+field's own keys (→/← only act when browsing results, in the grid, or with the choices focused, so the caret still
+moves while typing); the timeline is a new daemon op so it counts every result, not just the loaded page; batch
+rename is all or nothing, with one undo step.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

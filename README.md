@@ -16,7 +16,9 @@ file search should be, and a robot that types into it on every change to prove i
 - 🟣 **Looks like Spotlight, shows everything.** One screen in every window: a rounded bar, round buttons for
   Videos, Images, Music, Documents, Apps, Downloads and Big Files, then Duplicates, Storage, Drives and Settings
   (which fold under **More** while you search, ⌘T). A document package — a Ulysses sheet, an Xcode project — is not
-  a result, nor anything inside it; apps are one result each. Recently changed files come first among equal matches.
+  a result, nor anything inside it; apps are one result each. Recently changed files come first among equal matches. The empty box offers smart lists with live counts (Screenshots this
+  week, Big videos…); a timeline of months under the choices turns dates into a click or a drag; several files can be
+  renamed at once from a pattern; videos scrub under the pointer in the grid.
 - 🔎 **Finds things the way you say them.** `jpg`, `photos last week`, `big videos`, `pdf yesterday`,
   `invoice march`, `4k hdr` — and Arabic: `صور الاسبوع الماضي`, `فاتورة ٢٠٢٤`. A hint under the box shows how it read
   you (*“last week means since:7d”*), so you pick up the precise language for free.
@@ -119,6 +121,8 @@ downloads.
 | Return / ⌘1–⌘9 | open the selected / the numbered result |
 | Space (after ↑↓ or a click), or Space twice | Quick Look: pictures large, videos and songs playing |
 | ⌘T | the More panel of tools while searching (↑↓, Return, Esc) |
+| → / ← | on a folder: search inside it / back out (in the grid: the next / previous tile) |
+| Tab | with nothing to complete: into the choices (← → move, Tab or ↑↓ next group, Return picks, Esc back) |
 | ⌘K | actions: Open, Quick Look, Show in Finder, Copy Path, More Like This, Search in This Folder, Move to Trash — then **Open With…** and **More Actions…** (Copy file or link, Share, Tags…, Compress, Move to…, Open in Terminal, Rename) |
 | ⌥⌘Z | undo the last Move to Trash, Rename, Move to…, Compress or tag change (or click **Undo** on the bar); press again for the one before — Laserdot remembers 20 steps for a week, even after quitting |
 | ↑ in the empty box | your earlier searches |

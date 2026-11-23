@@ -542,3 +542,14 @@
 "smart.bigvideos" = "فيديوهات كبيرة";
 "smart.tidy" = "تنزيلات للترتيب";
 "timeline.hint" = "انقر شهراً أو اسحب عبر عدة أشهر";
+
+"action.renameMany" = "إعادة تسمية %d ملفات…";
+"renameMany.title" = "إعادة تسمية %d ملفات";
+"renameMany.help" = "اكتب الاسم الجديد؛ ## يصبح الرقم (01، 02…). يحتفظ كل ملف بامتداده. يمكنك التراجع.";
+"renameMany.placeholder" = "رحلة 2024 – ##";
+"renameMany.startAt" = "ابدأ من";
+"renameMany.problem.empty" = "سيكون أحد الأسماء فارغاً.";
+"renameMany.problem.slash" = "لا يمكن أن تحتوي الأسماء على / أو :.";
+"renameMany.problem.twice" = "سيحصل ملفان على الاسم نفسه.";
+"renameMany.taken" = "الاسم «%@» مستخدم؛ لم تتم إعادة تسمية أي ملف.";
+"undo.renamedMany" = "أعيدت تسمية %d ملفات";

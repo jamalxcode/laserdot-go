@@ -542,3 +542,14 @@
 "smart.bigvideos" = "Big videos";
 "smart.tidy" = "Downloads to tidy";
 "timeline.hint" = "Click a month, or drag across several";
+
+"action.renameMany" = "Rename %d Files…";
+"renameMany.title" = "Rename %d files";
+"renameMany.help" = "Type the new name; ## becomes the number (01, 02…). Each file keeps its extension. You can undo it.";
+"renameMany.placeholder" = "Trip 2024 – ##";
+"renameMany.startAt" = "Start at";
+"renameMany.problem.empty" = "A name would be empty.";
+"renameMany.problem.slash" = "Names cannot contain / or :.";
+"renameMany.problem.twice" = "Two files would get the same name.";
+"renameMany.taken" = "“%@” is already taken; nothing was renamed.";
+"undo.renamedMany" = "Renamed %d files";

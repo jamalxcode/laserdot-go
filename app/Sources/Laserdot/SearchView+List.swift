@@ -172,9 +172,16 @@ extension SearchView {
     func tile(_ i: Int, _ hit: Hit) -> some View {
         let selected = model.isSelected(i)
         return VStack(spacing: 4) {
-            FileIcon(path: hit.path, size: model.tileSize, thumbnail: true)
-                .frame(width: model.tileSize + 8, height: model.tileSize * 0.92)
-                .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
+            Group {
+                if hit.kind == "video" {
+                    // Move the pointer across it to flip through the video.
+                    ScrubThumb(path: hit.path, size: model.tileSize)
+                } else {
+                    FileIcon(path: hit.path, size: model.tileSize, thumbnail: true)
+                        .frame(width: model.tileSize + 8, height: model.tileSize * 0.92)
+                }
+            }
+            .shadow(color: .black.opacity(0.12), radius: 2, y: 1)
             Text(highlighted(hit.name, model.highlightWords))
                 .font(.caption)
                 .lineLimit(2)

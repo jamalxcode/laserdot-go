@@ -3,6 +3,21 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.47
+
+- **→ on a folder goes into it**: the results narrow to that folder (it becomes a pill) and you can keep going
+  deeper; **←** comes back out. In the thumbnail grid ← and → move between tiles.
+- **The choices by keyboard**: Tab (with nothing to complete) jumps into the choices, ← → move, Tab or ↑↓ go to the
+  next group, Return picks, Esc goes back to typing.
+- **Smart lists** on the empty search box, with live counts: Screenshots this week, Photos this month, Big videos,
+  Downloads to tidy — and your pinned searches show their counts too.
+- **A timeline** under the choices: a bar for each month, taller where you have more files. Click a month, or drag
+  across several, to see the files from then.
+- **Rename several files at once**: select them, ⌘K ▸ Rename Files…, type a name with ## for the number, and see the
+  new names before anything changes. One undo puts them all back.
+- **Videos you can scrub**: in the thumbnail grid, move the pointer across a video to flip through it. Thumbnails can
+  be bigger too.
+
 ## 0.9.46
 
 - The search window stays open until you close it (Esc, or ⌥Space again), even after you open one of the files in

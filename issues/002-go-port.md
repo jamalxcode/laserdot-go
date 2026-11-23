@@ -137,6 +137,13 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Navigation and fun (0.9.47):** `core.Timeline` + `ipc.OpTimeline` (`TestTimelineCountsResultsByMonth`); Swift
+  `FolderNav`, `ChoiceNav`, `SmartList`, `TimelineLogic`/`MonthCount`/`Engine.timeline`, `BatchRename`
+  (+ `NavigationTests`, `TimelineTests`, `BatchRenameTests`); `SearchModel.arrowRight/arrowLeft/focusChoices/
+  moveChoice/moveChoiceGroup/chooseFocusedChoice/chooseMonths/renameFiles`, `choiceFocus`, `folderTrail`,
+  `smartCounts`, `timeline`; `SearchField.onRight/onLeft`; `TimelineStrip`, `RenamePreview`, `ScrubThumb`;
+  `tileSizes` 64…384. Self-test: `timeline`, `timelinechosen`, `choicekeys`, `choicepicked`, `folderin` (in and back
+  out), `renamemany`/`renamedmany`, home's smart counts; the Gallery fixture's dates spread over 2024.
 - **The window stays (0.9.46):** `OverlayController`: no `model.onOpened` hide; `collectionBehavior`
   `[.moveToActiveSpace, .fullScreenAuxiliary]` (was `.canJoinAllSpaces`); `toggle()` hides only when visible, on the
   active Space and key, else `show()` brings it over; `windowDidResignKey` sets `.normal` level instead of hiding,

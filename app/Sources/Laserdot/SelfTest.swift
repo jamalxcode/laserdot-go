@@ -133,6 +133,12 @@ final class SelfTestRunner {
                  until: { $0.choiceFocus != nil }, wait: 0.3),
             Step(name: "choicepicked", typed: "sunset ", before: { model.focusChoices() }, after: { model.chooseFocusedChoice() },
                  until: { $0.query != "sunset " && $0.choiceFocus == nil }, wait: 0.5),
+            // Rename several files at once from a pattern (one undo step).
+            Step(name: "renamemany", typed: "batchfile", after: {
+                let hits = model.results.filter { $0.name.hasPrefix("batchfile") }
+                self.extra["rename_many_error"] = model.renameFiles(hits, pattern: "Batch ##")?.localizedDescription ?? ""
+            }, until: { _ in true }, wait: 0.3),
+            Step(name: "renamedmany", typed: "Batch 0", until: { $0.results.count >= 2 }, wait: 0.5),
             // → on a folder goes into it (a pill), ← comes back out.
             Step(name: "folderin", typed: "Gallery", after: {
                 if let i = model.results.firstIndex(where: { $0.isDir && $0.name == "Gallery" }) {

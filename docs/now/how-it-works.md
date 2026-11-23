@@ -67,6 +67,16 @@ One page, kept current: what is true today. The history and the reasons are in
 - **While searching** the round buttons show the kinds of files and the tools fold into **More** (`barButtons`,
   `barTools`; ⌘T, ↑↓, Return, Esc); the hint hides when only pills are in the box and the choices show.
 - **Checks**: CI's app checks run on two Macs side by side (the English self-test; every other check), about 8 minutes.
+- **Moving around** (0.9.47): → on a folder result searches inside it (`FolderNav`, an `in:` pill; ← goes back,
+  `folderTrail`); in the grid ←/→ move tiles. Tab with nothing to complete focuses the choices (`choiceFocus`,
+  `ChoiceNav`): ←/→ move, Tab/↑↓ change group, Return picks, Esc returns to the field.
+- **Smart lists** (`SmartList.builtIn`): ready-made searches on the empty box with live counts (empty ones hidden);
+  pinned searches are counted too.
+- **Timeline strip**: the `timeline` op counts a search's results by month (`core.Timeline`); the app fills the gaps
+  (`TimelineLogic.months`, last 120) and a click or drag adds `modified:YYYY-MM[..YYYY-MM]`, replacing a date filter.
+- **Rename several files** (`BatchRename`, `renameFiles`): ## becomes the number, extensions kept, all or nothing
+  (through temporary names), one undo step.
+- **Grid**: videos scrub under the pointer (`ScrubThumb`, ten frames via AVAssetImageGenerator); tiles up to 384 pt.
 - **The search window** (`OverlayController`) stays open until closed (Esc, ⌥Space) — opening a result no longer
   hides it; when another app comes forward it drops from floating to a normal window, and floats again when it takes
   the keyboard. It belongs to the desktop it was opened on (`.moveToActiveSpace`): ⌥Space or the menu brings it to
