@@ -18,10 +18,13 @@ struct TimelineStrip: View {
                 HStack(alignment: .bottom, spacing: 0) {
                     ForEach(Array(months.enumerated()), id: \.element.month) { i, m in
                         let picked = inDrag(i)
-                        Rectangle()
+                        // A bar per month with a gap on each side, so months
+                        // read apart (the first screenshot ran them together).
+                        RoundedRectangle(cornerRadius: 1.5)
                             .fill(picked ? Color.accentColor : SearchView.bandColor("file").opacity(m.count == 0 ? 0.15 : 0.8))
-                            .frame(width: max(1, w - 1),
-                                   height: max(2, 22 * CGFloat(Double(m.count) / Double(top)).squareRoot()))
+                            .frame(width: max(1, w * 0.7),
+                                   height: max(2, 22 * CGFloat(Double(m.count) / Double(top))))
+                            .frame(width: w, alignment: .center)
                             .frame(maxHeight: .infinity, alignment: .bottom)
                             .help("\(Self.label(m.month)): \(SearchView.count(m.count))")
                     }
