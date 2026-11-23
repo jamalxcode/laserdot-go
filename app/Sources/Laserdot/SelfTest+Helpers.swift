@@ -148,7 +148,7 @@ extension SelfTestRunner {
         r["bar_buttons"] = model.barButtons.map(\.id)
         r["bar_tools"] = model.barTools.map(\.id)
         r["tools_open"] = model.showTools
-        r["dismiss_on_open"] = model.onOpened != nil
+        r["stays_open_on_open"] = model.onOpened == nil
         r["sort_key"] = model.sort.rawValue
         r["more_page"] = SearchModel.morePage
         r["pills"] = model.pills
@@ -173,6 +173,8 @@ extension SelfTestRunner {
         r["space_presses"] = model.spacePresses
         r["quicklook_shows"] = QuickLook.shared.shows
         r["key_window_is_overlay"] = NSApp.keyWindow === window
+        r["stays_on_its_desktop"] = window.collectionBehavior.contains(.moveToActiveSpace)
+            && !window.collectionBehavior.contains(.canJoinAllSpaces)
         let keyWindow: String = NSApp.keyWindow.map { String(describing: Swift.type(of: $0)) } ?? "none"
         r["key_window"] = keyWindow
         r["accessibility"] = labels

@@ -74,7 +74,8 @@ Downloads, Big Files** (each adds its filter to what you typed; click again to t
 Storage, Drives** (while a drive is connected), **Index a Folder** and **Settings** — while you search these wait
 under a round **More** button, so the screen stays calm; then the choices and results. Paths read as Finder shows
 them ("iCloud Drive › Ulysses"). If
-a search limited to one place finds nothing, **Search Everywhere** looks everywhere else. While Laserdot is busy
+a search limited to one place finds nothing, **Search Everywhere** looks everywhere else. The window stays open until you close it
+(Esc or ⌥Space), even when you open a file from it, and stays on the desktop where you opened it. While Laserdot is busy
 (indexing, reading photo and video details, a drive, duplicates), the dot in its menu-bar icon flashes red, white,
 blue and green.
 

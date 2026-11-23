@@ -22,16 +22,19 @@ final class OverlayController: NSObject, NSWindowDelegate {
             defer: false
         )
         super.init()
-        // Opening a result hides the window (it floats above other apps,
-        // so it would stay over the file just opened).
-        model.onOpened = { [weak self] in
-            guard !SelfTest.active else { return } // the robot keeps typing into it
-            self?.hide()
-        }
+        // The window stays open until it is closed (the owner, 0.9.46: "keep
+        // the window open until I close it, even when I open one of the
+        // listed files" — this replaces 0.9.33's hide-on-open): opening a
+        // result or switching to another app leaves it where it is, behind
+        // the app that came forward (see windowDidResignKey).
         panel.isFloatingPanel = true
         panel.level = .floating
         panel.hidesOnDeactivate = false
-        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        // It stays on the desktop (Space) it was opened on, and comes to the
+        // current one only when it is called again — ⌥Space or the menu bar
+        // (the owner: "don't let it follow when I move, unless I access the
+        // menu bar again"). It used to join every Space.
+        panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         panel.isOpaque = false
         panel.backgroundColor = .clear
         panel.hasShadow = true
@@ -99,8 +102,10 @@ final class OverlayController: NSObject, NSWindowDelegate {
         if !isCompact { UserDefaults.standard.set(Double(s.height), forKey: "laserdot.overlay.height") }
     }
 
+    /// ⌥Space or the menu: hide it when it is on this desktop; otherwise
+    /// bring it here (from another desktop, or hidden).
     func toggle() {
-        panel.isVisible ? hide() : show()
+        panel.isVisible && panel.isOnActiveSpace && panel.isKeyWindow ? hide() : show()
     }
 
     func show() {
@@ -142,10 +147,16 @@ final class OverlayController: NSObject, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
-        // Quick Look takes the keyboard while it shows a result: stay.
+        // Another app (or a file just opened) came forward: the window stays
+        // open, but no longer floats over it; it floats again when it takes
+        // the keyboard back (a click on it, ⌥Space, the menu).
         DispatchQueue.main.async { [weak self] in
             guard let self, !QuickLook.shared.isVisible, !self.panel.isKeyWindow else { return }
-            self.hide()
+            self.panel.level = .normal
         }
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        panel.level = .floating
     }
 }

@@ -849,6 +849,14 @@ shows a blue dot and What's New moves into its menu (a correction recorded here:
 window before either — the notes showed in the install question and as a button in the main window); and a health
 log records each launch's start-up time on the owner's Mac, kept for later, in Save Diagnostics.
 
+## 68. The search window stays put and stays open (0.9.46)
+
+"Keep the laserdot window at the same desktop screen, don't let it follow when I move, unless I access the menu bar
+again. Also keep the window open until I close it, even when I open one of the listed files." This reverses 0.9.33
+("when a file is selected laserdot needs to go away"). Decided: the window belongs to the desktop it was opened on
+and comes over only when called (⌥Space or the menu bar); it is never hidden by opening a result or using another app
+— it steps back behind that app (normal level) and floats again when clicked or called; Esc or ⌥Space closes it.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

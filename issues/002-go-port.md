@@ -137,6 +137,10 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **The window stays (0.9.46):** `OverlayController`: no `model.onOpened` hide; `collectionBehavior`
+  `[.moveToActiveSpace, .fullScreenAuxiliary]` (was `.canJoinAllSpaces`); `toggle()` hides only when visible, on the
+  active Space and key, else `show()` brings it over; `windowDidResignKey` sets `.normal` level instead of hiding,
+  `windowDidBecomeKey` `.floating`. Self-test: `stays_open_on_open`, `stays_on_its_desktop`.
 - **Choices budget, news dot, health log (0.9.45):** `core.RefineBudget` with `late()` in `add`/`facets` (chosen
   values always added); `TestChoicesStayWithinTheirBudget`, `BenchmarkRefinements1M` (`bigStore`). App:
   `menuBarIconWithNews`, `AppDelegate.restingIcon` (`whatsNewPending` didSet), "● What's New" in `StatusMenu`;

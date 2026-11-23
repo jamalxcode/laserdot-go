@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.46
+
+- The search window stays open until you close it (Esc, or ⌥Space again), even after you open one of the files in
+  it; it sits behind the file you opened and comes forward when you click it.
+- It stays on the desktop where you opened it: switching desktops no longer brings it along. Press ⌥Space or use
+  the menu bar to bring it to the desktop you're on.
+
 ## 0.9.45
 
 - Recent files come first: among names that match your words equally well, the one changed most recently is on top

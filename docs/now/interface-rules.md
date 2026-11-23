@@ -116,8 +116,11 @@ for `>` commands, after a trailing space, or while moving through the results.
 3. Results stop at *Show More*; nothing scrolls forever.
 4. The window remembers the user's choices: size, position, view, sort, tile size, where to search, Duplicates'
    scope and options.
-5b. **Opening a result closes the search window**, as Spotlight does; its right-click menu offers what Finder's
-    would (Rename, Move to Trash) besides Laserdot's own (More Like This).
+5b. **The search window stays open until it is closed** (0.9.46, the owner; it used to close on opening a result,
+    as Spotlight does): opening a file or using another app leaves it open behind that app, and it floats again
+    when clicked or called. **It stays on the desktop it was opened on**, and comes to the current desktop only
+    when called again (⌥Space or the menu bar). Its right-click menu offers what Finder's would (Rename, Move to
+    Trash) besides Laserdot's own (More Like This).
 5. Short lists first: ⌘K shows the common actions, with Open With… and More Actions… opening in place.
 6. No clutter: system files (`.DS_Store`, `._` copies, `Thumbs.db`…) are never results, and hidden app folders are
    never read for words.

@@ -162,7 +162,8 @@ check(po.get("refine_row") is True and po.get("visible_hint", "") == "",
 np_, npo = steps["noneplace"], steps["noneplaceoff"]
 check(np_["results"] == [] and np_.get("place_pill") is True, f"nothing in the place: an empty list with Search Everywhere (got {np_['results']}, {np_.get('place_pill')})")
 check("archive-2023.zip" in npo["results"] and npo.get("place_pill") is False, f"Search Everywhere finds it elsewhere (got {npo['results']})")
-check(steps["start"].get("dismiss_on_open") is True, "opening a result closes the search window (it is wired to)")
+check(steps["start"].get("stays_open_on_open") is True, "opening a result leaves the search window open (the owner, 0.9.46)")
+check(steps["start"].get("stays_on_its_desktop") is True, "the search window stays on its desktop and comes over only when called")
 check(steps["reopenfresh"]["results"] == [], f"reopening runs the search again: a deleted file is gone (got {steps['reopenfresh']['results']})")
 rs = steps["reset"]
 check(rs["query"] == "" and rs.get("place_pill") is False and rs.get("sort_key") == "relevance",
