@@ -42,7 +42,8 @@ final class ThumbnailCache {
             // from the bundled ffmpeg instead of the generic icon.
             if video, rep == nil || rep?.type == .icon {
                 Task {
-                    let img = await VideoFrames.poster(path, edge: size) ?? rep?.nsImage
+                    var img = await VideoFrames.poster(path, edge: size)
+                    if img == nil { img = rep?.nsImage }
                     if let img { cache.setObject(img, forKey: key) }
                     await MainActor.run { done(img) }
                 }

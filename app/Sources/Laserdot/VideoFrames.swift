@@ -41,7 +41,8 @@ enum VideoFrames {
     static func frame(_ path: String, at fraction: Double, edge: CGFloat) async -> NSImage? {
         let key = "\(path)|\(Int(fraction * 1000))|\(Int(edge))" as NSString
         if let img = cache.object(forKey: key) { return img }
-        let img = await avFrame(path, fraction, edge) ?? ffmpegFrame(path, fraction, edge)
+        var img = await avFrame(path, fraction, edge)
+        if img == nil { img = await ffmpegFrame(path, fraction, edge) }
         if let img { cache.setObject(img, forKey: key) }
         return img
     }
