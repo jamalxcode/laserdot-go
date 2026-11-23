@@ -1,4 +1,3 @@
-import AVFoundation
 import AppKit
 import SwiftUI
 
@@ -10,15 +9,19 @@ struct ScrubThumb: View {
     let path: String
     let size: CGFloat
     @State private var frame: NSImage?
+    /// The resting picture: a frame a tenth of the way in, for every format.
+    @State private var poster: NSImage?
     @State private var bucket = -1
     @State private var cache: [Int: NSImage] = [:]
-    @State private var duration: Double?
+    /// All ten frames, fetched one after another once the pointer comes in
+    /// (not for every tile on screen: only the one being looked at).
+    @State private var prefetch: Task<Void, Never>?
     private static let buckets = 10
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            if let frame {
-                Image(nsImage: frame)
+            if let shown = frame ?? poster {
+                Image(nsImage: shown)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size, height: size * 0.92)
@@ -41,6 +44,7 @@ struct ScrubThumb: View {
         .onContinuousHover(coordinateSpace: .local) { phase in
             switch phase {
             case let .active(p):
+                startPrefetch()
                 let b = max(0, min(Self.buckets - 1, Int(p.x / max(1, size + 8) * CGFloat(Self.buckets))))
                 guard b != bucket else { return }
                 bucket = b
@@ -50,35 +54,40 @@ struct ScrubThumb: View {
                 frame = nil
             }
         }
+        .onDisappear { prefetch?.cancel() }
         .accessibilityHidden(true)
+        .task(id: "\(path)|\(Int(size / 64))") {
+            poster = await VideoFrames.poster(path, edge: size)
+        }
     }
 
+    private func startPrefetch() {
+        guard prefetch == nil else { return }
+        let (p, edge) = (path, size)
+        prefetch = Task {
+            for b in 0..<Self.buckets {
+                if Task.isCancelled { return }
+                if cache[b] != nil { continue }
+                if let img = await VideoFrames.frame(p, at: (Double(b) + 0.5) / Double(Self.buckets), edge: edge) {
+                    cache[b] = img
+                    if bucket == b { frame = img }
+                }
+            }
+        }
+    }
+
+    /// The frame under the pointer; until it arrives the last one stays.
     private func show(_ b: Int) {
         if let img = cache[b] {
             frame = img
             return
         }
-        let url = URL(fileURLWithPath: path)
-        let known = duration
-        let edge = size * 2
-        Task.detached(priority: .userInitiated) {
-            let asset = AVURLAsset(url: url)
-            var seconds = known ?? 0
-            if seconds <= 0, let d = try? await asset.load(.duration) { seconds = d.seconds }
-            guard seconds.isFinite, seconds > 0 else { return }
-            let gen = AVAssetImageGenerator(asset: asset)
-            gen.appliesPreferredTrackTransform = true
-            gen.maximumSize = CGSize(width: edge, height: edge)
-            gen.requestedTimeToleranceBefore = .positiveInfinity
-            gen.requestedTimeToleranceAfter = .positiveInfinity
-            let t = CMTime(seconds: seconds * (Double(b) + 0.5) / Double(Self.buckets), preferredTimescale: 600)
-            guard let cg = try? await gen.image(at: t).image else { return }
-            let img = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
-            await MainActor.run {
-                duration = seconds
-                cache[b] = img
-                if bucket == b { frame = img }
-            }
+        let edge = size
+        Task {
+            let img = await VideoFrames.frame(path, at: (Double(b) + 0.5) / Double(Self.buckets), edge: edge)
+            guard let img else { return }
+            cache[b] = img
+            if bucket == b { frame = img }
         }
     }
 }

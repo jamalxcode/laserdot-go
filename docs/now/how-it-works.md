@@ -76,7 +76,10 @@ One page, kept current: what is true today. The history and the reasons are in
   (`TimelineLogic.months`, last 120) and a click or drag adds `modified:YYYY-MM[..YYYY-MM]`, replacing a date filter.
 - **Rename several files** (`BatchRename`, `renameFiles`): ## becomes the number, extensions kept, all or nothing
   (through temporary names), one undo step.
-- **Grid**: videos scrub under the pointer (`ScrubThumb`, ten frames via AVAssetImageGenerator); a picture the
+- **Video frames** (`VideoFrames`, 0.9.48): AVFoundation for what macOS reads, else the bundled ffmpeg (two at a time,
+  20 s each, ffprobe for the length); used for video thumbnails macOS has none for (MKV, WebM, AVI…) and for scrubbing.
+- **Grid**: videos scrub under the pointer (`ScrubThumb`, ten frames, all fetched once the pointer comes in, the last
+  shown until the next arrives; the resting picture is a frame a tenth in); a picture the
   pointer rests on (0.6 s) shows 420 pt wide in a popover beside its tile (`PhotoPeek`, `SearchModel.peekPath`);
   tiles up to 384 pt.
 - **The search window** (`OverlayController`) stays open until closed (Esc, ⌥Space) — opening a result no longer

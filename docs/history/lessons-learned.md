@@ -167,4 +167,7 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
      so build-tagged code counts) found Go functions nothing called; Swift has no such tool on Linux, so a script
      counts each declared name's uses, and another lists interface strings no code asks for (0.9.47 removed the
      app's old sandbox helper, an uncalled launch prompt and 22 unused strings).
+20q. **macOS previews only some videos.** Quick Look and AVFoundation read MP4/MOV but not MKV, WebM or AVI; the
+     ffmpeg already bundled for media details reads them all. And a feature tried on the internal disk can fail on
+     an external drive: give slow reads time, and fetch ahead.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

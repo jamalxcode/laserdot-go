@@ -302,6 +302,20 @@ final class SelfTestRunner {
             }),
             // Bigger thumbnails (the size slider, ⌘+): fewer to a row.
             Step(name: "gridbig", typed: "kind:image", before: { model.tileSize = 220 }),
+            // Every video gets a real picture and scrubs, MKV and WebM too
+            // (macOS reads neither; the bundled ffmpeg does).
+            Step(name: "videoframes", typed: "reel", before: {
+                for ext in ["mkv", "webm"] {
+                    let path = folder + "/reel." + ext
+                    Task {
+                        let poster = await VideoFrames.poster(path, edge: 128)
+                        let middle = await VideoFrames.frame(path, at: 0.55, edge: 128)
+                        await MainActor.run {
+                            self.extra["frames_" + ext] = (poster != nil ? "poster" : "none") + "," + (middle != nil ? "middle" : "none")
+                        }
+                    }
+                }
+            }, until: { _ in self.extra["frames_mkv"] != nil && self.extra["frames_webm"] != nil }, wait: 0.3),
             // Resting on a picture shows it larger beside its tile.
             Step(name: "peek", typed: "kind:image", after: {
                 model.peekPath = model.results.first { $0.kind == "image" }?.path

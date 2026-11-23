@@ -874,6 +874,14 @@ smart lists, date patterns in rename, a steadier self-test, VoiceOver for the ne
 pictures). The owner chose "do 8": resting the pointer on a picture in the grid shows it larger beside its tile,
 after a moment so passing over tiles shows nothing.
 
+## 71. Video pictures for every format (0.9.48)
+
+"The video scrubbing works, but I lost the actual video preview, it's now showing a generic video icon, fix it for
+all video formats", then "scrubbing on mkv not working" and "other formats too, not all the time is the scrubbing
+working, on a different volume it stopped working". Decided: one source of video frames for thumbnails and
+scrubbing — macOS's own reader first, the ffmpeg Laserdot already bundles for the rest — with a longer time limit
+for slow drives, and the ten frames fetched as soon as the pointer is on a video.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

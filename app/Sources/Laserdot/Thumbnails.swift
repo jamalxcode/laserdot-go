@@ -36,7 +36,18 @@ final class ThumbnailCache {
         let request = QLThumbnailGenerator.Request(
             fileAt: URL(fileURLWithPath: path), size: CGSize(width: size, height: size), scale: scale,
             representationTypes: iconFallback ? .all : .thumbnail)
+        let video = VideoFrames.isVideo(path)
         QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [cache] rep, _ in
+            // A video macOS has no thumbnail for (MKV, WebM, AVI…): a frame
+            // from the bundled ffmpeg instead of the generic icon.
+            if video, rep == nil || rep?.type == .icon {
+                Task {
+                    let img = await VideoFrames.poster(path, edge: size) ?? rep?.nsImage
+                    if let img { cache.setObject(img, forKey: key) }
+                    await MainActor.run { done(img) }
+                }
+                return
+            }
             let img = rep?.nsImage
             if let img { cache.setObject(img, forKey: key) }
             DispatchQueue.main.async { done(img) }

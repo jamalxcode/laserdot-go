@@ -227,6 +227,9 @@ jobs:
           echo '<plist/>' > "$fx/Tool.app/Contents/Info.plist"
           cp internal/media/testdata/dupes/clip.mp4 "$fx/clip.mp4"
           cp internal/media/testdata/song.mp3 "$fx/song.mp3"
+          # Formats macOS cannot preview itself: frames come from the bundled ffmpeg.
+          cp internal/media/testdata/pal.mkv "$fx/reel.mkv"
+          cp internal/media/testdata/vp9.webm "$fx/reel.webm"
           cp internal/media/testdata/dupes/clip.mp4 "$fx/clip copy.mp4"
           echo trash me > "$fx/trashme.txt"
           # A gallery big enough for the calm choices to leave some out (the

@@ -137,6 +137,10 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Video frames (0.9.48):** `VideoFrames` (AVAssetImageGenerator, else bundled `ffmpeg -ss … -frames:v 1 -f
+  image2pipe`, `ffprobe` duration; NSCache; 2 concurrent; 20 s); `ThumbnailCache` falls back to it for videos with no
+  Quick Look thumbnail; `ScrubThumb` poster via `.task`, prefetch of ten frames on first hover. Self-test
+  `videoframes` (reel.mkv, reel.webm: poster and a middle frame).
 - **Dead code removed (0.9.47):** Go — `core.SearchStore`, `media.sub`, `FilterDef.scopedKey`, the unused
   `codecs` field of Tier 2 jobs, `scan.Estimate` (tests use `EstimateWithin`); Swift — `LaserdotKit/Sandbox.swift`
   (the app is not sandboxed, spec §7.1), `DiskAccessPrompt.checkAtLaunch` and its "don't ask" option,

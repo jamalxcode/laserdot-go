@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.48
+
+- Every video shows its own picture again (0.9.47 showed a plain video icon in the thumbnail grid), MKV, WebM, AVI
+  and other formats macOS can't preview included: the ffmpeg bundled with Laserdot reads them.
+- Scrubbing works for those formats too, and on slower drives: all ten frames start loading as soon as the pointer
+  is on a video, and the last frame stays while the next one loads.
+
 ## 0.9.47
 
 - **→ on a folder goes into it**: the results narrow to that folder (it becomes a pill) and you can keep going
