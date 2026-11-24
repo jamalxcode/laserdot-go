@@ -4,7 +4,6 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
-	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"math"
 	"math/bits"
 	"path/filepath"
@@ -13,6 +12,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 
 	"github.com/RoaringBitmap/roaring/v2"
 
@@ -392,7 +393,11 @@ func (ld *Laserdot) dupeCandidates(opts DupeOptions) ([]cand, error) {
 		it := ids.Iterator()
 		for it.HasNext() {
 			id := it.Next()
-			if s.IsDir(id) || s.IsSymlink(id) || s.IsDataless(id) || s.IsPending(id) || s.Size(id) < max(opts.MinSize, 1) {
+			// A media file waiting for its header is left for later (its
+			// quality decides which copy is kept); a document waiting for its
+			// details is compared by content all the same.
+			pending := s.IsPending(id) && s.Kind(id) != media.Document
+			if s.IsDir(id) || s.IsSymlink(id) || s.IsDataless(id) || pending || s.Size(id) < max(opts.MinSize, 1) {
 				continue
 			}
 			p := s.Path(id)

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/crash"
+	"github.com/jamalxcode/laserdot-go/internal/media"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
 	"github.com/jamalxcode/laserdot-go/internal/scan"
@@ -177,7 +178,10 @@ func (ld *Laserdot) probeLater() {
 		it := ld.store.Pending().Iterator()
 		for it.HasNext() {
 			id := it.Next()
-			if !ld.store.IsDataless(id) && time.Now().Unix()-ld.store.Modified(id) >= index.StableSecs {
+			// Media files written moments ago wait; documents are read at once
+			// (index.ShouldDefer says why).
+			fresh := time.Now().Unix()-ld.store.Modified(id) < index.StableSecs && ld.store.Kind(id) != media.Document
+			if !ld.store.IsDataless(id) && !fresh {
 				ids = append(ids, id)
 			}
 		}

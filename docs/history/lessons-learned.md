@@ -170,4 +170,9 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 20q. **macOS previews only some videos.** Quick Look and AVFoundation read MP4/MOV but not MKV, WebM or AVI; the
      ffmpeg already bundled for media details reads them all. And a feature tried on the internal disk can fail on
      an external drive: give slow reads time, and fetch ahead.
+20r. **Reading a new kind of file changes who waits.** 0.9.49 started reading PDFs' details, so on a first index
+     PDFs joined the "waiting to be read" files — and the duplicate finder, which skips waiting files, stopped
+     finding a fresh PDF copy (caught by the daemon and Swift tests, not the Go core tests, which age their files).
+     A file waits only where the wait matters: media for its header; documents are read at once and compared by
+     content whatever their state. Test with files written a moment ago, not only aged ones.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

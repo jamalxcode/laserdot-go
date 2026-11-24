@@ -508,9 +508,14 @@ func ShouldDefer(e *scan.Entry) bool {
 	return !e.IsDir && !e.Dataless && now()-e.Modified < StableSecs && pendingKind(e)
 }
 
+// pendingKind: media files wait (a video being recorded or copied has no
+// usable header yet). Documents and data files are read at once: they are
+// small and saved whole, a later save is a change of its own, and holding
+// them back would hide a fresh copy from the duplicate finder.
 func pendingKind(e *scan.Entry) bool {
 	ext := media.Extension(fold.Fold(filepath.Base(e.Path)))
-	return media.WantsProbe(media.Classify(ext, e.IsDir, e.Size), ext)
+	k := media.Classify(ext, e.IsDir, e.Size)
+	return k != media.Document && media.WantsProbe(k, ext)
 }
 
 func probeParts(p Probe) (code int, w, h uint32, blob []byte) {
