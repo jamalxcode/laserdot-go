@@ -23,7 +23,10 @@ file search should be, and a robot that types into it on every change to prove i
   `invoice march`, `4k hdr` — and Arabic: `صور الاسبوع الماضي`, `فاتورة ٢٠٢٤`. A hint under the box shows how it read
   you (*“last week means since:7d”*), so you pick up the precise language for free.
 - 🎬 **Knows your media without opening it.** Resolution, codecs, HDR, frame rate, audio channels, track languages,
-  subtitles, camera EXIF, music tags: `res:4k codec:hevc`, `lang:ar channels:5.1`.
+  subtitles, chapters, camera EXIF and map position, music tags, who made a file and with what: `res:4k codec:hevc`,
+  `lang:ar channels:5.1`, `author:sara`, `software:*premiere*`.
+- 📊 **Knows your documents and data.** A PDF's or Office file's title, author and description; a spreadsheet's or
+  CSV's columns, their types and how many rows: `column:email rows:>1000`, `coltype:date`.
 - 🎚️ **Narrow it down with a click.** Search `mov` and a row of choices shows what your results actually have —
   in Trips · Videos · Under 1 GB · 4K 11 · 1080p 15 · With sound 82… — top down from broad to detailed, related
   choices sharing a softly shaded band. Pick one and it
@@ -139,7 +142,8 @@ downloads.
 with counts, top down from broad to detailed, each family in a band of its own shade: **where** (the drive — This
 Mac or each attached drive — and the folders the results are in) · **what** (Videos, Documents, Folders…, and the
 documents' types) · **size and date** · **picture** (resolution, portrait or landscape, HDR, codec) · **length and
-sound** · **photo** (camera, location, screenshots and Live Photos) · **music** (artist, album, genre). Only what your
+sound**, chapters · **photo** (camera, location, screenshots and Live Photos) · **music** (artist, album, genre) ·
+**about the file** (author, the app it was made with, a data file's columns and rows). Only what your
 results have shows, calmly: the biggest few values and the first bands, with **More choices** for the rest. Each
 band has a colour-blind-safe colour and an icon. Click one and it becomes a pill in the search box;
 its group leaves the row (remove the pill to choose again) and every other kind of choice stays, each count saying

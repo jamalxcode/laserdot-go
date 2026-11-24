@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "renamemany", "renamedmany", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "videoframes", "peek", "peekgone", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "renamemany", "renamedmany", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "datacolumn", "datachoices", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "videoframes", "peek", "peekgone", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -73,7 +73,7 @@ check(tool["results"] == ["Tool.app"], f"Tool.app is one result (got {tool['resu
 # What the results have to choose from: proj finds a PDF, a text file and a
 # folder, so their types are offered; choosing PDF narrows to it.
 # Top down, large to granular, each family one shaded band (the owner).
-FAMILIES = ["where", "what", "file", "picture", "time", "photo", "music"]
+FAMILIES = ["where", "what", "file", "picture", "time", "photo", "music", "doc"]
 for nm in ("refine", "where"):
     bands = steps[nm].get("refine_bands", [])
     check(len(bands) >= (2 if nm == "refine" else 1) and len(set(bands)) == len(bands) and all(b in FAMILIES for b in bands)
@@ -191,6 +191,11 @@ check(sv.get("pills") == ["kind:video"] and "clip.mp4" in sv["results"] and not 
 check(not jpg["compact"], "the overlay grows for results")
 
 # Plain-language dates.
+dc = steps["datacolumn"]
+check(dc["results"] == ["sales-figures.csv"], f"column:region finds the data file with that column (got {dc['results']})")
+dch = steps["datachoices"]
+check("column:region" in dch.get("refinements", []) and "rows:<100" in dch.get("refinements", []),
+      f"a data file's columns and size are choices (got {dch.get('refinements')})")
 pdft = steps["pdftoday"]
 check(pdft["results"] == ["project.pdf"], f"pdf today finds today's PDF (got {pdft['results']})")
 check("modified:today" in pdft["hint"], f"the hint explains today (got {pdft['hint']!r})")

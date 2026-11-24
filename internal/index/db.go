@@ -685,6 +685,43 @@ func (d *Db) SetProbes(ids []int64, probes []Probe) error {
 	return tx.Commit()
 }
 
+// RequeueProbes marks for a fresh header read, once, the files whose stored
+// details predate what the readers now find (0.9.49: descriptions, authors,
+// chapters, GPS coordinates, document and data-file details): files with one
+// of exts that were never read, and records written in the old encoding.
+// The background pass (SetProbes) then reads them again; their deep-probe
+// marks are cleared so that runs again too. It answers how many it marked.
+func (d *Db) RequeueProbes(exts []string) (int64, error) {
+	tx, err := d.conn.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	if err := invalidateSnapshot(tx); err != nil {
+		return 0, err
+	}
+	var like []string
+	var args []any
+	for _, e := range exts {
+		like = append(like, "name LIKE ?")
+		args = append(args, "%."+e)
+	}
+	which := "is_dir = 0 AND dataless = 0 AND ((probe = 1 AND substr(media, 1, 1) = x'01')"
+	if len(like) > 0 {
+		which += " OR (probe = 0 AND (" + strings.Join(like, " OR ") + "))"
+	}
+	which += ")"
+	if _, err := tx.Exec("DELETE FROM tier2 WHERE id IN (SELECT id FROM entries WHERE "+which+")", args...); err != nil {
+		return 0, err
+	}
+	r, err := tx.Exec("UPDATE entries SET probe = ? WHERE "+which, append([]any{codePending}, args...)...)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := r.RowsAffected()
+	return n, tx.Commit()
+}
+
 // ProbePath reads the header of one file (for SetProbes).
 func ProbePath(path string, size uint64) Probe {
 	ext := media.Extension(fold.Fold(filepath.Base(path)))

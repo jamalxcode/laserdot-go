@@ -60,13 +60,14 @@ const (
 	SectionSubtitles
 	SectionImages
 	SectionMusic
+	SectionDocuments // documents and data files (0.9.49)
 )
 
 // Sections in cheat-sheet order.
-var Sections = []Section{SectionFile, SectionVideo, SectionAudio, SectionSubtitles, SectionImages, SectionMusic}
+var Sections = []Section{SectionFile, SectionVideo, SectionAudio, SectionSubtitles, SectionImages, SectionMusic, SectionDocuments}
 
 func (s Section) Title() string {
-	return [...]string{"File", "Video", "Audio", "Subtitles", "Images", "Music"}[s]
+	return [...]string{"File", "Video", "Audio", "Subtitles", "Images", "Music", "Documents"}[s]
 }
 
 // ValueKind decides how a filter's value text is parsed.

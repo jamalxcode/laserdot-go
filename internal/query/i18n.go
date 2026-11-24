@@ -68,6 +68,17 @@ var arDescriptions = map[string]string{
 	"megapixels":  "حجم الصورة بالميغابكسل",
 	"raw":         "صيغة RAW للكاميرا",
 	"camera":      "طراز الكاميرا (EXIF)",
+	"desc":        "الوصف المكتوب في الملف",
+	"author":      "المؤلف أو المنشئ",
+	"copyright":   "حقوق النشر",
+	"software":    "البرنامج الذي سجّل الملف أو كتبه",
+	"chapters":    "عدد الفصول",
+	"lat":         "خط العرض لمكان التصوير",
+	"lon":         "خط الطول لمكان التصوير",
+	"column":      "اسم عمود في ملف بيانات",
+	"columns":     "عدد أعمدة ملف البيانات",
+	"rows":        "عدد صفوف ملف البيانات",
+	"coltype":     "نوع عمود في ملف بيانات",
 	"lens":        "طراز العدسة (EXIF)",
 	"iso":         "قيمة ISO (EXIF)",
 	"aperture":    "فتحة العدسة (EXIF)",
@@ -96,7 +107,7 @@ func Describe(f *FilterDef, lang Lang) string {
 // SectionTitle is a section's title in lang.
 func SectionTitle(s Section, lang Lang) string {
 	if lang == Ar {
-		return [...]string{"الملف", "الفيديو", "الصوت", "الترجمة", "الصور", "الموسيقى"}[s]
+		return [...]string{"الملف", "الفيديو", "الصوت", "الترجمة", "الصور", "الموسيقى", "المستندات والبيانات"}[s]
 	}
 	return s.Title()
 }

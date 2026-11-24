@@ -60,6 +60,10 @@ type MediaIndex struct {
 	focal      []float32
 	taken      []int64
 	year       []uint32
+	chapters   []uint16
+	lat, lon   []float32 // NaN: unknown
+	dataRows   []uint64  // data files' rows (0 for others)
+	dataCols   []uint16
 	tracks     [][]media.Track
 	facets     map[facetKey]map[string]*roaring.Bitmap
 	flags      [numFlags]*roaring.Bitmap
@@ -268,6 +272,31 @@ func (m *MediaIndex) add(entry uint32, rec *media.Record) {
 		taken = x.Taken
 	}
 	m.taken = append(m.taken, taken)
+	// 0.9.49: the file's own words, chapters, position, data columns.
+	m.facet(query.FDescription, query.NoScope, rec.Tags.Description, entry)
+	m.facet(query.FAuthor, query.NoScope, rec.Tags.Author, entry)
+	m.facet(query.FCopyright, query.NoScope, rec.Tags.Copyright, entry)
+	m.facet(query.FSoftware, query.NoScope, rec.Tags.Software, entry)
+	m.chapters = append(m.chapters, rec.Tags.Chapters)
+	lat, lon := float32(math.NaN()), float32(math.NaN())
+	if x.GPS && (x.Lat != 0 || x.Lon != 0) {
+		lat, lon = float32(x.Lat), float32(x.Lon)
+	}
+	m.lat = append(m.lat, lat)
+	m.lon = append(m.lon, lon)
+	var rows uint64
+	var cols uint16
+	if d := rec.Data; d != nil {
+		rows, cols = d.Rows, uint16(min(len(d.Columns), math.MaxUint16))
+		for i, c := range d.Columns {
+			m.facet(query.FColumn, query.NoScope, c, entry)
+			if i < len(d.Types) {
+				m.facet(query.FColType, query.NoScope, d.Types[i], entry)
+			}
+		}
+	}
+	m.dataRows = append(m.dataRows, rows)
+	m.dataCols = append(m.dataCols, cols)
 	m.tracks = append(m.tracks, slices.Clone(rec.Tracks))
 }
 
@@ -355,7 +384,8 @@ func (s *Store) evalMedia(f *query.CFilter, cand *roaring.Bitmap) (*roaring.Bitm
 		return roaring.And(cand, m.facetUnion(f.ID, natural(query.Audio), &f.Value)), true
 	case query.FSubFormat:
 		return roaring.And(cand, m.facetUnion(f.ID, query.Subtitle, &f.Value)), true
-	case query.FContainer, query.FArtist, query.FAlbum, query.FGenre, query.FTitle, query.FCamera, query.FLens:
+	case query.FContainer, query.FArtist, query.FAlbum, query.FGenre, query.FTitle, query.FCamera, query.FLens,
+		query.FDescription, query.FAuthor, query.FCopyright, query.FSoftware, query.FColumn, query.FColType:
 		return roaring.And(cand, m.facetUnion(f.ID, query.NoScope, &f.Value)), true
 	case query.FHdr:
 		anyHDR := m.facetUnion(query.FHdr, query.Video, &query.CValue{Enum: []string{"hdr10", "hdr10+", "hlg", "dv"}})
@@ -407,6 +437,16 @@ func (s *Store) evalMedia(f *query.CFilter, cand *roaring.Bitmap) (*roaring.Bitm
 		return rows(func(r uint32) (float64, bool) { return nonzero(float64(m.focal[r])) }), true
 	case query.FYear:
 		return rows(func(r uint32) (float64, bool) { return nonzero(float64(m.year[r])) }), true
+	case query.FChapters:
+		return rows(func(r uint32) (float64, bool) { return nonzero(float64(m.chapters[r])) }), true
+	case query.FLat:
+		return rows(func(r uint32) (float64, bool) { v := m.lat[r]; return float64(v), v == v }), true
+	case query.FLon:
+		return rows(func(r uint32) (float64, bool) { v := m.lon[r]; return float64(v), v == v }), true
+	case query.FRows:
+		return rows(func(r uint32) (float64, bool) { return float64(m.dataRows[r]), m.dataCols[r] > 0 }), true
+	case query.FColumns:
+		return rows(func(r uint32) (float64, bool) { return nonzero(float64(m.dataCols[r])) }), true
 	case query.FTaken:
 		return rows(func(r uint32) (float64, bool) { return float64(m.taken[r]), m.taken[r] != math.MinInt64 }), true
 	case query.FTrackCount:

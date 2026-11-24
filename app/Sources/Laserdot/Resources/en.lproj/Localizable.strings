@@ -425,6 +425,11 @@
 "refine.group.size" = "Size";
 "refine.group.drive" = "Drive";
 "refine.group.folder" = "Folder";
+"refine.group.chapters" = "Chapters";
+"refine.group.author" = "Author";
+"refine.group.software" = "Made with";
+"refine.group.column" = "Column";
+"refine.group.rows" = "Rows";
 "refine.drive.local" = "This Mac";
 "place.searchingIn" = "Searching in %@";
 "settings.searchIn" = "Search in";
@@ -485,6 +490,10 @@
 "refine.length.long" = "10 min–1 h";
 "refine.length.verylong" = "Over 1 h";
 "refine.place.yes" = "Has location";
+"refine.chapters.yes" = "Has chapters";
+"refine.rows.small" = "Under 100 rows";
+"refine.rows.medium" = "100–10,000 rows";
+"refine.rows.large" = "Over 10,000 rows";
 "refine.picture.screenshot" = "Screenshots";
 "refine.picture.live" = "Live Photos";
 "refine.picture.raw" = "RAW";

@@ -337,7 +337,10 @@ func applyOnce(db *Db, s *Store, changes []scan.Change, opts scan.Options, lock 
 				e := &news[x.i].e
 				// Only a real read is worth reusing (a .txt renamed to .png
 				// was never probed).
-				if id.Size == e.Size && id.Modified == e.Modified && !id.Pending && id.Probe.Status != media.ProbeSkipped {
+				oldExt := media.Extension(fold.Fold(s.Name(x.old)))
+				newExt := media.Extension(fold.Fold(filepath.Base(e.Path)))
+				if id.Size == e.Size && id.Modified == e.Modified && !id.Pending && id.Probe.Status != media.ProbeSkipped &&
+					media.SameReader(oldExt, newExt, e.Size) {
 					reuse[x.i] = id.Probe
 				}
 			}

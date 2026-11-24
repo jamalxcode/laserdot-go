@@ -58,6 +58,11 @@ type Track struct {
 type Tags struct {
 	Title, Artist, Album, Genre string
 	Year                        uint32 // 0 = unknown
+	// Description, Author (creator, writer), Copyright and Software (the
+	// app that recorded, encoded or wrote the file), from any format's own
+	// tags (0.9.49, the owner's metadata list).
+	Description, Author, Copyright, Software string
+	Chapters                                 uint16 // 0 = none or unknown
 }
 
 // Exif is camera metadata.
@@ -72,6 +77,19 @@ type Exif struct {
 	HasTaken   bool
 	GPS        bool
 	Screenshot bool
+	// Lat and Lon: where it was taken or recorded (degrees), when GPS.
+	Lat, Lon float64
+}
+
+// DataInfo is what a data file holds (CSV, TSV, JSON, Excel): its columns,
+// their kinds (number, text, date, bool) and how many rows.
+type DataInfo struct {
+	Columns []string
+	Types   []string
+	Rows    uint64
+	// RowsExact: counted; otherwise estimated from the file's size (a large
+	// file is not read whole).
+	RowsExact bool
 }
 
 // Record is everything Tier 1 learns about a file.
@@ -87,6 +105,8 @@ type Record struct {
 	Tracks        []Track
 	Tags          Tags
 	Exif          *Exif
+	// Data: columns and rows of a data file; nil otherwise.
+	Data *DataInfo
 }
 
 // Video is the first video track, or nil.
@@ -131,8 +151,13 @@ func (r *Record) Finish(fileSize uint64) {
 	}
 }
 
-// encodingVersion is the first byte of an encoded record.
-const encodingVersion = 1
+// encodingVersion is the first byte of an encoded record. 2 (0.9.49) adds
+// the extended tags, the GPS position and data files' columns after the
+// version-1 fields; version-1 records still decode (and are read again).
+const encodingVersion = 2
+
+// maxColumns bounds a data file's columns in a record.
+const maxColumns = 512
 
 // Limits that bound decoding of untrusted blobs (a drive's index).
 const (
@@ -146,6 +171,7 @@ func (e *enc) u(v uint64)  { e.b = binary.AppendUvarint(e.b, v) }
 func (e *enc) i(v int64)   { e.b = binary.AppendVarint(e.b, v) }
 func (e *enc) s(v string)  { e.u(uint64(len(v))); e.b = append(e.b, v...) }
 func (e *enc) f(v float32) { e.u(uint64(math.Float32bits(v))) }
+func (e *enc) d(v float64) { e.u(math.Float64bits(v)) }
 func (e *enc) bits(vs ...bool) {
 	var x uint64
 	for i, v := range vs {
@@ -197,6 +223,31 @@ func (r *Record) Encode() []byte {
 		e.i(x.Taken)
 		e.bits(x.HasTaken, x.GPS, x.Screenshot)
 	}
+	// version 2
+	e.s(r.Tags.Description)
+	e.s(r.Tags.Author)
+	e.s(r.Tags.Copyright)
+	e.s(r.Tags.Software)
+	e.u(uint64(r.Tags.Chapters))
+	if x := r.Exif; x != nil {
+		e.d(x.Lat)
+		e.d(x.Lon)
+	}
+	e.bits(r.Data != nil)
+	if dt := r.Data; dt != nil {
+		n := min(len(dt.Columns), maxColumns)
+		e.u(uint64(n))
+		for i := 0; i < n; i++ {
+			e.s(dt.Columns[i])
+			t := ""
+			if i < len(dt.Types) {
+				t = dt.Types[i]
+			}
+			e.s(t)
+		}
+		e.u(dt.Rows)
+		e.bits(dt.RowsExact)
+	}
 	return e.b
 }
 
@@ -247,6 +298,7 @@ func (d *dec) s() string {
 func (d *dec) u32() uint32 { return uint32(d.u(math.MaxUint32)) }
 func (d *dec) u8() uint8   { return uint8(d.u(math.MaxUint8)) }
 func (d *dec) f() float32  { return math.Float32frombits(d.u32()) }
+func (d *dec) d() float64  { return math.Float64frombits(d.u(math.MaxUint64)) }
 func (d *dec) bits(n int) []bool {
 	x := d.u(1<<n - 1)
 	out := make([]bool, n)
@@ -259,9 +311,10 @@ func (d *dec) bits(n int) []bool {
 // Decode reads an encoded record. Any malformed input is an error, never a
 // panic (drive indexes are untrusted).
 func Decode(b []byte) (*Record, error) {
-	if len(b) == 0 || b[0] != encodingVersion {
+	if len(b) == 0 || b[0] < 1 || b[0] > encodingVersion {
 		return nil, errCorrupt
 	}
+	version := b[0]
 	d := &dec{b: b[1:]}
 	r := &Record{}
 	r.Container = d.s()
@@ -290,6 +343,27 @@ func Decode(b []byte) (*Record, error) {
 		xb := d.bits(3)
 		x.HasTaken, x.GPS, x.Screenshot = xb[0], xb[1], xb[2]
 		r.Exif = x
+	}
+	if version >= 2 {
+		r.Tags.Description, r.Tags.Author, r.Tags.Copyright, r.Tags.Software = d.s(), d.s(), d.s(), d.s()
+		r.Tags.Chapters = uint16(d.u(math.MaxUint16))
+		if r.Exif != nil {
+			r.Exif.Lat, r.Exif.Lon = d.d(), d.d()
+			if math.IsNaN(r.Exif.Lat) || math.IsNaN(r.Exif.Lon) || math.Abs(r.Exif.Lat) > 90 || math.Abs(r.Exif.Lon) > 180 {
+				r.Exif.Lat, r.Exif.Lon = 0, 0
+			}
+		}
+		if d.bits(1)[0] {
+			dt := &DataInfo{}
+			n := d.u(maxColumns)
+			for i := uint64(0); i < n && d.err == nil; i++ {
+				dt.Columns = append(dt.Columns, d.s())
+				dt.Types = append(dt.Types, d.s())
+			}
+			dt.Rows = d.u(math.MaxUint64)
+			dt.RowsExact = d.bits(1)[0]
+			r.Data = dt
+		}
 	}
 	if d.err != nil || len(d.b) != 0 {
 		return nil, errCorrupt

@@ -882,6 +882,18 @@ working, on a different volume it stopped working". Decided: one source of video
 scrubbing — macOS's own reader first, the ffmpeg Laserdot already bundles for the rest — with a longer time limit
 for slow drives, and the ten frames fetched as soon as the pointer is on a video.
 
+## 72. What a file says about itself (0.9.49)
+
+"Extract meta data from the files including below and more, and have them as attributes in the search when the
+context applies, have it as part of the overall index also": file type, title and description, duration,
+resolution, frame rate, codecs, orientation, HDR, audio and subtitle languages, channels, chapters, creation or
+recording date, author, artist/album/genre, camera, recording or editing software, GPS coordinates, copyright, and
+for data files the column names, data types and row count. Most were already filters; decided: add the rest as
+filters of their own (`desc`, `author`, `copyright`, `software`, `chapters`, `lat`, `lon`, `column`, `columns`,
+`rows`, `coltype`, a new Documents section), read from headers only (PDF info, Office properties, the first 64 KB of
+a CSV or JSON file, a spreadsheet's first sheet), offered as choices only when the results have them, and read
+again once for files already indexed.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

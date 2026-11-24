@@ -233,6 +233,10 @@ final class SelfTestRunner {
             // Inside a zip: a word finds the zip holding a file named with it.
             Step(name: "zip", typed: "quokka", until: { !$0.results.isEmpty }),
             Step(name: "pdftoday", typed: "pdf today"),
+            // What a file says about itself (0.9.49): a data file's columns,
+            // and its columns and size offered as choices.
+            Step(name: "datacolumn", typed: "column:region", until: { !$0.results.isEmpty }),
+            Step(name: "datachoices", typed: "sales figures", until: { !$0.refinements.isEmpty }),
             Step(name: "commands", typed: ">dup"),
             // As in Spotlight: the top hit's name completes inline, the rest
             // selected (typing goes on over it).

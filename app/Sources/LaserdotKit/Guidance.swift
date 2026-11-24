@@ -152,10 +152,22 @@ let arabicDescriptions: [String: String] = [
     "genre": "وسم النوع الموسيقي",
     "title": "وسم العنوان",
     "year": "وسم السنة",
+    "desc": "الوصف المكتوب في الملف",
+    "author": "المؤلف أو المنشئ",
+    "copyright": "حقوق النشر",
+    "software": "البرنامج الذي سجّل الملف أو كتبه",
+    "chapters": "عدد الفصول",
+    "lat": "خط العرض لمكان التصوير",
+    "lon": "خط الطول لمكان التصوير",
+    "column": "اسم عمود في ملف بيانات",
+    "columns": "عدد أعمدة ملف البيانات",
+    "rows": "عدد صفوف ملف البيانات",
+    "coltype": "نوع عمود في ملف بيانات",
 ]
 
 let arabicSections: [String: String] = [
     "File": "الملف", "Video": "الفيديو", "Audio": "الصوت", "Subtitles": "الترجمة", "Images": "الصور", "Music": "الموسيقى",
+    "Documents": "المستندات والبيانات",
 ]
 
 func describe(_ f: Registry.Filter, _ lang: String) -> String {

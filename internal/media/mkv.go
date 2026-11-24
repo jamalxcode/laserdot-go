@@ -61,7 +61,15 @@ type mkvState struct {
 	duration  float64
 	hasDur    bool
 	title     string
+	// software: the writing (else muxing) application; date: DateUTC.
+	software, muxer string
+	date            int64
+	hasDate         bool
+	chapters        int
 }
+
+// chaptersID is the Chapters element (level 1).
+const chaptersID = 0x1043A770
 
 func mkvFrom(f io.ReaderAt, length uint64) *Record {
 	id, size, known, hlen, ok := ebmlHeader(f, 0)
@@ -105,7 +113,7 @@ func mkvFrom(f io.ReaderAt, length uint64) *Record {
 			break
 		}
 		switch id {
-		case seekHeadID, infoID, tracksID, tagsID:
+		case seekHeadID, infoID, tracksID, tagsID, chaptersID:
 			if size <= maxElement {
 				b, ok := readBody(f, pos+hlen, size)
 				if !ok {
@@ -120,7 +128,7 @@ func mkvFrom(f io.ReaderAt, length uint64) *Record {
 	// Info/Tracks/Tags placed after the clusters: follow the SeekHead.
 	for _, sk := range slices.Clone(s.seeks) {
 		id := uint32(sk[0])
-		if slices.Contains(seen, id) || (id != infoID && id != tracksID && id != tagsID) {
+		if slices.Contains(seen, id) || (id != infoID && id != tracksID && id != tagsID && id != chaptersID) {
 			continue
 		}
 		at := satAdd(segStart, sk[1])
@@ -141,6 +149,16 @@ func mkvFrom(f io.ReaderAt, length uint64) *Record {
 	}
 	if rec.Tags.Title == "" {
 		rec.Tags.Title = s.title
+	}
+	if rec.Tags.Software == "" {
+		rec.Tags.Software = s.software
+		if rec.Tags.Software == "" {
+			rec.Tags.Software = s.muxer
+		}
+	}
+	rec.Tags.Chapters = uint16(min(s.chapters, math.MaxUint16))
+	if s.hasDate {
+		rec.Exif = &Exif{Taken: s.date, HasTaken: true}
 	}
 	return rec
 }
@@ -186,6 +204,27 @@ func (s *mkvState) level1(id uint32, b []byte) {
 				s.duration, s.hasDur = ebmlFloat(v)
 			case 0x7BA9:
 				s.title = ebmlString(v)
+			case 0x5741:
+				s.software = ebmlString(v)
+			case 0x4D80:
+				s.muxer = ebmlString(v)
+			case 0x4461:
+				// DateUTC: nanoseconds since 2001-01-01, signed.
+				if len(v) == 8 {
+					ns := int64(binary.BigEndian.Uint64(v))
+					s.date, s.hasDate = 978307200+ns/1_000_000_000, true
+				}
+			}
+		}
+	case chaptersID:
+		for i, edition := range elems(b) {
+			if i != 0x45B9 {
+				continue
+			}
+			for j := range elems(edition) {
+				if j == 0xB6 && s.chapters < math.MaxUint16 {
+					s.chapters++
+				}
 			}
 		}
 	case tracksID:
@@ -458,6 +497,22 @@ func mkvTags(b []byte) Tags {
 				out.Genre = value
 			case "DATE_RELEASED", "DATE_RECORDED", "DATE", "YEAR":
 				out.Year = yearPrefix(value)
+			case "DESCRIPTION", "SUMMARY", "SYNOPSIS", "COMMENT":
+				if out.Description == "" {
+					out.Description = value
+				}
+			case "COPYRIGHT", "LICENSE":
+				if out.Copyright == "" {
+					out.Copyright = value
+				}
+			case "ENCODER", "ENCODED_BY":
+				if out.Software == "" {
+					out.Software = value
+				}
+			case "AUTHOR", "DIRECTOR", "WRITTEN_BY", "COMPOSER", "PRODUCER":
+				if out.Author == "" {
+					out.Author = value
+				}
 			}
 		}
 	}

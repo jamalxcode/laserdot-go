@@ -137,6 +137,13 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Rich metadata (0.9.49):** `media.Tags` gains Description/Author/Copyright/Software/Chapters, `Exif` Lat/Lon,
+  `Record.Data` (columns, types, rows); record encoding v2 (v1 decodes). New `docs.go` (PDF, Office, CSV/TSV/JSON/
+  XLSX) behind `parserDoc`; `media.SameReader` keeps the update engine from reusing a probe across readers (a video
+  renamed .pdf). Filters `desc author copyright software chapters lat lon column columns rows coltype` (new Documents
+  section) as facets and columns in `MediaIndex`; `snapshotVersion` 3. `Db.RequeueProbes` + `details_version` re-read
+  old records and newly probed extensions once. Choices: chapters (time), author, software, column, rows (family
+  `doc`, black/white). Self-test `datacolumn`, `datachoices` (sales-figures.csv).
 - **Video frames (0.9.48):** `VideoFrames` (AVAssetImageGenerator, else bundled `ffmpeg -ss … -frames:v 1 -f
   image2pipe`, `ffprobe` duration; NSCache; 2 concurrent; 20 s); `ThumbnailCache` falls back to it for videos with no
   Quick Look thumbnail; `ScrubThumb` poster via `.task`, prefetch of ten frames on first hover. `media.video` and `VideoFrames.videoExtensions` list every common container (same list); `snapshotVersion` 2 rebuilds the snapshot once so existing entries get the new kind; the preview pane uses `ScrubThumb` and opens non-`playable` formats in their app. Self-test

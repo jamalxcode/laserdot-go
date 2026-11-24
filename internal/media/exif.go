@@ -85,6 +85,41 @@ func (e *exifData) rational(ctx int, tag uint16) float32 {
 	return v
 }
 
+// gpsCoord: a GPS latitude or longitude in degrees (three rationals:
+// degrees, minutes, seconds; the reference S or W makes it negative).
+func (e *exifData) gpsCoord(refTag, tag uint16) (float64, bool) {
+	f, ok := e.get(ctxGPS, tag)
+	if !ok || f.typ != 5 || len(f.data) < 24 {
+		return 0, false
+	}
+	part := func(i int) (float64, bool) {
+		num, den := f.bo.Uint32(f.data[i*8:]), f.bo.Uint32(f.data[i*8+4:])
+		if den == 0 {
+			return 0, num == 0
+		}
+		return float64(num) / float64(den), true
+	}
+	d, ok1 := part(0)
+	m, ok2 := part(1)
+	s, ok3 := part(2)
+	if !ok1 || !ok2 || !ok3 {
+		return 0, false
+	}
+	v := d + m/60 + s/3600
+	ref := strings.ToUpper(e.text(ctxGPS, refTag))
+	if ref == "S" || ref == "W" {
+		v = -v
+	}
+	limit := 90.0
+	if tag == 0x0004 {
+		limit = 180
+	}
+	if v != v || v < -limit || v > limit {
+		return 0, false
+	}
+	return v, true
+}
+
 // uint is value i of a BYTE, SHORT or LONG field.
 func (f exifField) uint(i int) (uint32, bool) {
 	if i < 0 || uint32(i) >= f.count {

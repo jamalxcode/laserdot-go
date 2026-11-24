@@ -91,7 +91,20 @@ func imageFrom(f file, ext string, raw bool) *Record {
 			taken = ex.text(ctxTIFF, 0x132)
 		}
 		x.Taken, x.HasTaken = exifTime(taken)
+		if x.GPS {
+			lat, okLat := ex.gpsCoord(0x0001, 0x0002)
+			lon, okLon := ex.gpsCoord(0x0003, 0x0004)
+			if okLat && okLon {
+				x.Lat, x.Lon = lat, lon
+			}
+		}
 		rec.Exif = x
+		// The photo's own words: description, who made it, copyright, the
+		// app that wrote it (0.9.49).
+		rec.Tags.Description = ex.text(ctxTIFF, 0x010E)
+		rec.Tags.Author = ex.text(ctxTIFF, 0x013B)
+		rec.Tags.Copyright = ex.text(ctxTIFF, 0x8298)
+		rec.Tags.Software = ex.text(ctxTIFF, 0x0131)
 	}
 	if rec.Width == 0 && rec.Exif == nil {
 		return nil

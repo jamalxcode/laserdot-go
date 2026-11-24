@@ -57,7 +57,8 @@ type tagSet struct {
 }
 
 func (t *tagSet) empty() bool {
-	return t.Title == "" && t.Artist == "" && t.Album == "" && t.Genre == "" && t.date == ""
+	return t.Title == "" && t.Artist == "" && t.Album == "" && t.Genre == "" && t.date == "" &&
+		t.Description == "" && t.Author == "" && t.Copyright == "" && t.Software == ""
 }
 
 func (t *tagSet) final() Tags {
@@ -66,6 +67,11 @@ func (t *tagSet) final() Tags {
 		Artist: strings.TrimSpace(t.Artist),
 		Album:  strings.TrimSpace(t.Album),
 		Genre:  strings.TrimSpace(t.Genre),
+		// 0.9.49: the rest of the owner's list.
+		Description: strings.TrimSpace(t.Description),
+		Author:      strings.TrimSpace(t.Author),
+		Copyright:   strings.TrimSpace(t.Copyright),
+		Software:    strings.TrimSpace(t.Software),
 	}
 	out.Year = dateYear(strings.TrimSpace(t.date))
 	return out
@@ -323,6 +329,12 @@ func readID3v2(f file, off int64) (*tagSet, int64, bool) {
 			if id == "TDRC" || tags.date == "" {
 				tags.date = firstValue(text)
 			}
+		case "copyright":
+			setIfEmpty(&tags.Copyright, firstValue(text))
+		case "software":
+			setIfEmpty(&tags.Software, firstValue(text))
+		case "author":
+			setIfEmpty(&tags.Author, firstValue(text))
 		}
 	}
 	return tags, total, true
@@ -346,6 +358,12 @@ func id3Key(id string) string {
 		return "genre"
 	case "TDRC", "TYER", "TYE":
 		return "date"
+	case "TCOP", "TCR":
+		return "copyright"
+	case "TSSE", "TENC", "TSS", "TEN":
+		return "software"
+	case "TCOM", "TEXT", "TCM", "TXT":
+		return "author"
 	}
 	return ""
 }
@@ -606,6 +624,14 @@ func vorbisComments(b []byte) *tagSet {
 			setIfEmpty(&t.date, val)
 		case "YEAR":
 			setIfEmpty(&year, val)
+		case "DESCRIPTION", "COMMENT":
+			setIfEmpty(&t.Description, val)
+		case "COPYRIGHT", "LICENSE":
+			setIfEmpty(&t.Copyright, val)
+		case "ENCODER", "ENCODED-BY":
+			setIfEmpty(&t.Software, val)
+		case "COMPOSER", "AUTHOR", "LYRICIST":
+			setIfEmpty(&t.Author, val)
 		}
 	}
 	if t.date == "" {

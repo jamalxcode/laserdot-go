@@ -10,9 +10,13 @@ const (
 	parserISO
 	parserMatroska
 	parserAudio
+	parserDoc // data files, Office documents, PDF (docs.go)
 )
 
 func parser(kind Kind, ext string) parserKind {
+	if dataExts[ext] || officeExts[ext] || ext == "pdf" {
+		return parserDoc
+	}
 	switch kind {
 	case Image:
 		switch ext {
@@ -38,6 +42,13 @@ func parser(kind Kind, ext string) parserKind {
 		}
 	}
 	return parserNone // AVI, MPEG-TS, WMV…: Tier 2 (libavformat)
+}
+
+// SameReader: a file renamed from oldExt to newExt would be read by the same
+// parser, so what was read before still holds (a video renamed .pdf is not:
+// since 0.9.49 PDFs are read, and the video's details must not stay on it).
+func SameReader(oldExt, newExt string, size uint64) bool {
+	return parser(Classify(oldExt, false, size), oldExt) == parser(Classify(newExt, false, size), newExt)
 }
 
 // WantsProbe says whether Probe would read this file (lets callers skip
@@ -72,6 +83,8 @@ func Probe(path string, kind Kind, foldedExt string, fileSize uint64) (status Pr
 		rec = parseMatroska(path)
 	case parserAudio:
 		rec = parseAudio(path)
+	case parserDoc:
+		rec = parseDoc(path, foldedExt, fileSize)
 	}
 	if rec == nil {
 		return ProbeFailed, nil

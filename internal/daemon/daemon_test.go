@@ -33,6 +33,10 @@ func start(t *testing.T) (dir string, c *ipc.Client, srv *Server) {
 	dir = shortDir(t)
 	os.MkdirAll(filepath.Join(dir, "files", "docs"), 0o755)
 	os.WriteFile(filepath.Join(dir, "files", "docs", "invoice march.pdf"), []byte("x"), 0o644)
+	// An hour old: a PDF written seconds ago waits to be read (it may still
+	// be being written), and the duplicate scan leaves waiting files alone.
+	old := time.Now().Add(-time.Hour)
+	os.Chtimes(filepath.Join(dir, "files", "docs", "invoice march.pdf"), old, old)
 	ld, err := core.Open(filepath.Join(dir, "db", "index.db"))
 	if err != nil {
 		t.Fatal(err)

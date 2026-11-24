@@ -34,7 +34,7 @@ import (
 // write to the database clears that token. Any change to the layout below
 // must bump snapshotVersion.
 
-const snapshotVersion = 2 // 2 (0.9.48): rebuilt once so files of newly recognised video formats get the video kind
+const snapshotVersion = 3 // 3 (0.9.49): the media index gains chapters, position and data columns
 
 var snapMagic = []byte("LDSNAP\x00\x00")
 
@@ -222,6 +222,11 @@ func writeMedia(w *snapWriter, m *MediaIndex) {
 	putCol(w, m.focal)
 	putCol(w, m.taken)
 	putCol(w, m.year)
+	putCol(w, m.chapters)
+	putCol(w, m.lat)
+	putCol(w, m.lon)
+	putCol(w, m.dataRows)
+	putCol(w, m.dataCols)
 	var blob []byte
 	offs := make([]uint64, 0, len(m.tracks)+1)
 	for _, t := range m.tracks {
@@ -471,6 +476,11 @@ func readMedia(r *snapReader) (*MediaIndex, error) {
 	m.focal = getCol[float32](r)
 	m.taken = getCol[int64](r)
 	m.year = getCol[uint32](r)
+	m.chapters = getCol[uint16](r)
+	m.lat = getCol[float32](r)
+	m.lon = getCol[float32](r)
+	m.dataRows = getCol[uint64](r)
+	m.dataCols = getCol[uint16](r)
 	offs := getCol[uint64](r)
 	blob := r.section()
 	if r.err != nil {

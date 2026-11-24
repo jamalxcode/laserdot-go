@@ -33,6 +33,12 @@ One page, kept current: what is true today. The history and the reasons are in
 
 ## Searching
 
+- **Details read from inside files** (headers only, never whole files): videos, music and pictures (resolution,
+  codecs, languages, chapters, camera, map position, recording date, title, description, author, copyright, the
+  software that made them) and, since 0.9.49, documents and data files — PDF info, Office properties, and a CSV,
+  TSV, JSON or spreadsheet's column names, column types (number, text, date, yes/no) and row count (exact up to 8 MB,
+  estimated beyond). They are filters (`author:`, `column:`, `rows:`…) and choices. When the readers learn something
+  new, `details_version` makes files already indexed be read again once, in the background.
 - Plain words and filters (`kind:video res:4k since:7d`) compile to regular expressions over the in-memory names,
   with a trigram prefilter; media filters use columns and bitmaps; contents use SQLite FTS5.
 - After a search, the **choice row** offers what the results have (resolution, sound, shape, camera, type, date,
@@ -41,7 +47,8 @@ One page, kept current: what is true today. The history and the reasons are in
   the results: under each indexed folder it goes down while one folder holds them all, then offers its subfolders).
   ⌥-click (or right-click ▸ Leave Out) leaves a value out: a `-` word (`-ext:pdf`), shown struck through.
   The groups come top down, large to granular (`core.refineOrder`): drive, folder · kind, type · size, modified ·
-  resolution, shape, HDR, codec · length, sound · camera, place, picture · artist, album, genre; each family is a
+  resolution, shape, HDR, codec · length, sound, chapters · camera, place, picture · artist, album, genre · author,
+  made with, column, rows (what a file says about itself); each family is a
   shaded band of its own (Okabe–Ito colours and an icon each). The calm view (`RefineLogic.compact`) hides choices
   that would give nothing, keeps a group's four biggest values and the first four bands; More choices shows all.
 - **One screen:** both windows show the same thing, always: the search box as a rounded bar, a row of round

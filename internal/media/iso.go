@@ -1,6 +1,7 @@
 package media
 
 import (
+	"encoding/binary"
 	"io"
 	"iter"
 	"math"
@@ -177,21 +178,214 @@ func moov(b []byte) *Record {
 		if ts > 0 && dur != math.MaxUint32 && dur != math.MaxUint64 {
 			rec.DurationMS = satMul(dur, 1000) / uint64(ts)
 		}
+		// creation_time: seconds since 1904 (UTC); 0 when the writer left it
+		// unset. The recording date of a camera or phone video.
+		var created uint64
+		if v == 1 {
+			created, _ = u64At(mvhd, 4)
+		} else {
+			c32, _ := u32At(mvhd, 4)
+			created = uint64(c32)
+		}
+		const from1904 = 2082844800
+		if created > from1904+86400 && created < from1904+5_000_000_000 {
+			rec.Exif = &Exif{Taken: int64(created - from1904), HasTaken: true}
+		}
 	}
+	chapterTracks := map[uint32]bool{}
+	textSamples := map[uint32]uint32{}
+	var keyed Tags
+	var place, make_, model, created string
 	for kind, body := range boxes(b) {
 		switch kind {
 		case cc("trak"):
 			if t, ok := trak(body, rec); ok {
 				rec.Tracks = append(rec.Tracks, t)
 			}
+			id, refs, samples, text := trakChapters(body)
+			for _, r := range refs {
+				chapterTracks[r] = true
+			}
+			if text {
+				textSamples[id] = samples
+			}
 		case cc("udta"):
 			rec.Tags = udta(body)
+			if loc, ok := child(body, "\xa9xyz"); ok {
+				l := int(u16Or(loc, 0, 0))
+				if t, ok := rangeOK(loc, 4, l); ok {
+					place = lossy(t)
+				}
+			}
+		case cc("meta"):
+			// QuickTime metadata keyed by name (iPhone and camera videos).
+			mdtaTags(body, func(key, value string) {
+				switch key {
+				case "com.apple.quicktime.title":
+					keyed.Title = value
+				case "com.apple.quicktime.description":
+					keyed.Description = value
+				case "com.apple.quicktime.author", "com.apple.quicktime.artist":
+					keyed.Author = value
+				case "com.apple.quicktime.copyright":
+					keyed.Copyright = value
+				case "com.apple.quicktime.software":
+					keyed.Software = value
+				case "com.apple.quicktime.location.ISO6709":
+					place = value
+				case "com.apple.quicktime.make":
+					make_ = value
+				case "com.apple.quicktime.model":
+					model = value
+				case "com.apple.quicktime.creationdate":
+					created = value
+				}
+			})
 		}
 	}
 	if len(rec.Tracks) == 0 {
 		return nil
 	}
+	for _, kv := range []struct {
+		dst *string
+		v   string
+	}{
+		{&rec.Tags.Title, keyed.Title}, {&rec.Tags.Description, keyed.Description}, {&rec.Tags.Author, keyed.Author},
+		{&rec.Tags.Copyright, keyed.Copyright}, {&rec.Tags.Software, keyed.Software},
+	} {
+		if *kv.dst == "" {
+			*kv.dst = kv.v
+		}
+	}
+	n := 0
+	for id := range chapterTracks {
+		n += int(textSamples[id])
+	}
+	rec.Tags.Chapters = uint16(min(n, math.MaxUint16))
+	camera := strings.TrimSpace(make_ + " " + model)
+	if model != "" && make_ != "" && strings.HasPrefix(strings.ToLower(model), strings.ToLower(make_)) {
+		camera = model
+	}
+	lat, lon, hasPlace := iso6709(place)
+	when, hasWhen := isoDate(created)
+	if camera != "" || hasPlace || hasWhen {
+		if rec.Exif == nil {
+			rec.Exif = &Exif{}
+		}
+		rec.Exif.Camera = camera
+		if hasPlace {
+			rec.Exif.GPS, rec.Exif.Lat, rec.Exif.Lon = true, lat, lon
+		}
+		if hasWhen {
+			rec.Exif.Taken, rec.Exif.HasTaken = when, true
+		}
+	}
 	return rec
+}
+
+// trakChapters: a track's id, the tracks it names as its chapters (tref
+// chap), how many samples it has, and whether it is a text track (chapter
+// titles are one text sample each).
+func trakChapters(b []byte) (id uint32, refs []uint32, samples uint32, text bool) {
+	if tkhd, ok := child(b, "tkhd"); ok {
+		if v, _ := u8At(tkhd, 0); v == 1 {
+			id, _ = u32At(tkhd, 20)
+		} else {
+			id, _ = u32At(tkhd, 12)
+		}
+	}
+	if tref, ok := child(b, "tref"); ok {
+		if chap, ok := child(tref, "chap"); ok {
+			for i := 0; i+4 <= len(chap) && len(refs) < 64; i += 4 {
+				r, _ := u32At(chap, i)
+				refs = append(refs, r)
+			}
+		}
+	}
+	if mdia, ok := child(b, "mdia"); ok {
+		if hdlr, ok := child(mdia, "hdlr"); ok {
+			if h, ok := rangeOK(hdlr, 8, 4); ok {
+				text = string(h) == "text" || string(h) == "sbtl"
+			}
+		}
+		if minf, ok := child(mdia, "minf"); ok {
+			if stbl, ok := child(minf, "stbl"); ok {
+				if stsz, ok := child(stbl, "stsz"); ok {
+					samples, _ = u32At(stsz, 8)
+				}
+			}
+		}
+	}
+	return id, refs, samples, text
+}
+
+// mdtaTags walks QuickTime "mdta" metadata: a keys box naming each entry,
+// and an ilst whose items are those keys' 1-based indexes.
+func mdtaTags(meta []byte, set func(key, value string)) {
+	keysBox, ok := child(meta, "keys")
+	if !ok {
+		return
+	}
+	count, _ := u32At(keysBox, 4)
+	var keys []string
+	for i, pos := uint32(0), 8; i < count && i < 256 && pos+8 <= len(keysBox); i++ {
+		size, _ := u32At(keysBox, pos)
+		if size < 8 || pos+int(size) > len(keysBox) {
+			break
+		}
+		keys = append(keys, string(keysBox[pos+8:pos+int(size)]))
+		pos += int(size)
+	}
+	ilst, ok := child(meta, "ilst")
+	if !ok {
+		return
+	}
+	for k, item := range boxes(ilst) {
+		idx := binary.BigEndian.Uint32(k[:])
+		if idx == 0 || int(idx) > len(keys) {
+			continue
+		}
+		data, ok := child(item, "data")
+		if !ok {
+			continue
+		}
+		if v := strings.TrimSpace(strings.TrimRight(lossy(from(data, 8)), "\x00")); v != "" {
+			set(keys[idx-1], v)
+		}
+	}
+}
+
+// iso6709: "+25.2854+051.5310+010.000/" → latitude, longitude.
+func iso6709(s string) (float64, float64, bool) {
+	s = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(s), "/"))
+	if len(s) < 4 || (s[0] != '+' && s[0] != '-') {
+		return 0, 0, false
+	}
+	j := strings.IndexAny(s[1:], "+-")
+	if j < 0 {
+		return 0, 0, false
+	}
+	j++
+	k := strings.IndexAny(s[j+1:], "+-")
+	lonEnd := len(s)
+	if k >= 0 {
+		lonEnd = j + 1 + k
+	}
+	lat, err1 := strconv.ParseFloat(s[:j], 64)
+	lon, err2 := strconv.ParseFloat(s[j:lonEnd], 64)
+	if err1 != nil || err2 != nil || math.Abs(lat) > 90 || math.Abs(lon) > 180 {
+		return 0, 0, false
+	}
+	return lat, lon, true
+}
+
+// isoDate: "2024-03-15T10:22:33+0300" (QuickTime's creation date) → Unix
+// seconds of the wall-clock time (like EXIF's, read as UTC).
+func isoDate(s string) (int64, bool) {
+	if len(s) < 19 {
+		return 0, false
+	}
+	return exifTime(strings.NewReplacer("-", ":", "T", " ").Replace(s[:19]))
 }
 
 func satMul(a, b uint64) uint64 {
@@ -721,6 +915,22 @@ func setTag(tags *Tags, k fourCC, v string) {
 		tags.Genre = v
 	case "\xa9day":
 		tags.Year = yearPrefix(v)
+	case "\xa9des", "desc", "ldes":
+		tags.Description = v
+	case "\xa9cmt":
+		if tags.Description == "" {
+			tags.Description = v
+		}
+	case "cprt", "\xa9cpy":
+		tags.Copyright = v
+	case "\xa9too", "\xa9swr", "\xa9enc":
+		if tags.Software == "" {
+			tags.Software = v
+		}
+	case "\xa9aut", "\xa9wrt", "\xa9dir":
+		if tags.Author == "" {
+			tags.Author = v
+		}
 	}
 }
 

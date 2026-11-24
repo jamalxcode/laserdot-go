@@ -3,6 +3,17 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.49
+
+- **Search by what a file says about itself.** Documents and data files now have details you can search: a PDF's or
+  Office file's title, author, description and the app that made it, and a spreadsheet's or CSV's column names, column
+  types and number of rows — `column:email`, `rows:>1000`, `coltype:date`, `author:sara`, `desc:*wedding*`.
+- **More from videos, music and photos:** description, author, copyright and the recording or editing software
+  (`software:*premiere*`, `copyright:*bbc*`), chapters in videos (`chapters:>0`), the recording date of videos
+  (`taken:2024`), and a photo's or video's map position (`lat:29..30 lon:47..48`).
+- The choices under the search offer these when your results have them: Author, Made with, Column, Rows and Chapters.
+- Files already in your index are read again once, in the background, so their new details show without re-indexing.
+
 ## 0.9.48
 
 - Every video shows its own picture again (0.9.47 showed a plain video icon in the thumbnail grid), MKV, WebM, AVI

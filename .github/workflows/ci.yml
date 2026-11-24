@@ -224,6 +224,8 @@ jobs:
           # A zip: the names inside it are searchable.
           (cd "$(mktemp -d)" && mkdir 2023 && echo r > 2023/quokka-receipt.pdf && zip -qr "$fx/archive-2023.zip" 2023)
           printf '%%PDF-1.4\n%%%%EOF\n' > "$fx/project.pdf"
+          # A data file: its column names and row count are searchable (0.9.49).
+          printf 'region,amount,day\nnorth,12.5,2024-01-02\nsouth,3,2024-02-03\neast,7,2024-03-04\n' > "$fx/sales-figures.csv"
           echo '<plist/>' > "$fx/Tool.app/Contents/Info.plist"
           cp internal/media/testdata/dupes/clip.mp4 "$fx/clip.mp4"
           cp internal/media/testdata/song.mp3 "$fx/song.mp3"

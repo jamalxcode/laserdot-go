@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jamalxcode/laserdot-go/internal/crash"
+	"github.com/jamalxcode/laserdot-go/internal/media"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
 	"github.com/jamalxcode/laserdot-go/internal/query"
@@ -218,9 +219,17 @@ func OpenAt(dbPath string, now time.Time) (*Laserdot, error) {
 		db.Close()
 		return nil, err
 	}
+	requeued, err := ld.requeueForNewDetails()
+	if err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := ld.load(); err != nil {
 		db.Close()
 		return nil, err
+	}
+	if requeued > 0 {
+		ld.probeLater()
 	}
 	// Off the start: on a Mac with thousands of folders the one-time
 	// cleanup could hold searches up for seconds.
@@ -238,6 +247,21 @@ func OpenAt(dbPath string, now time.Time) (*Laserdot, error) {
 		}
 	}
 	return ld, nil
+}
+
+// detailsVersion: bumped when the header readers learn new details, so files
+// already in the index are read again once (in the background).
+const detailsVersion = "2" // 2 (0.9.49): descriptions, authors, chapters, GPS, documents, data files
+
+func (ld *Laserdot) requeueForNewDetails() (int64, error) {
+	if v, err := ld.db.Setting("details_version"); err != nil || v == detailsVersion {
+		return 0, err
+	}
+	n, err := ld.db.RequeueProbes(media.DocExts())
+	if err != nil {
+		return 0, err
+	}
+	return n, ld.db.SetSetting("details_version", detailsVersion)
 }
 
 // Close closes the databases.

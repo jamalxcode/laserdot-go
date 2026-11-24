@@ -78,13 +78,14 @@ func TestWantsProbe(t *testing.T) {
 	}{
 		{Image, "jpg", true}, {Image, "cr3", true}, {Image, "svg", false}, {Video, "mkv", true},
 		{Video, "mp4", true}, {Audio, "flac", true}, {Video, "avi", false}, {Audio, "wma", false},
-		{Document, "pdf", false},
+		{Document, "pdf", true}, {Document, "csv", true}, {Document, "docx", true}, {Document, "doc", false},
+		{Code, "json", true}, {Document, "txt", false},
 	} {
 		if got := WantsProbe(c.kind, c.ext); got != c.want {
 			t.Errorf("%v %s: %v", c.kind, c.ext, got)
 		}
 	}
-	if st, r := Probe("/nonexistent.pdf", Document, "pdf", 0); st != ProbeSkipped || r != nil {
-		t.Errorf("pdf: %d", st)
+	if st, r := Probe("/nonexistent.doc", Document, "doc", 0); st != ProbeSkipped || r != nil {
+		t.Errorf("doc: %d", st)
 	}
 }

@@ -114,6 +114,30 @@ var Filters = []FilterDef{
 		Description: "title tag", Example: "title:\"ya rayah\""},
 	{ID: FYear, Key: "year", Section: SectionMusic, Value: ValueType{Kind: VNumber}, Scopes: nil,
 		Description: "year tag", Example: "year:1970..1979"},
+	// 0.9.49 (the owner's metadata list): any format's own words, chapters,
+	// the GPS position, and data files' columns and rows.
+	{ID: FDescription, Key: "desc", Section: SectionDocuments, Value: ValueType{Kind: VText, Exact: false}, Scopes: nil,
+		Description: "description written in the file", Example: "desc:*wedding*"},
+	{ID: FAuthor, Key: "author", Section: SectionDocuments, Value: ValueType{Kind: VText, Exact: false}, Scopes: nil,
+		Description: "author or creator", Example: "author:jamal"},
+	{ID: FCopyright, Key: "copyright", Section: SectionDocuments, Value: ValueType{Kind: VText, Exact: false}, Scopes: nil,
+		Description: "copyright notice", Example: "copyright:*BBC*"},
+	{ID: FSoftware, Key: "software", Section: SectionDocuments, Value: ValueType{Kind: VText, Exact: false}, Scopes: nil,
+		Description: "app that recorded or wrote the file", Example: "software:*premiere*"},
+	{ID: FChapters, Key: "chapters", Section: SectionVideo, Value: ValueType{Kind: VNumber}, Scopes: nil,
+		Description: "number of chapters", Example: "chapters:>0"},
+	{ID: FLat, Key: "lat", Section: SectionImages, Value: ValueType{Kind: VNumber}, Scopes: nil,
+		Description: "latitude where it was taken", Example: "lat:29..30"},
+	{ID: FLon, Key: "lon", Section: SectionImages, Value: ValueType{Kind: VNumber}, Scopes: nil,
+		Description: "longitude where it was taken", Example: "lon:47..48.5"},
+	{ID: FColumn, Key: "column", Section: SectionDocuments, Value: ValueType{Kind: VText, Exact: false}, Scopes: nil,
+		Description: "a data file's column name", Example: "column:email"},
+	{ID: FColumns, Key: "columns", Section: SectionDocuments, Value: ValueType{Kind: VNumber}, Scopes: nil,
+		Description: "number of columns in a data file", Example: "columns:>10"},
+	{ID: FRows, Key: "rows", Section: SectionDocuments, Value: ValueType{Kind: VNumber}, Scopes: nil,
+		Description: "number of rows in a data file", Example: "rows:>1000"},
+	{ID: FColType, Key: "coltype", Section: SectionDocuments, Value: ValueType{Kind: VEnum, Values: []string{"number", "text", "date", "bool"}}, Scopes: nil,
+		Description: "a data file has a column of this type", Example: "coltype:date"},
 }
 
 // FilterID identifies a filter for the executor.
@@ -175,4 +199,15 @@ const (
 	FGenre
 	FTitle
 	FYear
+	FDescription
+	FAuthor
+	FCopyright
+	FSoftware
+	FChapters
+	FLat
+	FLon
+	FColumn
+	FColumns
+	FRows
+	FColType
 )

@@ -2,7 +2,7 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.49 (draft; v1.44–v1.49 are the Go port's 0.9.27–0.9.37)
+**Version:** 1.50 (draft; v1.44–v1.49 are the Go port's 0.9.27–0.9.37; v1.50 is 0.9.49)
 **Date:** 2026-11-11 — v1.18–v1.22 record the owner's decisions while using the app; the conversation behind them is
 in `docs/history/design-conversation.md`
 **Target platform:** macOS 14+, Apple Silicon
@@ -292,6 +292,23 @@ white       = " " | "\t" | "\n" ;
 
 - ID3 / Vorbis comments / MP4 atoms: artist, album, genre, title, track, year — all searchable and filterable (`artist:"fairouz"`, `genre:electronic`)
 
+### 3.5a Descriptive fields and documents *(v1.50, 0.9.49)*
+
+- Every media record may carry `title`, `desc` (description), `author`, `copyright` and `software` (the recording or
+  editing app): MP4/MOV atoms (`©des`, `cprt`, `©too`…) and `mdta` keys (`com.apple.quicktime.*`), Matroska
+  WritingApp/MuxingApp and tags, ID3 (TCOP, TSSE, TCOM…), Vorbis comments, EXIF (ImageDescription, Artist,
+  Copyright, Software).
+- Videos: `chapters` (Matroska chapter atoms, MP4 chapter tracks), the recording date as `taken:` (Matroska DateUTC,
+  `mvhd` creation time or `com.apple.quicktime.creationdate`), and the map position (ISO 6709 `©xyz` or mdta
+  location) as `lat`/`lon`, as for photos (EXIF GPS, south and west negative).
+- Documents: PDF Info (Title, Author, Subject, Creator/Producer, CreationDate; the first 64 KB and last 256 KB only)
+  and Office Open XML properties (`docProps/core.xml`, `app.xml`).
+- Data files (CSV, TSV, PSV, JSON array, JSON Lines, XLSX first sheet): `column` (names), `columns`, `coltype`
+  (number, text, date, bool — guessed from the first 64 KB) and `rows` (exact up to 8 MB, estimated from the sample
+  beyond; for XLSX from `<dimension>`).
+- The record encoding is versioned (v2 appends these fields; v1 still decodes). A `details_version` setting makes
+  files already indexed be read again once in the background when the readers learn new fields.
+
 ### 3.6 Media queries
 
 - Field names follow ffprobe's naming where one exists (`pix_fmt`, `color_transfer`, `profile`, `sample_rate`), so ffmpeg users already know them
@@ -439,8 +456,10 @@ white       = " " | "\t" | "\n" ;
   4. **Video** — `res` `codec` `hdr` `fps` `bit_depth` `duration` `bpp` `ar` `orientation`
   5. **Audio** — `channels` `atmos` `lossless` `lang` `acodec` `sample_rate`
   6. **Subtitles** — `s.lang` `s.forced` `s.format` `sidecar`
-  7. **Images** — `camera` `lens` `taken` `megapixels` `iso` `gps` `raw` `live` `screenshot`
-  8. **Music** — `artist` `album` `genre` `year`
+  7. **Images** — `camera` `lens` `taken` `megapixels` `iso` `gps` `lat` `lon` `raw` `live` `screenshot`
+  8. **Music** — `artist` `album` `genre` `title` `year`
+  8a. **Documents** *(v1.50)* — `desc` `author` `copyright` `software` `column` `columns` `rows` `coltype` (and
+     `chapters` under Video)
   9. **Track groups** — `a(lang:ar channels:5.1)` explained in one line
   10. **Values** — size units, date forms (`2025-01-01`, `7d`, `today`), ranges (`1gb..4gb`), lists (`ext:mkv,mp4`), comparisons
   11. **Advanced** (collapsed by default) — `re:` mode and `probe.<field>:`

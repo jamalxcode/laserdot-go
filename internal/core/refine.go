@@ -66,9 +66,12 @@ var refineOrder = []struct{ id, family string }{
 	{"kind", "what"}, {"type", "what"},
 	{"size", "file"}, {"modified", "file"},
 	{"resolution", "picture"}, {"shape", "picture"}, {"hdr", "picture"}, {"codec", "picture"},
-	{"length", "time"}, {"sound", "time"},
+	{"length", "time"}, {"sound", "time"}, {"chapters", "time"},
 	{"camera", "photo"}, {"place", "photo"}, {"picture", "photo"},
 	{"artist", "music"}, {"album", "music"}, {"genre", "music"},
+	// What a file says about itself (0.9.49): who made it, with what, and a
+	// data file's columns and size.
+	{"author", "doc"}, {"software", "doc"}, {"column", "doc"}, {"rows", "doc"},
 }
 
 // refineRank: a group's place in refineOrder (unknown ones last) and family.
@@ -114,6 +117,11 @@ var (
 		{"place", "gps:true", "", "place.yes"},
 		{"picture", "screenshot:true", "", "picture.screenshot"}, {"picture", "live:true", "", "picture.live"},
 		{"picture", "raw:true", "", "picture.raw"},
+	}
+	refineChapters = []refineCandidate{{"chapters", "chapters:>0", "", "chapters.yes"}}
+	refineRows     = []refineCandidate{
+		{"rows", "rows:<100", "", "rows.small"}, {"rows", "rows:100..10000", "", "rows.medium"},
+		{"rows", "rows:>10000", "", "rows.large"},
 	}
 	refineDocTypes = []string{"pdf", "docx", "doc", "pages", "txt", "md", "rtf", "xlsx", "xls", "numbers", "csv", "pptx", "key", "epub"}
 	refineCommon   = []refineCandidate{
@@ -356,6 +364,7 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 		try(refineLength)
 		facets("codec", "codec", query.FCodec, query.Video, false)
 		try(refineVideo[8:])
+		try(refineChapters)
 	}
 	if images > 0 {
 		if videos == 0 {
@@ -377,6 +386,12 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 		for _, e := range refineDocTypes {
 			add("type", RefineOption{Token: "ext:" + e, Label: strings.ToUpper(e)})
 		}
+		facets("column", "column", query.FColumn, query.NoScope, false)
+		try(refineRows)
+	}
+	if docs > 0 || images > 0 || videos > 0 {
+		facets("author", "author", query.FAuthor, query.NoScope, true)
+		facets("software", "software", query.FSoftware, query.NoScope, true)
 	}
 	try(refineCommon)
 	// A choice typed by hand that is not among the values above (another
@@ -485,6 +500,7 @@ var refineGroups = map[string]string{
 	"hdr": "hdr", "camera": "camera", "gps": "place", "screenshot": "picture", "live": "picture", "raw": "picture",
 	"artist": "artist", "album": "album", "genre": "genre", "ext": "type", "modified": "modified", "since": "modified",
 	"fsize": "size", "volume": "drive", "in": "folder", "kind": "kind",
+	"chapters": "chapters", "author": "author", "software": "software", "column": "column", "rows": "rows",
 }
 
 // refineGroupOf: the group of a token that is a choice ("" when it is not:

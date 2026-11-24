@@ -420,6 +420,11 @@
 "refine.group.artist" = "الفنان";
 "refine.group.album" = "الألبوم";
 "refine.group.genre" = "النوع الموسيقي";
+"refine.group.chapters" = "الفصول";
+"refine.group.author" = "المؤلف";
+"refine.group.software" = "صُنع بـ";
+"refine.group.column" = "العمود";
+"refine.group.rows" = "الصفوف";
 "refine.group.type" = "النوع";
 "refine.group.modified" = "آخر تعديل";
 "refine.group.size" = "الحجم";
@@ -485,6 +490,10 @@
 "refine.length.long" = "١٠ دقائق–ساعة";
 "refine.length.verylong" = "أكثر من ساعة";
 "refine.place.yes" = "فيها موقع";
+"refine.chapters.yes" = "فيه فصول";
+"refine.rows.small" = "أقل من ١٠٠ صف";
+"refine.rows.medium" = "من ١٠٠ إلى ١٠٬٠٠٠ صف";
+"refine.rows.large" = "أكثر من ١٠٬٠٠٠ صف";
 "refine.picture.screenshot" = "لقطات الشاشة";
 "refine.picture.live" = "صور حية";
 "refine.picture.raw" = "RAW";

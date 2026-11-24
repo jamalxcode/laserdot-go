@@ -429,6 +429,7 @@ extension SearchView {
         case "time": return rgb(213, 94, 0)        // vermillion
         case "photo": return rgb(204, 121, 167)    // reddish purple
         case "music": return rgb(181, 160, 0)      // yellow, deepened to show on white
+        case "doc": return .primary                // black (white in dark mode), the last Okabe-Ito tone
         default: return .gray
         }
     }
@@ -443,6 +444,7 @@ extension SearchView {
         case "time": return "clock"
         case "photo": return "camera"
         case "music": return "music.note"
+        case "doc": return "doc.text.magnifyingglass"
         default: return "line.3.horizontal.decrease"
         }
     }
