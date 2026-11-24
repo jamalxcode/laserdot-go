@@ -514,8 +514,7 @@ func ShouldDefer(e *scan.Entry) bool {
 // them back would hide a fresh copy from the duplicate finder.
 func pendingKind(e *scan.Entry) bool {
 	ext := media.Extension(fold.Fold(filepath.Base(e.Path)))
-	k := media.Classify(ext, e.IsDir, e.Size)
-	return k != media.Document && media.WantsProbe(k, ext)
+	return !media.IsDocExt(ext) && media.WantsProbe(media.Classify(ext, e.IsDir, e.Size), ext)
 }
 
 func probeParts(p Probe) (code int, w, h uint32, blob []byte) {

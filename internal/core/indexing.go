@@ -180,7 +180,7 @@ func (ld *Laserdot) probeLater() {
 			id := it.Next()
 			// Media files written moments ago wait; documents are read at once
 			// (index.ShouldDefer says why).
-			fresh := time.Now().Unix()-ld.store.Modified(id) < index.StableSecs && ld.store.Kind(id) != media.Document
+			fresh := time.Now().Unix()-ld.store.Modified(id) < index.StableSecs && !media.IsDocExt(media.Extension(ld.store.FoldedName(id)))
 			if !ld.store.IsDataless(id) && !fresh {
 				ids = append(ids, id)
 			}

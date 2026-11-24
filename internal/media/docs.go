@@ -35,6 +35,10 @@ var dataExts = set("csv", "tsv", "tab", "psv", "json", "jsonl", "ndjson", "xlsx"
 // officeExts: Office Open XML files whose document properties are read.
 var officeExts = set("docx", "xlsx", "pptx", "docm", "xlsm", "pptm")
 
+// IsDocExt: the extension has a document or data-file reader (not a media
+// one): such files are read at once, never held back (index.ShouldDefer).
+func IsDocExt(ext string) bool { return ext == "pdf" || dataExts[ext] || officeExts[ext] }
+
 // DocExts are the document and data-file extensions whose details are read
 // (0.9.49), sorted.
 func DocExts() []string {

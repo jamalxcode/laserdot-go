@@ -396,7 +396,7 @@ func (ld *Laserdot) dupeCandidates(opts DupeOptions) ([]cand, error) {
 			// A media file waiting for its header is left for later (its
 			// quality decides which copy is kept); a document waiting for its
 			// details is compared by content all the same.
-			pending := s.IsPending(id) && s.Kind(id) != media.Document
+			pending := s.IsPending(id) && !media.IsDocExt(media.Extension(s.FoldedName(id)))
 			if s.IsDir(id) || s.IsSymlink(id) || s.IsDataless(id) || pending || s.Size(id) < max(opts.MinSize, 1) {
 				continue
 			}

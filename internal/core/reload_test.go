@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jamalxcode/laserdot-go/internal/watch"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/jamalxcode/laserdot-go/internal/watch"
 
 	"github.com/jamalxcode/laserdot-go/internal/index"
 )

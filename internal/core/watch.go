@@ -1,9 +1,10 @@
 package core
 
 import (
-	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"sync/atomic"
 	"time"
+
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 
 	"github.com/jamalxcode/laserdot-go/internal/watch"
 )

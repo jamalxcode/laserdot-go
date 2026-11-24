@@ -105,3 +105,26 @@ func TestDocumentDetailsAreChoices(t *testing.T) {
 	// A chosen author narrows the results and shows as chosen.
 	expect(t, lnames(t, ld, "sales author:jamal"), "sales report.pdf")
 }
+
+// Files written a moment ago (the self-test's case): a JSON file — a "code"
+// kind — is read at once like a CSV, both offer their columns, and a size
+// every result shares is no choice.
+func TestFreshDataFilesAreReadAtOnce(t *testing.T) {
+	base, _ := filepath.EvalSymlinks(t.TempDir())
+	lib := filepath.Join(base, "lib")
+	os.MkdirAll(lib, 0o755)
+	os.WriteFile(filepath.Join(lib, "sales-figures.csv"), []byte("region,amount\nnorth,1\nsouth,2\n"), 0o644)
+	os.WriteFile(filepath.Join(lib, "sales-targets.json"), []byte(`[{"month":"jan","target":10}]`), 0o644)
+	ld, _ := Open(filepath.Join(base, "i.db"))
+	defer ld.Close()
+	ld.Index(lib)
+	expect(t, lnames(t, ld, "column:month"), "sales-targets.json")
+	groups, _ := ld.Refinements("sales")
+	cols := tokens(refineGroup(groups, "column"))
+	if !slices.Contains(cols, "column:region") || !slices.Contains(cols, "column:month") {
+		t.Errorf("columns of both files: %v", cols)
+	}
+	if r := refineGroup(groups, "rows"); len(r) != 0 {
+		t.Errorf("both are small: nothing to choose between (%v)", tokens(r))
+	}
+}

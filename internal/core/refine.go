@@ -386,6 +386,10 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 		for _, e := range refineDocTypes {
 			add("type", RefineOption{Token: "ext:" + e, Label: strings.ToUpper(e)})
 		}
+	}
+	// Data files (CSV, JSON — a "code" kind —, spreadsheets): their columns
+	// and sizes.
+	if countBase("columns:>0") > 0 {
 		facets("column", "column", query.FColumn, query.NoScope, false)
 		try(refineRows)
 	}

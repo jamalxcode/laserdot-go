@@ -194,8 +194,8 @@ check(not jpg["compact"], "the overlay grows for results")
 dc = steps["datacolumn"]
 check(dc["results"] == ["sales-figures.csv"], f"column:region finds the data file with that column (got {dc['results']})")
 dch = steps["datachoices"]
-check("column:region" in dch.get("refinements", []) and "rows:<100" in dch.get("refinements", []),
-      f"a data file's columns and size are choices (got {dch.get('refinements')})")
+check("column:region" in dch.get("refinements", []) and "column:month" in dch.get("refinements", []),
+      f"the data files' columns (CSV and JSON) are choices (got {dch.get('refinements')})")
 pdft = steps["pdftoday"]
 check(pdft["results"] == ["project.pdf"], f"pdf today finds today's PDF (got {pdft['results']})")
 check("modified:today" in pdft["hint"], f"the hint explains today (got {pdft['hint']!r})")

@@ -2,7 +2,6 @@ package core
 
 import (
 	"encoding/json"
-	"github.com/jamalxcode/laserdot-go/internal/crash"
 	"os"
 	"path/filepath"
 	"slices"
@@ -10,6 +9,8 @@ import (
 	"sync"
 	"time"
 	"unicode/utf8"
+
+	"github.com/jamalxcode/laserdot-go/internal/crash"
 
 	"github.com/RoaringBitmap/roaring/v2"
 

@@ -3,7 +3,6 @@ package core
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/jamalxcode/laserdot-go/internal/index"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -12,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/jamalxcode/laserdot-go/internal/index"
 )
 
 func fx(t *testing.T, name string) []byte { return corpus(t, filepath.Join("dupes", name)) }
