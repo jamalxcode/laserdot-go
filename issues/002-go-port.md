@@ -148,6 +148,9 @@ Binding unless revisited deliberately; each is also in the spec.
   one is never detached by mistake). `ThumbnailCache.icon(for:)` returns the type icon (UTType from the name) unless
   the file's icon was read; `fileIcon` reads Finder's icon off the main thread (FileIcon, Duplicates rows); the
   preview's kind text comes from UTType; the drive offer's `fileExists` runs off the main thread.
+  0.9.51: `DrivesModel.offer(mount:choose:)` uses the list on screen and never returns silently; drive indexing jobs
+  run `alongside` (global queue, `running` list; `busy` shows the last running job); `promptIndex(started:)` chooses the
+  drive (`volume:` pill) two seconds after its index starts.
 - **Rich metadata (0.9.49):** `media.Tags` gains Description/Author/Copyright/Software/Chapters, `Exif` Lat/Lon,
   `Record.Data` (columns, types, rows); record encoding v2 (v1 decodes). New `docs.go` (PDF, Office, CSV/TSV/JSON/
   XLSX) behind `parserDoc`; `media.SameReader` keeps the update engine from reusing a probe across readers (a video

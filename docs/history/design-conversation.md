@@ -910,6 +910,11 @@ type's icon and the file's own replaces it once read. The same cause showed whil
 displayed content is slow with over 4 seconds beachball spins then a little move up"): every row coming into view
 asked the sleeping drive for its icon. Released as 0.9.50.
 
+Then "the 8 TB drive T5 EVO is showing but not being selected, it flashes when pressed but not showing in search bar
+text": the click was ignored while another drive job ran (or the engine was slow to list drives). Decided (0.9.51):
+the click always answers — the question even while another drive is indexed (both at once), and once indexing starts
+the drive is chosen in the search box, since it is searchable while it is read.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

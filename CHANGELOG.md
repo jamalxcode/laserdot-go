@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.51
+
+- Clicking a drive that isn't indexed yet ("T5 EVO — Index…") always does something now. It asks to index the drive
+  even while another drive is being indexed (both are indexed at once), and once you say Index the drive is chosen
+  in the search box, so you can search it while it is read. Before, the click could just flash.
+
 ## 0.9.50
 
 - **Every mounted drive shows.** The Drive choices under a search listed only drives Laserdot had already indexed, so

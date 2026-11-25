@@ -89,17 +89,26 @@ final class DrivesModel: ObservableObject {
 
     // MARK: actions
 
-    private func run(_ title: String, _ work: @escaping (Engine) throws -> Void) {
+    /// Jobs running now (indexing two drives at once is fine: each has its
+    /// own connection and the engine locks per drive).
+    private var running: [String] = []
+
+    /// `alongside`: indexing a drive runs beside other drives' indexing
+    /// instead of waiting hours behind it (the owner clicked T5 EVO while
+    /// another drive was being indexed, and nothing happened).
+    private func run(_ title: String, alongside: Bool = false, _ work: @escaping (Engine) throws -> Void) {
+        running.append(title)
         busy = title
         // While the job runs the drives' state is followed (an index being
         // read shows Stop Indexing).
         let ticker = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.refresh() }
         let engine = self.engine
-        queue.async { [weak self] in
+        (alongside ? DispatchQueue.global(qos: .utility) : queue).async { [weak self] in
             let outcome = Result { try work(engine) }
             DispatchQueue.main.async {
                 ticker.invalidate()
-                self?.busy = nil
+                if let self, let i = self.running.firstIndex(of: title) { self.running.remove(at: i) }
+                self?.busy = self?.running.last
                 if case .failure(let e) = outcome {
                     let alert = NSAlert()
                     alert.messageText = title
@@ -119,19 +128,21 @@ final class DrivesModel: ObservableObject {
     /// A drive chosen in the search window that Laserdot cannot search yet:
     /// index it (asked even if it was declined before: this time it was
     /// asked for), unlock it, or attach its index.
-    func offer(mount: String) {
-        let engine = self.engine
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let d = (try? engine.drives())?.first { $0.mount == mount }
-            DispatchQueue.main.async {
-                guard let self, let d, self.busy == nil else { return }
-                switch d.state {
-                case "locked": self.promptUnlock(d)
-                case "detached": self.attach(d)
-                case "attached": break
-                default: self.promptIndex(d)
-                }
-            }
+    /// Never does nothing (the owner's click on T5 EVO only flashed): it
+    /// uses the list on screen (no wait on the engine), asks even while
+    /// another drive is being indexed, and a drive indexed meanwhile is
+    /// simply chosen. `choose` puts the drive in the search (once its index
+    /// is started: a drive is searchable while it is indexed).
+    func offer(mount: String, choose: @escaping () -> Void) {
+        guard let d = drives.first(where: { $0.mount == mount }) else {
+            refresh() // gone or not listed yet: the next look shows the truth
+            return
+        }
+        switch d.state {
+        case "locked": promptUnlock(d)
+        case "detached": attach(d); choose()
+        case "attached": choose()
+        default: promptIndex(d, started: choose)
         }
     }
 
@@ -139,9 +150,10 @@ final class DrivesModel: ObservableObject {
     static let planWait: TimeInterval = 6
 
     /// Ask before indexing: what it will take and where the index goes.
-    func promptIndex(_ d: Drive, rebuild: Bool = false) {
+    func promptIndex(_ d: Drive, rebuild: Bool = false, started: (() -> Void)? = nil) {
         let mount = d.mount
-        busy = String(format: L("drive.looking"), d.name)
+        let looking = String(format: L("drive.looking"), d.name)
+        busy = looking
         let engine = self.engine
         // Not on the drives queue: refreshing the list goes on meanwhile.
         // The question shows within a few seconds whatever the drive does:
@@ -157,8 +169,8 @@ final class DrivesModel: ObservableObject {
             lock.unlock()
             guard first else { return }
             DispatchQueue.main.async {
-                self.busy = nil
-                self.showIndexPrompt(d, plan: plan, rebuild: rebuild)
+                self.busy = self.running.last // back to what runs, if anything
+                self.showIndexPrompt(d, plan: plan, rebuild: rebuild, started: started)
             }
         }
         DispatchQueue.global(qos: .userInitiated).async {
@@ -169,7 +181,7 @@ final class DrivesModel: ObservableObject {
         }
     }
 
-    private func showIndexPrompt(_ d: Drive, plan: DrivePlan?, rebuild: Bool) {
+    private func showIndexPrompt(_ d: Drive, plan: DrivePlan?, rebuild: Bool, started: (() -> Void)? = nil) {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = String(format: L(rebuild ? "drive.rebuild.title" : "drive.index.title"), d.name)
@@ -198,7 +210,7 @@ final class DrivesModel: ObservableObject {
             let secret = encrypt.state == .on && !pass.stringValue.isEmpty ? pass.stringValue : nil
             let keep = remember.state == .on
             let mount = d.mount
-            run(String(format: L("drive.indexing"), d.name)) { engine in
+            run(String(format: L("drive.indexing"), d.name), alongside: true) { engine in
                 if rebuild {
                     _ = try engine.driveRebuild(mount: mount, passphrase: secret)
                 } else {
@@ -208,6 +220,10 @@ final class DrivesModel: ObservableObject {
                 if let secret, keep, let id = try engine.drives().first(where: { $0.mount == mount })?.id {
                     Keychain.save(secret, for: id)
                 }
+            }
+            // Searchable while it is indexed: choose it once the index exists.
+            if let started {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2) { started() }
             }
         case .alertThirdButtonReturn:
             var declined = UserDefaults.standard.stringArray(forKey: declinedKey) ?? []
@@ -299,7 +315,7 @@ final class DrivesModel: ObservableObject {
         queue.async { [weak self] in
             let ok = (try? engine.driveUnlock(mount: mount, passphrase: secret)) != nil
             DispatchQueue.main.async {
-                self?.busy = nil
+                self?.busy = self?.running.last
                 if !ok {
                     // Changed or wrong: forget it and ask.
                     Keychain.forget(id)

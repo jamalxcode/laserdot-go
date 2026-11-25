@@ -136,7 +136,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             if !SelfTest.active { self?.indexDefaultsOnce(status) }
         }
         model.commandProvider = { [weak self] in self?.commands() ?? [] }
-        model.onDriveChoice = { [weak self] o in self?.drives?.offer(mount: o.mount ?? "") }
+        model.onDriveChoice = { [weak self, weak model] o in
+            self?.drives?.offer(mount: o.mount ?? "") {
+                // Chosen like any drive: the search narrows to it.
+                model?.applyRefinement(RefineOption(token: o.token, label: o.label, key: nil, count: 1))
+            }
+        }
         model.onIndexing = { [weak self] name in
             self?.statusLine = String(format: L("index.running"), name)
             // The daemon's progress follows in the menu (show(_:) polls on).
