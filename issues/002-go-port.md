@@ -162,6 +162,9 @@ Binding unless revisited deliberately; each is also in the spec.
   ignored when it starts on a selected item, which keeps `.onDrag` (`fileDrag(_:when:)`, selected items only).
   `resultMenu` uses `menuTargets` (the whole selection when the row is in it): Open/Show/Copy/Rename/Trash for all.
   Self-test `marquee`.
+- **Duplicates drive picker (0.9.55):** `DuplicatesModel.lookDrive` ("" all, "local", or a name → `volume:` in
+  `effectiveScope`, folded), `drives` fed from `DrivesModel.$drives`, `chooseDrive` offers unindexed drives through
+  `DrivesModel.offer`; `placeName` on the Scan button (`dupes.scanIn`) and above the progress (`dupes.where`).
 - **Rich metadata (0.9.49):** `media.Tags` gains Description/Author/Copyright/Software/Chapters, `Exif` Lat/Lon,
   `Record.Data` (columns, types, rows); record encoding v2 (v1 decodes). New `docs.go` (PDF, Office, CSV/TSV/JSON/
   XLSX) behind `parserDoc`; `media.SameReader` keeps the update engine from reusing a probe across readers (a video

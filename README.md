@@ -165,8 +165,9 @@ time.
 
 **Find Duplicates** (File menu, or `> dup`) finds identical copies, similar pictures (iPhone HEIC and camera RAW
 too) and re-encoded videos and recommends the best copy to keep, describing each copy in plain words ("high
-quality"). Pick what to look at (Everything, Videos, Images…) and where (Everywhere or a folder); a search for the
-scope is under **Advanced**. It shows each step with a bar, how many files are done and the time so far; it can
+quality"). Pick what to look at (Everything, Videos, Images…), which drive (This Mac and all drives, This Mac, or
+one drive — a drive not indexed yet is offered for indexing) and a folder; the Scan button names the place ("Scan
+plex media"). A search for the scope is under **Advanced**. It shows each step with a bar, how many files are done and the time so far; it can
 be stopped at any point (**Stop and Show What's Found**) and picks up where it left off (**Continue Scan**), saving
 what it has read every 30 seconds. Cleaning up is one button — **Move N Duplicates to Trash (size)…** — then a
 confirmation; nothing is ever deleted, and Laserdot keeps a running total of the space it has helped clear.

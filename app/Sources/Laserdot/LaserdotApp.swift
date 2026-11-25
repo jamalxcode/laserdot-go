@@ -269,6 +269,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             w.contentMinSize = NSSize(width: 560, height: 380)
             let model = DuplicatesModel(engine: engine)
             model.showStorage = { [weak self] in self?.showStorage() }
+            if let dm = drives {
+                model.follow(dm.$drives)
+                model.drives = dm.drives
+                model.offerDrive = { [weak dm] mount in dm?.offer(mount: mount) {} }
+            }
             duplicatesModel = model
             w.contentView = NSHostingView(rootView: DuplicatesView(model: model)
                 .environment(\.layoutDirection, appLayoutDirection))

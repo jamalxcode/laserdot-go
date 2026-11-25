@@ -3,6 +3,12 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.55
+
+- **Find Duplicates says which drive it scans, and lets you change it.** A drive menu beside the kind and folder:
+  This Mac and all drives, This Mac, or one drive. The Scan button and the progress name it ("Scan plex media").
+  A drive that isn't indexed yet is listed too ("T5 EVO — Index…"); choosing it offers to index it.
+
 ## 0.9.54
 
 - **Select files by dragging a box** over them, as in Finder: start in an empty spot or on a file that isn't selected,

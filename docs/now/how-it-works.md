@@ -113,6 +113,8 @@ One page, kept current: what is true today. The history and the reasons are in
 - **Opening** a result (Return, double-click, Open With, Show in Finder, Open in Terminal) hides the ⌥Space window.
   Right-click on a result: Open, Quick Look, Show in Finder, Copy Path, Rename…, More Like This, Move to Trash, More;
   on one of several selected results it acts on all of them ("Move 3 Items to Trash", 0.9.54).
+- **Find Duplicates** looks at a kind, a drive (This Mac and all drives, This Mac, or one drive — `volume:`; a drive
+  with no index offers to index it) and a folder, and names the place on its Scan button and progress (0.9.55).
 - **Selecting:** click, ⌘-click, ⇧-click, ⇧↑↓, and a box dragged over the results (list, columns, grid) selects what
   it touches (⌘/⇧ adds; 0.9.54). The box starts anywhere but on a selected result; a selected result drags out to
   Finder or another app.

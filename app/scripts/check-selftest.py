@@ -384,6 +384,9 @@ check("Move" in report.get("dupes_button", "") or "نقل" in report.get("dupes_
 sums = report.get("dupes_summaries", [])
 check(sums and not any("bpp" in s for s in sums), f"duplicates describe copies in plain words (got {sums})")
 check(report.get("dupes_scope") == "kind:video", f"the Duplicates pickers make the scope (got {report.get('dupes_scope')!r})")
+check(report.get("dupes_scope_local") == "kind:video volume:local" and report.get("dupes_place") == "This Mac"
+      and report.get("dupes_scan_title") == "Scan This Mac",
+      f"the drive picker narrows the scan and says where (got {report.get('dupes_scope_local')!r}, {report.get('dupes_place')!r}, {report.get('dupes_scan_title')!r})")
 check(report.get("dupes_none") == 0 and report.get("dupes_all", 0) >= 1, f"Select None and Select All Extras work (got {report.get('dupes_none')}, {report.get('dupes_all')})")
 check(report.get("dupes_preview_files", -1) >= 1, f"the dry run before moving answers (got {report.get('dupes_preview_files')}, {report.get('dupes_preview_error')!r})")
 for shot in ("storage.png", "duplicates.png", "settings-folders.png", "settings-drives.png", "settings-privacy.png"):

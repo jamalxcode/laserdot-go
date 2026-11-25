@@ -48,7 +48,10 @@
 "dupes.title" = "Duplicates";
 "dupes.scope" = "Look in (optional query), e.g. kind:video in:~/Movies";
 "dupes.exactOnly" = "Identical only";
-"dupes.scan" = "Scan";
+"dupes.look.allDrives" = "This Mac and all drives";
+"dupes.scanIn" = "Scan %@";
+"dupes.where" = "Looking on: %@";
+"dupes.notConnected" = "%@ (not connected)";
 "dupes.scanning" = "Comparing files…";
 "dupes.none" = "No duplicates found";
 "dupes.intro" = "Finds identical copies, similar pictures and re-encoded videos, and recommends the best copy to keep.";

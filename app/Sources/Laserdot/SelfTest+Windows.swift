@@ -85,6 +85,13 @@ extension SelfTestRunner {
                     let kind = dm.lookKind
                     dm.lookKind = "video"
                     self.extra["dupes_scope"] = dm.effectiveScope
+                    // Which drive is always said, and can be changed.
+                    let drive = dm.lookDrive
+                    dm.lookDrive = "local"
+                    self.extra["dupes_scope_local"] = dm.effectiveScope
+                    self.extra["dupes_place"] = dm.placeName
+                    self.extra["dupes_scan_title"] = dm.scanTitle
+                    dm.lookDrive = drive
                     dm.lookKind = kind
                     dm.selectNone()
                     self.extra["dupes_none"] = dm.selectedCount

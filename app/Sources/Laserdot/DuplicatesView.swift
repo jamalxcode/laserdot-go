@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import LaserdotKit
 import SwiftUI
 
@@ -18,10 +19,55 @@ final class DuplicatesModel: ObservableObject {
     @Published var lookFolder = UserDefaults.standard.string(forKey: "laserdot.dupes.folder") ?? "" {
         didSet { UserDefaults.standard.set(lookFolder, forKey: "laserdot.dupes.folder") }
     }
+    /// Which drive (the owner: "I'm not sure which drive I am scanning … allow
+    /// me to change drives"): "" this Mac and every drive, "local" this Mac,
+    /// else a drive's name.
+    @Published var lookDrive = UserDefaults.standard.string(forKey: "laserdot.dupes.drive") ?? "" {
+        didSet { UserDefaults.standard.set(lookDrive, forKey: "laserdot.dupes.drive") }
+    }
+    /// The drives connected now (from the Drives list), and how to offer to
+    /// index one that has no index yet.
+    @Published var drives: [Drive] = []
+    var offerDrive: (String) -> Void = { _ in }
+    private var drivesFeed: AnyCancellable?
+    func follow(_ list: Published<[Drive]>.Publisher) {
+        drivesFeed = list.receive(on: RunLoop.main).sink { [weak self] in self?.drives = $0 }
+    }
+
+    /// A drive chosen in the picker; one Laserdot cannot search yet is
+    /// offered for indexing (it is searched as it is read).
+    func chooseDrive(_ d: Drive?) {
+        guard let d else { return }
+        lookDrive = d.name
+        if !lookFolder.isEmpty && !(lookFolder == d.mount || lookFolder.hasPrefix(d.mount + "/")) { lookFolder = "" }
+        if d.state != "attached" { offerDrive(d.mount) }
+    }
+
+    /// Where the scan looks, in words: the folder's drive, the drive chosen,
+    /// This Mac, or this Mac and every drive.
+    var placeName: String {
+        if !lookFolder.isEmpty {
+            let parts = lookFolder.split(separator: "/")
+            if lookFolder.hasPrefix("/Volumes/"), parts.count >= 2 { return String(parts[1]) }
+            return L("refine.drive.local")
+        }
+        switch lookDrive {
+        case "": return L("dupes.look.allDrives")
+        case "local": return L("refine.drive.local")
+        default:
+            return drives.contains { $0.name == lookDrive } ? lookDrive : String(format: L("dupes.notConnected"), lookDrive)
+        }
+    }
     /// The search the scan looks in: the pickers' words, then Advanced.
     var effectiveScope: String {
         var words: [String] = []
         if !lookKind.isEmpty { words.append("kind:" + lookKind) }
+        if lookFolder.isEmpty && !lookDrive.isEmpty {
+            // The drive's name as the search folds it (case and accents aside).
+            let folded = lookDrive.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil).lowercased()
+            let escaped = folded.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+            words.append(lookDrive == "local" ? "volume:local" : "volume:\"\(escaped)\"")
+        }
         if !lookFolder.isEmpty {
             let escaped = lookFolder.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
             words.append("in:\"\(escaped)\"")
@@ -143,7 +189,7 @@ final class DuplicatesModel: ObservableObject {
 
     /// "Scan", or "Continue Scan" after a scan was stopped early.
     var scanTitle: String {
-        report?.stopped == true ? L("dupes.continueScan") : L("dupes.scan")
+        report?.stopped == true ? L("dupes.continueScan") : String(format: L("dupes.scanIn"), placeName)
     }
 
     /// Ask the daemon twice a second how far the scan has got.
@@ -431,6 +477,29 @@ struct DuplicatesView: View {
                         Text(L("refine.kind.document")).tag("document")
                     }
                     .fixedSize()
+                    // Which drive, always in sight; drives with no index yet
+                    // are offered for indexing from here.
+                    Menu {
+                        Button { model.lookDrive = ""; model.lookFolder = "" } label: {
+                            menuChecked(L("dupes.look.allDrives"), model.lookDrive == "" && model.lookFolder.isEmpty)
+                        }
+                        Button { model.lookDrive = "local"; model.lookFolder = "" } label: {
+                            menuChecked(L("refine.drive.local"), model.lookDrive == "local" && model.lookFolder.isEmpty)
+                        }
+                        if !model.drives.isEmpty { Divider() }
+                        ForEach(model.drives, id: \.mount) { d in
+                            Button { model.chooseDrive(d) } label: {
+                                menuChecked(d.state == "attached" ? d.name
+                                        : String(format: L("refine.drive." + (["locked", "detached"].contains(d.state) ? d.state : "unindexed")), d.name),
+                                        model.lookDrive == d.name && model.lookFolder.isEmpty)
+                            }
+                        }
+                    } label: {
+                        Label(model.placeName, systemImage: model.lookDrive == "local" ? "laptopcomputer" : "externaldrive")
+                    }
+                    .fixedSize()
+                    .help(String(format: L("dupes.where"), model.placeName))
+                    .accessibilityIdentifier("dupes-drive")
                     Menu {
                         Button(L("dupes.look.everywhere")) { model.lookFolder = "" }
                         Button(L("place.choose")) { chooseLookFolder() }
@@ -459,6 +528,8 @@ struct DuplicatesView: View {
             if model.scanning {
                 // Each step, a bar and the count: a long scan never looks stuck.
                 VStack(spacing: 10) {
+                    Text(String(format: L("dupes.where"), model.placeName))
+                        .font(.callout).foregroundStyle(.secondary)
                     Text(model.progressTitle).font(.headline)
                     if let f = model.progressFraction {
                         ProgressView(value: f).progressViewStyle(.linear)
@@ -701,4 +772,9 @@ struct DuplicatesView: View {
             Button(L("action.open")) { DiskAccessPrompt.shared.open(URL(fileURLWithPath: f.path)) }
         }
     }
+}
+
+/// A menu item with a check mark when it is the current choice.
+@ViewBuilder func menuChecked(_ title: String, _ on: Bool) -> some View {
+    if on { Label(title, systemImage: "checkmark") } else { Text(title) }
 }

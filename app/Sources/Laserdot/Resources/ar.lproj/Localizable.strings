@@ -48,7 +48,10 @@
 "dupes.title" = "التكرارات";
 "dupes.scope" = "ابحث في (استعلام اختياري)، مثل kind:video in:~/Movies";
 "dupes.exactOnly" = "المتطابقة فقط";
-"dupes.scan" = "فحص";
+"dupes.look.allDrives" = "هذا الماك وكل الأقراص";
+"dupes.scanIn" = "افحص %@";
+"dupes.where" = "البحث في: %@";
+"dupes.notConnected" = "%@ (غير موصول)";
 "dupes.scanning" = "جارٍ مقارنة الملفات…";
 "dupes.none" = "لم يُعثر على تكرارات";
 "dupes.intro" = "يعثر على النسخ المتطابقة والصور المتشابهة والفيديوهات المعاد ترميزها، ويوصي بأفضل نسخة للاحتفاظ بها.";
