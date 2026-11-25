@@ -894,6 +894,15 @@ filters of their own (`desc`, `author`, `copyright`, `software`, `chapters`, `la
 a CSV or JSON file, a spreadsheet's first sheet), offered as choices only when the results have them, and read
 again once for files already indexed.
 
+## 73. Every mounted drive in sight (0.9.50)
+
+"Not all the drives that are mounted appear when laserdot is started, look into it, especially the larger drive that
+I wanted to look into", with `df` showing five drives (Rapid, plex media, T5 EVO, TwoTB April 2017) and "This Mac and
+Rapid are only appearing"; then "the index dialog for 2tb appeared now, after several minutes". The Drive choices
+listed only indexed drives, and the app offered to index new drives one at a time, once, waiting on each count.
+Decided: unindexed (or locked, detached) drives show among the Drive choices with what they need, a click offers to
+index; the question shows within 6 s; the drive list has its own daemon connection.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

@@ -6,7 +6,7 @@ extension Engine {
     // MARK: drives (spec §9)
 
     public func drives() throws -> [Drive] {
-        try call(.drives, as: [Wire.DriveInfo].self).map { d in
+        try drivesCall(.drives, as: [Wire.DriveInfo].self).map { d in
             Drive(
                 id: d.id, name: d.name, mount: d.mount, state: d.state.state, detail: d.state.detail, readOnly: d.readOnly,
                 encrypted: d.encrypted, onDrive: d.onDrive, complete: d.complete, entries: d.entries,

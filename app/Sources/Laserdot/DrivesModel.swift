@@ -116,18 +116,56 @@ final class DrivesModel: ObservableObject {
         return (e as? LaserdotError)?.message ?? e.localizedDescription
     }
 
+    /// A drive chosen in the search window that Laserdot cannot search yet:
+    /// index it (asked even if it was declined before: this time it was
+    /// asked for), unlock it, or attach its index.
+    func offer(mount: String) {
+        let engine = self.engine
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let d = (try? engine.drives())?.first { $0.mount == mount }
+            DispatchQueue.main.async {
+                guard let self, let d, self.busy == nil else { return }
+                switch d.state {
+                case "locked": self.promptUnlock(d)
+                case "detached": self.attach(d)
+                case "attached": break
+                default: self.promptIndex(d)
+                }
+            }
+        }
+    }
+
+    /// How long the index question waits for the drive to be counted.
+    static let planWait: TimeInterval = 6
+
     /// Ask before indexing: what it will take and where the index goes.
     func promptIndex(_ d: Drive, rebuild: Bool = false) {
         let mount = d.mount
         busy = String(format: L("drive.looking"), d.name)
         let engine = self.engine
         // Not on the drives queue: refreshing the list goes on meanwhile.
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let plan = try? engine.drivePlan(mount: mount)
+        // The question shows within a few seconds whatever the drive does:
+        // without the count when counting is not done by then (a sleeping
+        // or huge drive), never minutes later.
+        final class Box: @unchecked Sendable { var shown = false }
+        let box = Box()
+        let lock = NSLock()
+        func show(_ plan: DrivePlan?) {
+            lock.lock()
+            let first = !box.shown
+            box.shown = true
+            lock.unlock()
+            guard first else { return }
             DispatchQueue.main.async {
-                self?.busy = nil
-                self?.showIndexPrompt(d, plan: plan, rebuild: rebuild)
+                self.busy = nil
+                self.showIndexPrompt(d, plan: plan, rebuild: rebuild)
             }
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            show(try? engine.drivePlan(mount: mount))
+        }
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + Self.planWait) {
+            show(nil)
         }
     }
 
@@ -275,7 +313,8 @@ final class DrivesModel: ObservableObject {
     /// The first time an unindexed drive mounts this
     /// session, offer to index it (unless the user said never).
     private func offerNewDrives() {
-        guard busy == nil else { return }
+        // The self-test mounts a stand-in drive: no question may block it.
+        guard busy == nil, !SelfTest.active else { return }
         let declined = Set(UserDefaults.standard.stringArray(forKey: declinedKey) ?? [])
         for d in drives where d.state == "unindexed" && !offered.contains(d.mount) && !declined.contains(d.name)
             && freshMounts.contains(d.mount) && !ejectingMounts.contains(d.mount) {

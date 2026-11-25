@@ -43,7 +43,8 @@ One page, kept current: what is true today. The history and the reasons are in
   with a trigram prefilter; media filters use columns and bitmaps; contents use SQLite FTS5.
 - After a search, the **choice row** offers what the results have (resolution, sound, shape, camera, type, date,
   size…), with counts; a choice is added to the search as a word, its group shrinks to it, the others stay. It also
-  offers where: **Drive** (`volume:local` or a drive, when one is attached) and **Folder** (`in:` the folders holding
+  offers where: **Drive** (`volume:local` or a drive, when one is attached; a mounted drive with no index, or locked,
+  or detached, shows greyed as "Name — Index…" and a click offers to index it; since 0.9.50) and **Folder** (`in:` the folders holding
   the results: under each indexed folder it goes down while one folder holds them all, then offers its subfolders).
   ⌥-click (or right-click ▸ Leave Out) leaves a value out: a `-` word (`-ext:pdf`), shown struck through.
   The groups come top down, large to granular (`core.refineOrder`): drive, folder · kind, type · size, modified ·

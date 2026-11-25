@@ -51,14 +51,22 @@ func (ld *Laserdot) Drives() []DriveInfo {
 			f.bytes = dirBytes(f.dir)
 		}
 	}
-	ld.mu.RLock()
-	defer ld.mu.RUnlock()
+	ld.mu.Lock()
+	defer ld.mu.Unlock()
 	out := []DriveInfo{}
 	for i, v := range vols {
 		out = append(out, ld.driveInfoFrom(v, found[i]))
 	}
+	ld.mounted = ld.mounted[:0]
+	for _, d := range out {
+		ld.mounted = append(ld.mounted, mountedDrive{name: d.Name, mount: d.Mount, state: d.State.State})
+	}
 	return out
 }
+
+// mountedDrive: a drive seen mounted, and its state then (unindexed,
+// detached, locked, attached…).
+type mountedDrive struct{ name, mount, state string }
 
 // foundIndex: what was read from a volume (outside the lock) for its info.
 type foundIndex struct {

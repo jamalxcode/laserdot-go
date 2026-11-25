@@ -247,6 +247,9 @@ final class SearchModel: ObservableObject {
     /// `>` at the start of the query: commands instead of a search.
     @Published var commandIndex = 0
     var commandProvider: (() -> [ActionItem])?
+    /// A drive with no index (or locked, or detached) was chosen among the
+    /// choices: the app offers to index, unlock or attach it.
+    var onDriveChoice: ((RefineOption) -> Void)?
     /// "Indexing “Home”… 45%", while a folder is first indexed.
     @Published var progressText: String?
     var progressTimer: Timer?
@@ -574,6 +577,11 @@ final class SearchModel: ObservableObject {
     /// is one resolution). Otherwise it joins the search. Every other group
     /// stays available to add to.
     func applyRefinement(_ o: RefineOption, in group: RefineGroup? = nil) {
+        // A drive Laserdot cannot search yet: offer to index it instead.
+        if o.isWaitingDrive {
+            onDriveChoice?(o)
+            return
+        }
         // The default place's chip (chosen, but not in the field): clicking
         // it searches everywhere, like the pill's ✕.
         if o.isSelected, o.token == SearchPlace.token(searchPlace), !query.contains(o.token) {

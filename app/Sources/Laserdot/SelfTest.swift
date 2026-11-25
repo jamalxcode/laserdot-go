@@ -218,6 +218,15 @@ final class SelfTestRunner {
                 model.dropPlace()
                 UserDefaults.standard.removeObject(forKey: SearchPlace.key)
             }, until: { $0.placeInEffect }, wait: 1.0),
+            // A mounted drive with no index shows among the drives, offering
+            // to index it (the owner: "not all the drives that are mounted
+            // appear"). A small disk image stands in for the drive.
+            Step(name: "drivewaiting", typed: "trip", before: {
+                self.mountTestDrive(engine: engine)
+            }, until: { $0.refinements.flatMap(\.options).contains(where: \.isWaitingDrive) }),
+            Step(name: "drivewaitinggone", typed: "trip", before: {
+                self.ejectTestDrive(engine: engine)
+            }, until: { !$0.refinements.flatMap(\.options).contains(where: \.isWaitingDrive) }),
             // The choice bar: Documents joins the typed words as a pill, and
             // a second click takes it out again.
             Step(name: "quickstart", typed: "proj", after: {

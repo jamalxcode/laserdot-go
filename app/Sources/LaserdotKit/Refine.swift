@@ -13,17 +13,26 @@ public struct RefineOption: Codable, Equatable, Hashable, Sendable {
     public let selected: Bool?
     /// The search leaves it out (`token` is the "-" word as written there).
     public let excluded: Bool?
+    /// A mounted drive Laserdot cannot search yet: its mount, and why
+    /// (`unindexed`, `detached`, `locked`). Choosing it offers to index (or
+    /// unlock, or attach) the drive instead of narrowing the search.
+    public let mount: String?
+    public let state: String?
 
     public var isSelected: Bool { selected ?? false }
     public var isExcluded: Bool { excluded ?? false }
+    public var isWaitingDrive: Bool { mount != nil && state != nil }
 
-    public init(token: String, label: String, key: String?, count: UInt64, selected: Bool? = nil, excluded: Bool? = nil) {
+    public init(token: String, label: String, key: String?, count: UInt64, selected: Bool? = nil, excluded: Bool? = nil,
+                mount: String? = nil, state: String? = nil) {
         self.token = token
         self.label = label
         self.key = key
         self.count = count
         self.selected = selected
         self.excluded = excluded
+        self.mount = mount
+        self.state = state
     }
 }
 
@@ -148,7 +157,8 @@ public enum RefineLogic {
                 hidden += g.options.count
                 continue
             }
-            let applicable = g.options.filter { $0.count > 0 }
+            // A drive with no index yet stays in sight: it is how to index it.
+            let applicable = g.options.filter { $0.count > 0 || $0.isWaitingDrive }
             hidden += g.options.count - applicable.count
             var keep = applicable
             if keep.count > perGroup {

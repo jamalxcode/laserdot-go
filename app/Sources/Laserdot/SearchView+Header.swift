@@ -363,22 +363,36 @@ extension SearchView {
     /// One choice of the row (what is chosen is a pill in the field, so the
     /// row holds open choices only). Click: search only this; the "−" shown
     /// on hover (or ⌥-click, or right-click ▸ Leave Out): leave it out.
+    @ViewBuilder
     func refineChip(_ o: RefineOption, in g: RefineGroup) -> some View {
         let all = model.flatChoices
         let focused = model.choiceFocus.map { all.indices.contains($0) && all[$0].option.token == o.token && all[$0].group.id == g.id } ?? false
-        return ChoiceChip(
-            label: Self.refineLabel(o),
-            count: Self.count(o.count),
-            enabled: o.count > 0,
-            spoken: "\(Self.refineTitle(g.id)) \(Self.refineLabel(o)), \(Self.count(o.count))",
-            help: String(format: L("refine.choose.help"), Self.refineLabel(o)),
-            leaveOutHelp: String(format: L("refine.leaveOut.help"), Self.refineLabel(o)),
-            onChoose: { refineClick(o, in: g) },
-            onLeaveOut: { model.excludeRefinement(o) },
-            focused: focused
-        )
-        .contextMenu {
-            Button(L("refine.leaveOut")) { model.excludeRefinement(o) }
+        if o.isWaitingDrive {
+            // A mounted drive with no index (or locked, or detached): a click
+            // offers to index it; nothing to count or leave out yet.
+            let state = o.state ?? "unindexed"
+            let label = String(format: L("refine.drive." + state), o.label)
+            ChoiceChip(
+                label: label, count: "", enabled: true, spoken: "\(Self.refineTitle(g.id)) \(label)",
+                help: String(format: L("refine.drive.help." + state), o.label), leaveOutHelp: "",
+                onChoose: { model.applyRefinement(o, in: g) }, onLeaveOut: {}, focused: focused, canLeaveOut: false
+            )
+            .accessibilityIdentifier("drive-waiting")
+        } else {
+            ChoiceChip(
+                label: Self.refineLabel(o),
+                count: Self.count(o.count),
+                enabled: o.count > 0,
+                spoken: "\(Self.refineTitle(g.id)) \(Self.refineLabel(o)), \(Self.count(o.count))",
+                help: String(format: L("refine.choose.help"), Self.refineLabel(o)),
+                leaveOutHelp: String(format: L("refine.leaveOut.help"), Self.refineLabel(o)),
+                onChoose: { refineClick(o, in: g) },
+                onLeaveOut: { model.excludeRefinement(o) },
+                focused: focused
+            )
+            .contextMenu {
+                Button(L("refine.leaveOut")) { model.excludeRefinement(o) }
+            }
         }
     }
 
@@ -476,6 +490,8 @@ struct ChoiceChip: View {
     let onLeaveOut: () -> Void
     /// The keyboard is on it (Tab into the choices).
     var focused = false
+    /// The "−" beside it (not for a drive that has no index yet).
+    var canLeaveOut = true
     @State private var hovering = false
 
     var body: some View {
@@ -488,7 +504,7 @@ struct ChoiceChip: View {
             .accessibilityLabel(spoken)
             // Always there (faint until pointed at): appearing on hover it
             // moved the chips, and slipped away from the pointer (the owner).
-            if enabled {
+            if enabled && canLeaveOut {
                 Button(action: onLeaveOut) {
                     Image(systemName: "minus.circle").font(.caption)
                 }

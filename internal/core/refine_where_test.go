@@ -123,3 +123,51 @@ func TestResultsOfferTheDrivesAndFoldersTheyAreIn(t *testing.T) {
 		}
 	}
 }
+
+// The owner: "not all the drives that are mounted appear … especially the
+// larger drive that i wanted to look into" (four drives mounted, only the
+// indexed one offered). A mounted drive with no index shows among the
+// drives too, marked so the app offers to index it — also when every result
+// is on this Mac.
+func TestMountedDrivesWithNoIndexAreOffered(t *testing.T) {
+	m := newMac(t)
+	indexed := makeDrive(t, m.vols, "Rapid")
+	plex := makeDrive(t, m.vols, "plex media")
+	home := filepath.Join(m.base, "home")
+	writeAged(t, filepath.Join(home, "a/movie one.mkv"), []byte("x"))
+	writeAged(t, filepath.Join(home, "b/movie two.mkv"), []byte("y"))
+	if _, err := m.ld.Index(home); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.ld.CreateDriveIndex(indexed, DriveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	m.ld.SyncDrives() // what the daemon does every few seconds
+	groups, err := m.ld.Refinements("movie")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var waiting *RefineOption
+	for _, o := range refineGroup(groups, "drive") {
+		if o.Mount == plex {
+			waiting = &o
+		}
+	}
+	if waiting == nil || waiting.State != DriveUnindexed || waiting.Label != "plex media" || waiting.Count != 0 {
+		t.Fatalf("the drive with no index is offered to index: %+v (%v)", waiting, tokens(refineGroup(groups, "drive")))
+	}
+	if !slices.Contains(tokens(refineGroup(groups, "drive")), "volume:local") {
+		t.Error("This Mac shows beside it")
+	}
+	// Once indexed, it is an ordinary choice.
+	if _, err := m.ld.CreateDriveIndex(plex, DriveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	m.ld.SyncDrives()
+	groups, _ = m.ld.Refinements("movie")
+	for _, o := range refineGroup(groups, "drive") {
+		if o.State != "" {
+			t.Errorf("no drive left to index: %+v", o)
+		}
+	}
+}

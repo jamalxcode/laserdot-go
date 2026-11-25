@@ -43,6 +43,11 @@ type RefineOption struct {
 	// choices"); Token is the "-" token as written, Selected is set too
 	// (clicking takes it out of q) and Count is 0.
 	Excluded bool `json:"excluded,omitempty"`
+	// Mount and State: a mounted drive Laserdot cannot search yet (State
+	// unindexed, detached or locked; Count 0). Choosing it does not narrow
+	// the search: the app offers to index (or unlock, or attach) the drive.
+	Mount string `json:"mount,omitempty"`
+	State string `json:"state,omitempty"`
 }
 
 // RefineGroup is a set of choices about one attribute.
@@ -341,10 +346,31 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	for _, k := range query.Kinds {
 		add("kind", RefineOption{Token: "kind:" + k, Key: "kind." + k})
 	}
-	if len(ld.drives) > 0 {
+	// Every mounted drive shows (the owner: "not all the drives that are
+	// mounted appear … especially the larger drive"): one with no index yet
+	// (or locked, or detached) as a greyed choice that offers to index it.
+	var waiting []mountedDrive
+	for _, m := range ld.mounted {
+		if m.state != DriveAttached && ld.driveAt(m.mount) == nil {
+			waiting = append(waiting, m)
+		}
+	}
+	if len(ld.drives) > 0 || len(waiting) > 0 {
 		add("drive", RefineOption{Token: "volume:local", Key: "drive.local"})
 		for _, d := range ld.drives {
 			add("drive", RefineOption{Token: "volume:" + quoteValue(fold.Fold(d.name)), Label: d.name})
+		}
+		if len(waiting) > 0 && groups["drive"] == nil {
+			// Every result is on this Mac: "This Mac" alone, so the drives
+			// beside it have a row to show in.
+			groups["drive"] = &RefineGroup{ID: "drive"}
+			order = append(order, "drive")
+			groups["drive"].Options = append(groups["drive"].Options,
+				RefineOption{Token: "volume:local", Key: "drive.local", Count: total})
+		}
+		for _, m := range waiting {
+			groups["drive"].Options = append(groups["drive"].Options, RefineOption{
+				Token: "volume:" + quoteValue(fold.Fold(m.name)), Label: m.name, Mount: m.mount, State: m.state})
 		}
 	}
 	for _, src := range sources {

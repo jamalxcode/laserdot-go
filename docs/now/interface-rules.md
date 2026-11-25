@@ -43,7 +43,10 @@ for `>` commands, after a trailing space, or while moving through the results.
 2. A long job can be **stopped**, keeping what it found, and **continued** later without starting over.
 3. Closing a window stops its job the same way.
 4. **Quit always works**, within seconds, whatever the engine is doing.
-5. A question never waits on a long count: the drive prompt counts for 5 seconds, then says "more than N files".
+5. A question never waits on a long count: the drive prompt counts for 5 seconds, then says "more than N files";
+   if the drive has not answered after 6 seconds it shows without a count (0.9.50).
+5a. Every mounted drive is in sight (0.9.50): one Laserdot cannot search yet shows among the Drive choices with what
+   it needs (Index…, Unlock…, Attach…), never left out silently.
 
 ## 4. One primary action per screen
 

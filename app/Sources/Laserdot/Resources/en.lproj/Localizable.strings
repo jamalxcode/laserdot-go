@@ -431,6 +431,12 @@
 "refine.group.column" = "Column";
 "refine.group.rows" = "Rows";
 "refine.drive.local" = "This Mac";
+"refine.drive.unindexed" = "%@ — Index…";
+"refine.drive.detached" = "%@ — Attach…";
+"refine.drive.locked" = "%@ — Unlock…";
+"refine.drive.help.unindexed" = "%@ is mounted but has no index yet. Click to index it so it can be searched.";
+"refine.drive.help.detached" = "%@ has an index that is not in use. Click to search it again.";
+"refine.drive.help.locked" = "%@ has an encrypted index. Click to unlock it.";
 "place.searchingIn" = "Searching in %@";
 "settings.searchIn" = "Search in";
 "settings.searchIn.everywhere" = "Everywhere";

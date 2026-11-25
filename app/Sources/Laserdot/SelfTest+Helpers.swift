@@ -203,6 +203,8 @@ extension SelfTestRunner {
         r["action_shown_ids"] = model.selected == nil ? [String]() : model.actions.map(\.id)
         r["refinements"] = model.refinements.flatMap { $0.options.map(\.token) }
         r["refine_groups"] = model.refinements.map(\.id)
+        r["waiting_drives"] = model.refinements.flatMap(\.options).filter(\.isWaitingDrive).map { $0.label + ":" + ($0.state ?? "") }
+        r["waiting_drives_shown"] = model.visibleRefinements.flatMap(\.options).filter(\.isWaitingDrive).map(\.label)
         r["refine_bands"] = RefineLogic.bands(model.visibleRefinements).map(\.family)
         r["refine_row"] = model.showsRefinements
         r["refine_hidden"] = model.hiddenChoices
@@ -261,5 +263,50 @@ extension SelfTestRunner {
         if let data = try? JSONSerialization.data(withJSONObject: report, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: out.appendingPathComponent("report.json"))
         }
+    }
+
+    // MARK: a stand-in drive (a small disk image)
+
+    static let testDriveName = "LDWaiting"
+    static var testDriveMount: String { "/Volumes/" + testDriveName }
+
+    /// Mounts an empty disk image and waits (up to 15 s) until laserdotd
+    /// lists it, so the next search's choices can offer it.
+    func mountTestDrive(engine: Engine) {
+        let dir = NSTemporaryDirectory() + "laserdot-selftest-drive"
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let image = dir + "/drive.sparseimage"
+        if !FileManager.default.fileExists(atPath: image) {
+            Self.hdiutil(["create", "-type", "SPARSE", "-size", "64m", "-fs", "APFS", "-volname", Self.testDriveName, dir + "/drive"])
+        }
+        Self.hdiutil(["attach", "-nobrowse", image])
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline {
+            if (try? engine.drives())?.contains(where: { $0.mount == Self.testDriveMount }) == true { break }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        extra["test_drive_listed"] = (try? engine.drives())?.contains { $0.mount == Self.testDriveMount } ?? false
+    }
+
+    /// Ejects the stand-in drive and waits until laserdotd no longer lists it.
+    func ejectTestDrive(engine: Engine) {
+        Self.hdiutil(["detach", Self.testDriveMount, "-force"])
+        let deadline = Date().addingTimeInterval(15)
+        while Date() < deadline {
+            if (try? engine.drives())?.contains(where: { $0.mount == Self.testDriveMount }) != true { break }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+    }
+
+    @discardableResult
+    static func hdiutil(_ args: [String]) -> Int32 {
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+        p.arguments = args
+        p.standardOutput = FileHandle.nullDevice
+        p.standardError = FileHandle.nullDevice
+        do { try p.run() } catch { return -1 }
+        p.waitUntilExit()
+        return p.terminationStatus
     }
 }

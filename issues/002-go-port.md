@@ -137,6 +137,12 @@ Binding unless revisited deliberately; each is also in the spec.
 - **Duplicates see iPhone photos; Storage cleans up (0.9.27):** HEIC/AVIF/RAW fingerprinted through macOS's
   ImageIO (portable types stay on the pure-Go decoder for comparable fingerprints); Storage moves items to the
   Trash with the usual confirmation and Undo.
+- **Every mounted drive in sight (0.9.50):** `Laserdot.mounted` (set by `Drives`, which `SyncDrives` now calls) lets
+  `Refinements` add mounted drives with no index / locked / detached to the drive group as options with `Mount` and
+  `State` (count 0), without disk reads during a search; the app keeps them in the calm view and a click calls
+  `DrivesModel.offer` (index, unlock or attach; ignores the "never" list). `Engine.drivesCall`: the drive list on
+  its own connection. The index prompt shows after at most 6 s (`planWait`) without a count. The automatic offer is
+  off during the self-test; self-test `drivewaiting`/`drivewaitinggone` mount and eject a disk image (LDWaiting).
 - **Rich metadata (0.9.49):** `media.Tags` gains Description/Author/Copyright/Software/Chapters, `Exif` Lat/Lon,
   `Record.Data` (columns, types, rows); record encoding v2 (v1 decodes). New `docs.go` (PDF, Office, CSV/TSV/JSON/
   XLSX) behind `parserDoc`; `media.SameReader` keeps the update engine from reusing a probe across readers (a video

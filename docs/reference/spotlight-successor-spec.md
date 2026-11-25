@@ -2,7 +2,7 @@
 
 *(working title during design: "Spotlight Successor")*
 
-**Version:** 1.50 (draft; v1.44–v1.49 are the Go port's 0.9.27–0.9.37; v1.50 is 0.9.49)
+**Version:** 1.51 (draft; v1.44–v1.49 are the Go port's 0.9.27–0.9.37; v1.50 is 0.9.49, v1.51 0.9.50)
 **Date:** 2026-11-11 — v1.18–v1.22 record the owner's decisions while using the app; the conversation behind them is
 in `docs/history/design-conversation.md`
 **Target platform:** macOS 14+, Apple Silicon
@@ -483,6 +483,7 @@ white       = " " | "\t" | "\n" ;
   - *As built (M5):* the daemon checks the volumes folder every 3 s (`--volume-interval`). A drive with an index is opened, verified and attached, then refreshed by diff, so only changed files are probed. A drive index is **untrusted input** (any drive can be plugged in): it is opened with SQLite's defensive mode and `trusted_schema=OFF`, its schema must match an exact whitelist (a trigger or view is refused), and every stored name is validated (no `/`, `.`, `..` or NUL) before it reaches the in-memory store
   - *As built (M5):* on FAT and exFAT, inode numbers are not stable across mounts, so they are not stored; moves are paired by (name, size, modified time) instead
 - **9.3** First mount of unindexed drive: prompt, show estimated size/file count, confirm the index write before starting
+  - *v1.51 (0.9.50):* the prompt shows within 6 s (without a count if the drive has not been counted by then), and every mounted drive the search cannot cover yet (no index, locked, detached) appears among the Drive choices marked with what it needs; clicking it opens this prompt (also for a drive once declined).
   - *As built (M5):* the estimate is a Tier 0 walk (files, folders, bytes) and an index size of about 220 bytes per entry. The prompt offers Index, Not Now and Never for This Drive (remembered by drive name), and an Encrypt checkbox with a passphrase
   - *0.9.41:* no prompt for a disk image opened to install an app (`InstallerVolume`: macOS's disk description says
     "Disk Image", and the volume is read-only or holds an app, an installer package or an Applications shortcut at

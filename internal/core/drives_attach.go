@@ -409,6 +409,7 @@ func (ld *Laserdot) SyncDrives() (attached, gone []string) {
 			attached = append(attached, v.Mount)
 		}
 	}
+	ld.Drives() // remembers what is mounted, and each drive's state (ld.mounted)
 	return attached, gone
 }
 

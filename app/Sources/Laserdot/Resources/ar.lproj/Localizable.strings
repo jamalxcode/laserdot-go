@@ -431,6 +431,12 @@
 "refine.group.drive" = "القرص";
 "refine.group.folder" = "المجلد";
 "refine.drive.local" = "هذا الماك";
+"refine.drive.unindexed" = "%@ — فهرسة…";
+"refine.drive.detached" = "%@ — إعادة الوصل…";
+"refine.drive.locked" = "%@ — فتح القفل…";
+"refine.drive.help.unindexed" = "%@ موصول لكن ليس له فهرس بعد. انقر لفهرسته حتى يمكن البحث فيه.";
+"refine.drive.help.detached" = "لـ%@ فهرس غير مستخدم. انقر للبحث فيه من جديد.";
+"refine.drive.help.locked" = "فهرس %@ مشفّر. انقر لفتح قفله.";
 "place.searchingIn" = "البحث في %@";
 "settings.searchIn" = "البحث في";
 "settings.searchIn.everywhere" = "كل مكان";

@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "renamemany", "renamedmany", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "datacolumn", "datachoices", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "videoframes", "peek", "peekgone", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "renamemany", "renamedmany", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "drivewaiting", "drivewaitinggone", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "datacolumn", "datachoices", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "videoframes", "peek", "peekgone", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -191,6 +191,10 @@ check(sv.get("pills") == ["kind:video"] and "clip.mp4" in sv["results"] and not 
 check(not jpg["compact"], "the overlay grows for results")
 
 # Plain-language dates.
+dw, dwg = steps["drivewaiting"], steps["drivewaitinggone"]
+check("LDWaiting:unindexed" in dw.get("waiting_drives", []) and "LDWaiting" in dw.get("waiting_drives_shown", []),
+      f"a mounted drive with no index is offered among the drives, in the calm view too (got {dw.get('waiting_drives')}, shown {dw.get('waiting_drives_shown')})")
+check(dwg.get("waiting_drives") == [], f"once ejected it is gone (got {dwg.get('waiting_drives')})")
 dc = steps["datacolumn"]
 check(dc["results"] == ["sales-figures.csv"], f"column:region finds the data file with that column (got {dc['results']})")
 dch = steps["datachoices"]

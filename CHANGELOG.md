@@ -3,6 +3,15 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.50
+
+- **Every mounted drive shows.** The Drive choices under a search listed only drives Laserdot had already indexed, so
+  a drive you had not indexed yet — or had passed over when Laserdot asked — was nowhere to be seen. Now each one
+  shows there too, marked "Index…" (or "Unlock…" / "Attach…"); click it to index it.
+- The question "Index this drive?" shows within a few seconds even for a big or sleeping drive (without the file
+  count when counting takes longer), and the drive list no longer waits behind other work, so drives appear right
+  after Laserdot starts.
+
 ## 0.9.49
 
 - **Search by what a file says about itself.** Documents and data files now have details you can search: a PDF's or

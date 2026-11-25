@@ -342,6 +342,34 @@ public final class Engine: @unchecked Sendable {
     let searchLock = NSLock()
     var searchClient: DaemonClient?
 
+    // The drive list on a line of its own: it is asked every few seconds and
+    // reads the drives (a sleeping disk takes seconds to answer), so it must
+    // neither wait behind a slow request on the shared line nor make typing
+    // wait on the search line (the owner saw drives appear minutes late).
+    let drivesLock = NSLock()
+    var drivesClient: DaemonClient?
+
+    func drivesCall<T: Decodable>(_ request: DaemonRequest, as type: T.Type) throws -> T {
+        drivesLock.lock()
+        defer { drivesLock.unlock() }
+        if !retired {
+            if drivesClient == nil, let c = DaemonClient.connectLive(socketPath: socketPath) {
+                c.setTimeout(60)
+                drivesClient = c
+            }
+            if let c = drivesClient {
+                do {
+                    return try c.call(request, as: type)
+                } catch DaemonClientError.remote(let e) {
+                    throw LaserdotError(e)
+                } catch {
+                    drivesClient = nil // broken or too slow: the shared line below
+                }
+            }
+        }
+        return try call(request, as: type)
+    }
+
     /// Searches have a connection of their own: a slow request on the shared
     /// one (a drive being read, a cleanup) never makes typing wait. If it
     /// cannot be used, the shared connection (which starts the daemon) is.

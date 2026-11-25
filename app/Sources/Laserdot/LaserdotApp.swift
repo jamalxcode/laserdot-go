@@ -136,6 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             if !SelfTest.active { self?.indexDefaultsOnce(status) }
         }
         model.commandProvider = { [weak self] in self?.commands() ?? [] }
+        model.onDriveChoice = { [weak self] o in self?.drives?.offer(mount: o.mount ?? "") }
         model.onIndexing = { [weak self] name in
             self?.statusLine = String(format: L("index.running"), name)
             // The daemon's progress follows in the menu (show(_:) polls on).

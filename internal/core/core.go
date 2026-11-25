@@ -166,6 +166,10 @@ type Laserdot struct {
 	// entered this session (by drive id). Guarded by mu.
 	drives  []*drive
 	volumes VolumeConfig
+	// mounted: the drives seen at the last look (Drives, SyncDrives), so
+	// the choices can offer drives with no index without reading the disks
+	// during a search.
+	mounted []mountedDrive
 	keys    map[string]string
 	// creating: drives being indexed for the first time (not attached or
 	// indexed twice meanwhile).
