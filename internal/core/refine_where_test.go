@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"testing"
+	"time"
 )
 
 // The owner: "i need to choose the drives and possibly directories it
@@ -197,4 +198,40 @@ func TestHiddenSystemMountsAreNotOffered(t *testing.T) {
 	if len(names) != 2 {
 		t.Errorf("an indexed hidden drive stays listed: %v", names)
 	}
+}
+
+// The owner, after 0.9.52: "now drives are not showing and there is a
+// searching… on bottom left that's been there for over a minute". Listing
+// the drives took the index lock for writing; Go then makes every new
+// reader (every search) wait behind it while a long reader runs (a big
+// drive being read). The list must never hold searches up.
+func TestListingDrivesNeverHoldsSearchesUp(t *testing.T) {
+	m := newMac(t)
+	makeDrive(t, m.vols, "plex media")
+	home := filepath.Join(m.base, "home")
+	writeAged(t, filepath.Join(home, "movie.mkv"), []byte("x"))
+	if _, err := m.ld.Index(home); err != nil {
+		t.Fatal(err)
+	}
+	// A long reader: something reading the index for a while.
+	m.ld.mu.RLock()
+	released := make(chan struct{})
+	go func() {
+		time.Sleep(2 * time.Second)
+		m.ld.mu.RUnlock()
+		close(released)
+	}()
+	go m.ld.Drives() // the app asks every few seconds; so does the daemon
+	time.Sleep(100 * time.Millisecond)
+	done := make(chan struct{})
+	go func() {
+		m.ld.Search("movie", DefaultSearchOptions)
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Error("a search waited behind the drive list")
+	}
+	<-released
 }

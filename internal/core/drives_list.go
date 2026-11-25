@@ -51,8 +51,7 @@ func (ld *Laserdot) Drives() []DriveInfo {
 			f.bytes = dirBytes(f.dir)
 		}
 	}
-	ld.mu.Lock()
-	defer ld.mu.Unlock()
+	ld.mu.RLock()
 	out := []DriveInfo{}
 	for i, v := range vols {
 		// macOS's own mounts (a disk image named by a long id, Recovery…)
@@ -63,10 +62,14 @@ func (ld *Laserdot) Drives() []DriveInfo {
 		}
 		out = append(out, ld.driveInfoFrom(v, found[i]))
 	}
-	ld.mounted = ld.mounted[:0]
+	ld.mu.RUnlock()
+	seen := make([]mountedDrive, 0, len(out))
 	for _, d := range out {
-		ld.mounted = append(ld.mounted, mountedDrive{name: d.Name, mount: d.Mount, state: d.State.State})
+		seen = append(seen, mountedDrive{name: d.Name, mount: d.Mount, state: d.State.State})
 	}
+	ld.mountedMu.Lock()
+	ld.mounted = seen
+	ld.mountedMu.Unlock()
 	return out
 }
 

@@ -169,8 +169,11 @@ type Laserdot struct {
 	// mounted: the drives seen at the last look (Drives, SyncDrives), so
 	// the choices can offer drives with no index without reading the disks
 	// during a search.
-	mounted []mountedDrive
-	keys    map[string]string
+	// Guarded by mountedMu, not mu: taking mu for writing here made every
+	// search wait behind a long reader (the owner's stuck "Searching…").
+	mounted   []mountedDrive
+	mountedMu sync.Mutex
+	keys      map[string]string
 	// creating: drives being indexed for the first time (not attached or
 	// indexed twice meanwhile).
 	creating map[string]bool

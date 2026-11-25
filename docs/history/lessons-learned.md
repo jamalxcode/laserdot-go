@@ -180,4 +180,8 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
      rather than filtering it away, and never let a one-time question be the only way in.
      And the reverse, the same day: listing everything in /Volumes offered a hidden system disk image named by an id.
      Show what a person would recognize — Finder's rule (`MNT_DONTBROWSE`) is the right line.
+20t. **A write lock taken often is a stall waiting to happen.** 0.9.50 had the drive list (asked every three seconds)
+     take the index lock for writing just to remember what it saw. Go's RWMutex makes new readers queue behind a
+     waiting writer, so while a big drive was being read every search hung on "Searching…". Keep small caches under
+     their own lock; test that a search answers while a long reader holds the index.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

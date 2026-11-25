@@ -155,6 +155,8 @@ Binding unless revisited deliberately; each is also in the spec.
   AVFoundation 2 (only `playable` formats), ffmpeg 2; `ThumbnailCache.thumbnail(for:size:iconFallback:)` async and
   cancellable (`QLThumbnailGenerator.cancel`); FileIcon and ScrubThumb wait 200 ms; `Hit.durationMs` from the index
   feeds `VideoFrames.noteDurations` (no ffprobe); `fileIcon` only for apps and extension-less names, on one queue.
+  0.9.53: `Drives` builds under `mu.RLock` again and stores `mounted` under `mountedMu` (a write lock there stalled
+  every search behind long readers); test `TestListingDrivesNeverHoldsSearchesUp`.
 - **Rich metadata (0.9.49):** `media.Tags` gains Description/Author/Copyright/Software/Chapters, `Exif` Lat/Lon,
   `Record.Data` (columns, types, rows); record encoding v2 (v1 decodes). New `docs.go` (PDF, Office, CSV/TSV/JSON/
   XLSX) behind `parserDoc`; `media.SameReader` keeps the update engine from reusing a probe across readers (a video

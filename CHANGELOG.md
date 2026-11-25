@@ -3,6 +3,11 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.53
+
+- Fixes searches that could stay on "Searching…" and drives that disappeared while a big drive was being indexed
+  (since 0.9.50): checking the drives no longer makes searches wait.
+
 ## 0.9.52
 
 - Faster results with big videos. Pictures and video frames load only for the rows you stop at (not for every row

@@ -922,6 +922,11 @@ ffmpeg. Decided (0.9.52): pictures wait 0.2 s (rows passing by ask nothing), at 
 two ffmpeg reads at a time with the newest first, cancelled with their row; lengths come from the index; formats
 macOS cannot read skip Quick Look; only apps and folders get their own icon read.
 
+Then "now drives are not showing and there is a searching… on bottom left that's been there for over a minute": since
+0.9.50 the drive list took the index lock for writing, and Go makes every search wait behind a waiting writer while a
+long reader runs (a drive being indexed). Fixed in 0.9.53: the list reads under the shared lock and keeps what it
+saw under a lock of its own.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

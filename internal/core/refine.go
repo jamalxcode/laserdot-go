@@ -350,7 +350,10 @@ func (ld *Laserdot) Refinements(q string) ([]RefineGroup, error) {
 	// mounted appear … especially the larger drive"): one with no index yet
 	// (or locked, or detached) as a greyed choice that offers to index it.
 	var waiting []mountedDrive
-	for _, m := range ld.mounted {
+	ld.mountedMu.Lock()
+	mounted := ld.mounted
+	ld.mountedMu.Unlock()
+	for _, m := range mounted {
 		if m.state != DriveAttached && ld.driveAt(m.mount) == nil {
 			waiting = append(waiting, m)
 		}
