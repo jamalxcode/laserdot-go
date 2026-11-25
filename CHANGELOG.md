@@ -3,6 +3,15 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.54
+
+- **Select files by dragging a box** over them, as in Finder: start in an empty spot or on a file that isn't selected,
+  and everything the box touches is selected (hold ⌘ or ⇧ to add to what's selected). Drag a selected file to move it
+  out to Finder or another app.
+- **Right-click acts on the whole selection.** With several files selected, right-click one of them and Move to
+  Trash, Open, Show in Finder, Copy Path and Rename apply to all of them ("Move 3 Items to Trash"). Before, only the
+  file under the pointer was moved to the Trash.
+
 ## 0.9.53
 
 - Fixes searches that could stay on "Searching…" and drives that disappeared while a big drive was being indexed

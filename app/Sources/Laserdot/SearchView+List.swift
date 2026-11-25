@@ -101,6 +101,21 @@ extension SearchView {
                             .accessibilityIdentifier("show-more")
                         }
                     }
+                    // Drag-to-select: a box drawn over the rows (and the empty
+                    // space below them) selects what it touches, as in Finder.
+                    .frame(maxWidth: .infinity, minHeight: max(0, listHeight - 12), alignment: .topLeading)
+                    .contentShape(Rectangle())
+                    .coordinateSpace(.named("results"))
+                    .onPreferenceChange(ItemFramesKey.self) { itemFrames.frames = $0 }
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 4, coordinateSpace: .named("results"))
+                            .onChanged { dragSelect($0) }
+                            .onEnded { _ in
+                                marquee = nil
+                                marqueeState = .idle
+                            }
+                    )
+                    .overlay(alignment: .topLeading) { marqueeBox }
                     .padding(6)
                 }
                 // One identity per row (its path); rebuilt on every answer.
@@ -108,7 +123,11 @@ extension SearchView {
                 // How many tiles fit in a row (↑↓ move by a row in the grid).
                 .background(GeometryReader { g in
                     Color.clear
-                        .onAppear { model.gridColumns = columns(for: g.size.width) }
+                        .onAppear {
+                            model.gridColumns = columns(for: g.size.width)
+                            listHeight = g.size.height
+                        }
+                        .onChange(of: g.size.height) { _, h in listHeight = h }
                         .onChange(of: g.size.width) { _, w in model.gridColumns = columns(for: w) }
                         .onChange(of: model.tileSize) { _, _ in model.gridColumns = columns(for: g.size.width) }
                 })
@@ -136,7 +155,8 @@ extension SearchView {
         .onTapGesture(count: 2) { model.open(hit) }
         .onTapGesture { model.click(i) }
         .contextMenu { resultMenu(i, hit) }
-        .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
+        .fileDrag(hit.path, when: selected)
+        .background(frameReader(i))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
@@ -144,16 +164,31 @@ extension SearchView {
     /// Right-click on a result (rows, columns and thumbnails alike): the
     /// common actions, Rename (the owner asked for it here), and the rest in
     /// ⌘K's list.
+    /// Right-clicking one of several selected results acts on all of them, as
+    /// in Finder (the owner: Move to Trash moved only the file under the pointer).
     @ViewBuilder func resultMenu(_ i: Int, _ hit: Hit) -> some View {
-        Button(L("action.open")) { model.open(hit) }
-        Button(L("action.quickLook")) { model.quickLook(hit) }
-        Button(L("action.reveal")) { model.reveal(hit) }
-        Button(L("action.copy")) { model.copyPath(hit) }
-        Divider()
-        Button(L("action.rename")) { model.rename(hit) }
-        Button(L("action.moreLike")) { model.moreLike(path: hit.path) }
-        Divider()
-        Button(L("action.trash")) { model.trash([hit]) }
+        let targets = model.menuTargets(i, hit)
+        let n = targets.count
+        if n > 1 {
+            Button(String(format: L("action.openMany"), n)) { targets.forEach { model.open($0) } }
+            Button(L("action.quickLook")) { model.quickLook(hit) }
+            Button(String(format: L("action.revealMany"), n)) { model.reveal(targets) }
+            Button(String(format: L("action.copyMany"), n)) { model.copyPaths(targets) }
+            Divider()
+            Button(String(format: L("action.renameMany"), n)) { model.renameMany(targets) }
+            Divider()
+            Button(String(format: L("action.trashMany"), n)) { model.trash(targets) }
+        } else {
+            Button(L("action.open")) { model.open(hit) }
+            Button(L("action.quickLook")) { model.quickLook(hit) }
+            Button(L("action.reveal")) { model.reveal(hit) }
+            Button(L("action.copy")) { model.copyPath(hit) }
+            Divider()
+            Button(L("action.rename")) { model.rename(hit) }
+            Button(L("action.moreLike")) { model.moreLike(path: hit.path) }
+            Divider()
+            Button(L("action.trash")) { model.trash([hit]) }
+        }
         Button(L("action.more")) {
             if !model.isSelected(i) { model.click(i) }
             model.toggleActions()
@@ -206,7 +241,8 @@ extension SearchView {
         .onTapGesture(count: 2) { model.open(hit) }
         .onTapGesture { model.click(i) }
         .contextMenu { resultMenu(i, hit) }
-        .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
+        .fileDrag(hit.path, when: selected)
+        .background(frameReader(i))
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
@@ -219,7 +255,50 @@ extension SearchView {
             .onTapGesture(count: 2) { model.open(hit) }
             .onTapGesture { model.click(i) }
             .contextMenu { resultMenu(i, hit) }
-            .onDrag { NSItemProvider(object: URL(fileURLWithPath: hit.path) as NSURL) }
+            .fileDrag(hit.path, when: model.isSelected(i))
+            .background(frameReader(i))
+    }
+
+    // MARK: drag-to-select
+
+    /// Where a row or tile is, in the list's coordinates (visible ones only).
+    func frameReader(_ i: Int) -> some View {
+        GeometryReader { g in
+            Color.clear.preference(key: ItemFramesKey.self, value: [i: g.frame(in: .named("results"))])
+        }
+    }
+
+    /// One step of a drag over the results. Starting on a selected file it
+    /// drags the file (to Finder, Mail…); anywhere else it draws the box and
+    /// selects what the box touches, live.
+    func dragSelect(_ v: DragGesture.Value) {
+        if marqueeState == .idle {
+            let onSelected = itemFrames.frames.contains { model.isSelected($0.key) && $0.value.contains(v.startLocation) }
+            if onSelected {
+                marqueeState = .ignored
+                return
+            }
+            marqueeState = .drawing
+            let flags = NSEvent.modifierFlags
+            marqueeBase = flags.contains(.command) || flags.contains(.shift) ? model.selectionSet : []
+        }
+        guard marqueeState == .drawing else { return }
+        let r = CGRect(x: min(v.startLocation.x, v.location.x), y: min(v.startLocation.y, v.location.y),
+                       width: abs(v.location.x - v.startLocation.x), height: abs(v.location.y - v.startLocation.y))
+        marquee = r
+        let rows = Set(itemFrames.frames.filter { $0.value.intersects(r) }.keys)
+        model.marqueeSelect(rows, base: marqueeBase)
+    }
+
+    @ViewBuilder var marqueeBox: some View {
+        if let r = marquee {
+            Rectangle()
+                .fill(Color.accentColor.opacity(0.15))
+                .overlay(Rectangle().strokeBorder(Color.accentColor.opacity(0.8), lineWidth: 1))
+                .frame(width: r.width, height: r.height)
+                .offset(x: r.minX, y: r.minY)
+                .allowsHitTesting(false)
+        }
     }
 
     var commandList: some View {
@@ -293,5 +372,31 @@ extension SearchView {
 
     func placeholder(_ text: String) -> some View {
         Text(text).foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Drag-to-select: not dragging, drawing the box, or dragging a file.
+enum MarqueeState { case idle, drawing, ignored }
+
+/// The visible rows' frames, kept outside SwiftUI's state (they change on
+/// every scroll; storing them must not redraw the list).
+final class ItemFrames { var frames: [Int: CGRect] = [:] }
+
+struct ItemFramesKey: PreferenceKey {
+    static var defaultValue: [Int: CGRect] = [:]
+    static func reduce(value: inout [Int: CGRect], nextValue: () -> [Int: CGRect]) {
+        value.merge(nextValue()) { $1 }
+    }
+}
+
+extension View {
+    /// A selected result can be dragged out (to Finder, Mail…); dragging
+    /// anywhere else draws the selection box, as in Finder.
+    @ViewBuilder func fileDrag(_ path: String, when selected: Bool) -> some View {
+        if selected {
+            onDrag { NSItemProvider(object: URL(fileURLWithPath: path) as NSURL) }
+        } else {
+            self
+        }
     }
 }

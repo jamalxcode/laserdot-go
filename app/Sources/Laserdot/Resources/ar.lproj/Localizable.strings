@@ -170,6 +170,10 @@
 "action.share" = "مشاركة…";
 "action.rename" = "إعادة تسمية…";
 "action.trash" = "نقل إلى سلة المهملات";
+"action.openMany" = "فتح %d عناصر";
+"action.revealMany" = "عرض %d عناصر في Finder";
+"action.copyMany" = "نسخ %d مسارات";
+"action.trashMany" = "نقل %d عناصر إلى سلة المهملات";
 "rename.title" = "إعادة تسمية «%@»";
 "actions.many" = "%lld عناصر";
 "keys.choose" = "اختيار";

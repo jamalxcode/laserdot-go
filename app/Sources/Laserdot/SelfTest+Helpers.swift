@@ -203,6 +203,8 @@ extension SelfTestRunner {
         r["action_shown_ids"] = model.selected == nil ? [String]() : model.actions.map(\.id)
         r["refinements"] = model.refinements.flatMap { $0.options.map(\.token) }
         r["refine_groups"] = model.refinements.map(\.id)
+        r["menu_targets"] = model.results.indices.contains(model.selection)
+            ? model.menuTargets(model.selection, model.results[model.selection]).count : 0
         r["waiting_drives"] = model.refinements.flatMap(\.options).filter(\.isWaitingDrive).map { $0.label + ":" + ($0.state ?? "") }
         r["waiting_drives_shown"] = model.visibleRefinements.flatMap(\.options).filter(\.isWaitingDrive).map(\.label)
         r["refine_bands"] = RefineLogic.bands(model.visibleRefinements).map(\.family)

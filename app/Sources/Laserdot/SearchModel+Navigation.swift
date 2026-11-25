@@ -64,6 +64,28 @@ extension SearchModel {
 
     func isSelected(_ i: Int) -> Bool { i == selection || extraSelection.contains(i) }
 
+    /// What is selected now, as row numbers.
+    var selectionSet: Set<Int> { extraSelection.isEmpty ? [selection] : extraSelection }
+
+    /// What a right-click acts on, as in Finder: the whole selection when the
+    /// row clicked is part of it (the owner: trashing several selected files
+    /// moved only the one under the pointer), else that row alone.
+    func menuTargets(_ i: Int, _ hit: Hit) -> [Hit] {
+        isSelected(i) && extraSelection.count > 1 ? selectedHits : [hit]
+    }
+
+    /// Drag-to-select (a box drawn over the results, as in Finder): the rows
+    /// the box touches, added to `base` (what was selected when ⌘ or ⇧ was
+    /// held as the drag began).
+    func marqueeSelect(_ rows: Set<Int>, base: Set<Int>) {
+        let all = rows.union(base).filter { results.indices.contains($0) }
+        browsing = true
+        guard let first = all.min() else { return }
+        selection = rows.min() ?? first
+        anchor = selection
+        extraSelection = all.count > 1 ? all : []
+    }
+
     /// The selected results, in list order (one, or several).
     var selectedHits: [Hit] {
         if extraSelection.isEmpty { return selected.map { [$0] } ?? [] }
@@ -181,16 +203,28 @@ extension SearchModel {
 
     func reveal(_ hit: Hit? = nil) {
         guard let h = hit ?? selected else { return }
+        reveal([h])
+    }
+
+    /// Show in Finder, several at once (one Finder window selecting them).
+    func reveal(_ hits: [Hit]) {
+        guard !hits.isEmpty else { return }
         remember()
-        noteOpened(h)
-        Finder.reveal(URL(fileURLWithPath: h.path))
+        hits.forEach { noteOpened($0) }
+        Finder.reveal(hits.map { URL(fileURLWithPath: $0.path) })
         onOpened?()
     }
 
     func copyPath(_ hit: Hit? = nil) {
         guard let h = hit ?? selected else { return }
+        copyPaths([h])
+    }
+
+    /// Copy Path for several: one path per line.
+    func copyPaths(_ hits: [Hit]) {
+        guard !hits.isEmpty else { return }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(h.path, forType: .string)
+        NSPasteboard.general.setString(hits.map(\.path).joined(separator: "\n"), forType: .string)
     }
 }
 

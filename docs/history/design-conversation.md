@@ -927,6 +927,15 @@ Then "now drives are not showing and there is a searching… on bottom left that
 long reader runs (a drive being indexed). Fixed in 0.9.53: the list reads under the shared lock and keeps what it
 saw under a lock of its own.
 
+## 74. Select like Finder (0.9.54)
+
+"The list of media shown in the search results area is not drag selectable where you draw an outline and files get
+selected, similar to Finder behavior if you want to select multiple files", and "when I select multiple files and right
+click and select trash in the search results area, only the file I am hovering over gets deleted, not all the selected
+files". Decided: a selection box (in the list, the columns and the thumbnail grid) that starts anywhere but on a
+selected file, selects live, and adds with ⌘ or ⇧; a selected file still drags out. The right-click menu acts on the
+whole selection when the clicked file is part of it, with the count in its labels.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

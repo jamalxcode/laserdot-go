@@ -17,6 +17,15 @@ struct SearchView: View {
     @Environment(\.controlActiveState) private var activeState
     /// The tool the arrow keys are on in that panel.
     @State var toolIndex = 0
+    /// Drag-to-select: the box being drawn (in the list's own coordinates),
+    /// what was selected before it (kept with ⌘ or ⇧), whether this drag is
+    /// a box at all (one that starts on a selected file drags the file), and
+    /// where the visible rows are.
+    @State var marquee: CGRect?
+    @State var marqueeBase: Set<Int> = []
+    @State var marqueeState = MarqueeState.idle
+    @State var itemFrames = ItemFrames()
+    @State var listHeight: CGFloat = 0
     /// The selected row uses the accent colour while this window has the
     /// keyboard (the overlay always does), and grey otherwise — as lists do.
     var emphasized: Bool { fixedSize || activeState == .key }

@@ -120,7 +120,7 @@ downloads.
 
 | Key | Does |
 |---|---|
-| ↑ ↓ | move through results (⇧↑ ⇧↓ or ⌘-click select several) |
+| ↑ ↓ | move through results (⇧↑ ⇧↓ or ⌘-click select several; or drag a box over them, as in Finder) |
 | Return / ⌘1–⌘9 | open the selected / the numbered result |
 | Space (after ↑↓ or a click), or Space twice | Quick Look: pictures large, videos and songs playing |
 | ⌘T | the More panel of tools while searching (↑↓, Return, Esc) |

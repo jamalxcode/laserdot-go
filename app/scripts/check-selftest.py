@@ -35,7 +35,7 @@ if split:
     print("info outside the steps: " + ", ".join(f"{k.replace('_', ' ')} {v / 1000:.1f} s" for k, v in split.items()))
 if report.get("selftest_marks"):
     print("info milestones (s): " + "; ".join(report["selftest_marks"]))
-for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "renamemany", "renamedmany", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "drivewaiting", "drivewaitinggone", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "datacolumn", "datachoices", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "videoframes", "peek", "peekgone", "columns", "columnsreversed", "multi", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
+for name in ("start", "jpg", "proj", "tool", "refine", "morechoices", "fewerchoices", "pillsonly", "toolskey", "toolsclosed", "gallery", "galleryall", "gallerycalm", "timeline", "timelinechosen", "choicekeys", "choicepicked", "folderin", "renamemany", "renamedmany", "refined", "chosen", "unrefined", "leftout", "leftoutshown", "where", "wherechosen", "place", "placeoff", "drivewaiting", "drivewaitinggone", "quickstart", "bartoggle", "pillback", "zip", "pdftoday", "datacolumn", "datachoices", "commands", "actions", "space", "spacespace", "video", "song", "sorted", "grid", "gridbig", "videoframes", "peek", "peekgone", "columns", "columnsreversed", "multi", "marquee", "trash", "trashed", "untrashed", "rename", "renamed", "moveto", "movedto", "moveundone",
              "compress", "compressed", "compressundone", "snippet", "tag", "tagged", "untagged", "gone", "refreshed", "history", "drop", "searchin", "morelike", "url", "similar", "home", "reopenfresh", "reset", "placegone", "noneplace", "noneplaceoff", "startvideos"):
     check(name in steps, f"step {name} was captured")
 if failures:
@@ -276,6 +276,9 @@ check(c2["reverse"] is True and c2["sizes"] == sorted(c2["sizes"]), f"a second c
 
 # ⇧↓ selects a second result.
 check(steps["multi"]["selected_count"] == 2, f"two results selected (got {steps['multi']['selected_count']})")
+mq = steps["marquee"]
+check(mq["selected_count"] == 2 and mq.get("menu_targets") == 2,
+      f"drag-to-select selects both, and a right-click acts on both (got {mq['selected_count']}, menu {mq.get('menu_targets')})")
 
 # Move to Trash: gone from the next search.
 check("trashme.txt" in report.get("trash_found", []), f"the file to trash was found (got {report.get('trash_found')})")

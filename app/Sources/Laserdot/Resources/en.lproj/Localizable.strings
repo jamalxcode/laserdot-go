@@ -170,6 +170,10 @@
 "action.share" = "Share…";
 "action.rename" = "Rename…";
 "action.trash" = "Move to Trash";
+"action.openMany" = "Open %d Items";
+"action.revealMany" = "Show %d Items in Finder";
+"action.copyMany" = "Copy %d Paths";
+"action.trashMany" = "Move %d Items to Trash";
 "rename.title" = "Rename “%@”";
 "actions.many" = "%lld items";
 "keys.choose" = "Choose";

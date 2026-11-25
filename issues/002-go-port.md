@@ -157,6 +157,11 @@ Binding unless revisited deliberately; each is also in the spec.
   feeds `VideoFrames.noteDurations` (no ffprobe); `fileIcon` only for apps and extension-less names, on one queue.
   0.9.53: `Drives` builds under `mu.RLock` again and stores `mounted` under `mountedMu` (a write lock there stalled
   every search behind long readers); test `TestListingDrivesNeverHoldsSearchesUp`.
+- **Select like Finder (0.9.54):** rows and tiles report frames (`ItemFramesKey`, kept in an `ItemFrames` class so
+  scrolling does not redraw); a `DragGesture` on the list draws the box and calls `SearchModel.marqueeSelect`; it is
+  ignored when it starts on a selected item, which keeps `.onDrag` (`fileDrag(_:when:)`, selected items only).
+  `resultMenu` uses `menuTargets` (the whole selection when the row is in it): Open/Show/Copy/Rename/Trash for all.
+  Self-test `marquee`.
 - **Rich metadata (0.9.49):** `media.Tags` gains Description/Author/Copyright/Software/Chapters, `Exif` Lat/Lon,
   `Record.Data` (columns, types, rows); record encoding v2 (v1 decodes). New `docs.go` (PDF, Office, CSV/TSV/JSON/
   XLSX) behind `parserDoc`; `media.SameReader` keeps the update engine from reusing a probe across readers (a video

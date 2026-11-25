@@ -348,6 +348,10 @@ final class SelfTestRunner {
                 model.sort = .relevance
                 model.reverse = false
             }, after: { model.extend(1) }),
+            // Drag-to-select picks what the box touches; a right-click on one
+            // of the selected acts on all of them (the owner: Trash moved only
+            // the file under the pointer).
+            Step(name: "marquee", typed: "jpg", after: { model.marqueeSelect([0, 1], base: []) }),
             // ⌘K ▸ Move to Trash removes a file; a new search no longer finds it.
             Step(name: "trash", typed: "trashme", after: {
                 // What was found, before it goes (results now refresh at once).

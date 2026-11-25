@@ -141,3 +141,10 @@ for `>` commands, after a trailing space, or while moving through the results.
 Every visible change extends the self-test (`app/Sources/Laserdot/SelfTest.swift`, judged by
 `app/scripts/check-selftest.py`), which drives the real bundled app with key events in CI and prints screenshots
 into the job log.
+
+## Selecting (0.9.54)
+
+1. As in Finder: click selects, ⌘-click adds or removes, ⇧-click selects a range, and a **box dragged** over the
+   results selects what it touches (⌘ or ⇧ while starting adds to the selection). The box starts anywhere except on a
+   selected file, which drags out instead.
+2. A right-click on one of several selected files acts on all of them, and says how many ("Move 3 Items to Trash").
