@@ -2,6 +2,7 @@ import AppKit
 import Quartz
 import QuickLookThumbnailing
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Thumbnails from Quick Look (local, made by macOS): pictures and videos in
 /// the result rows, any file in the preview pane. Kept in memory only.
@@ -16,13 +17,31 @@ final class ThumbnailCache {
 
     private let icons = NSCache<NSString, NSImage>()
 
-    /// The file's icon (Finder's), looked up once per path: views redraw
-    /// often (every selection change in the grid), and the lookup reads the disk.
+    /// The file's icon if already read, else its type's icon (from the
+    /// name alone): never a disk read while drawing. Finder's per-file lookup
+    /// reads the disk, and a big drive waking up froze the window for seconds
+    /// (the owner's beachball on an 8 TB drive). `fileIcon` reads it later.
     func icon(for path: String) -> NSImage {
         if let img = icons.object(forKey: path as NSString) { return img }
-        let img = NSWorkspace.shared.icon(forFile: path)
-        icons.setObject(img, forKey: path as NSString)
-        return img
+        return Self.typeIcon(for: path)
+    }
+
+    /// The icon for a name's type (a folder when it has no extension).
+    static func typeIcon(for path: String) -> NSImage {
+        let ext = (path as NSString).pathExtension
+        let type = ext.isEmpty ? UTType.folder : (UTType(filenameExtension: ext) ?? .data)
+        return NSWorkspace.shared.icon(for: type)
+    }
+
+    /// Finder's icon for the file itself (custom icons, app icons), read off
+    /// the main thread once per path; `done` runs on the main thread.
+    func fileIcon(for path: String, done: @escaping (NSImage) -> Void) {
+        if let img = icons.object(forKey: path as NSString) { return done(img) }
+        DispatchQueue.global(qos: .userInitiated).async { [icons] in
+            let img = NSWorkspace.shared.icon(forFile: path)
+            icons.setObject(img, forKey: path as NSString)
+            DispatchQueue.main.async { done(img) }
+        }
     }
 
     /// `done` runs on the main thread, with nil when macOS has no thumbnail.
@@ -66,9 +85,11 @@ struct FileIcon: View {
     var large = false
     @State private var image: NSImage?
     @State private var loadedFor: String?
+    @State private var icon: NSImage?
+    @State private var iconFor: String?
 
     var body: some View {
-        Image(nsImage: (loadedFor == path ? image : nil) ?? ThumbnailCache.shared.icon(for: path))
+        Image(nsImage: (loadedFor == path ? image : nil) ?? (iconFor == path ? icon : nil) ?? ThumbnailCache.shared.icon(for: path))
             .resizable()
             .interpolation(.high)
             .aspectRatio(contentMode: .fit)
@@ -79,8 +100,12 @@ struct FileIcon: View {
     }
 
     private func load() {
-        guard thumbnail else { return }
         let p = path
+        ThumbnailCache.shared.fileIcon(for: p) { img in
+            icon = img
+            iconFor = p
+        }
+        guard thumbnail else { return }
         let step = (size / 64).rounded(.up) * 64 // one cached size per step
         ThumbnailCache.shared.image(for: p, size: max(size, step), iconFallback: large) { img in
             image = img

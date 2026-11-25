@@ -145,7 +145,9 @@ Binding unless revisited deliberately; each is also in the spec.
   off during the self-test; self-test `drivewaiting`/`drivewaitinggone` mount and eject a disk image (LDWaiting).
   `scan.Volume.Hidden` (statfs `MNT_DONTBROWSE`, a dot name, or Recovery in the startup disk's container): `Drives`
   leaves such volumes out unless they have an index or are being indexed (SyncDrives still sees them, so an indexed
-  one is never detached by mistake).
+  one is never detached by mistake). `ThumbnailCache.icon(for:)` returns the type icon (UTType from the name) unless
+  the file's icon was read; `fileIcon` reads Finder's icon off the main thread (FileIcon, Duplicates rows); the
+  preview's kind text comes from UTType; the drive offer's `fileExists` runs off the main thread.
 - **Rich metadata (0.9.49):** `media.Tags` gains Description/Author/Copyright/Software/Chapters, `Exif` Lat/Lon,
   `Record.Data` (columns, types, rows); record encoding v2 (v1 decodes). New `docs.go` (PDF, Office, CSV/TSV/JSON/
   XLSX) behind `parserDoc`; `media.SameReader` keeps the update engine from reusing a probe across readers (a video

@@ -904,6 +904,9 @@ Decided: unindexed (or locked, detached) drives show among the Drive choices wit
 index; the question shows within 6 s; the drive list has its own daemon connection. Then a screenshot of "Index
 “5A742321-B17B-48B2-B639-92EAD8EE3CED”? 4 files (86 KB) … read-only": "I have no idea what drive this is" — a hidden
 system disk image. Decided: what Finder hides (don't-browse mounts, dot names, Recovery) is not a drive to offer.
+Then "I got a spinning beach ball when I selected the large 8 TB drive … now the ball is gone": the window read the
+sleeping drive while drawing (file icons). Decided: nothing on the main thread touches a file; icons start as the
+type's icon and the file's own replaces it once read.
 
 ## Chat conventions
 

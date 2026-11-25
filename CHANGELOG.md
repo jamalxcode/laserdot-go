@@ -11,6 +11,8 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 - macOS's own hidden mounts are no longer mistaken for drives: no more "Index 5A742321-B17B-…?" for a system disk
   image of 4 files. Laserdot now ignores what Finder hides (update and developer disk images, Time Machine snapshots,
   the Recovery volume).
+- No more spinning beach ball when a big drive wakes up: icons, the preview's file kind and the drive checks are
+  read in the background, so the window keeps answering while an 8 TB disk spins up.
 - The question "Index this drive?" shows within a few seconds even for a big or sleeping drive (without the file
   count when counting takes longer), and the drive list no longer waits behind other work, so drives appear right
   after Laserdot starts.

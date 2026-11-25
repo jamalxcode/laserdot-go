@@ -324,9 +324,11 @@ final class DrivesModel: ObservableObject {
             // opened to install an app.
             let mount = d.mount
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
-                guard let self, !self.ejectingMounts.contains(mount), FileManager.default.fileExists(atPath: mount) else { return }
+                guard let self, !self.ejectingMounts.contains(mount) else { return }
                 let engine = self.engine
                 DispatchQueue.global(qos: .userInitiated).async {
+                    // Off the main thread: a big drive waking up takes seconds.
+                    guard FileManager.default.fileExists(atPath: mount) else { return }
                     let now = (try? engine.drives())?.first { $0.mount == mount }
                     if let now, InstallerVolume.isInstaller(mount: mount, readOnly: now.readOnly) { return }
                     DispatchQueue.main.async {

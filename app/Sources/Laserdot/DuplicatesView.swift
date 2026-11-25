@@ -676,7 +676,7 @@ struct DuplicatesView: View {
             .toggleStyle(.checkbox)
             .labelsHidden()
             .help(L("dupes.markRemove"))
-            Image(nsImage: NSWorkspace.shared.icon(forFile: f.path)).resizable().frame(width: 24, height: 24)
+            FileIcon(path: f.path, size: 24) // no disk read while drawing (a sleeping drive)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(URL(fileURLWithPath: f.path).lastPathComponent).fontWeight(f.keep ? .semibold : .regular)

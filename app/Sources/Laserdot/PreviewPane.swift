@@ -3,6 +3,7 @@ import AppKit
 import LaserdotKit
 import PDFKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: preview
 
@@ -102,8 +103,10 @@ struct PreviewPane: View {
 
     /// What Finder calls it ("JPEG image", "Folder"), else the section name.
     private static func kindText(_ hit: Hit) -> String {
-        let url = URL(fileURLWithPath: hit.path)
-        if let d = try? url.resourceValues(forKeys: [.localizedTypeDescriptionKey]).localizedTypeDescription, !d.isEmpty {
+        // From the name, not the disk: a drive waking up must not freeze
+        // the window while it is drawn.
+        let ext = (hit.path as NSString).pathExtension
+        if !ext.isEmpty, let d = UTType(filenameExtension: ext)?.localizedDescription, !d.isEmpty {
             return d
         }
         return L("section.\(SearchModel.category(hit))")
