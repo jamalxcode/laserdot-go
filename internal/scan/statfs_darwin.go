@@ -26,8 +26,10 @@ func statFS(path string) (fsInfo, error) {
 		readOnly: st.Flags&unix.MNT_RDONLY != 0,
 		total:    st.Blocks * uint64(st.Bsize),
 		free:     st.Bavail * uint64(st.Bsize),
-		hidden:   st.Flags&unix.MNT_DONTBROWSE != 0,
-		device:   cString(st.Mntfromname[:]),
+		// Only for the mount itself: a folder on the Data volume (mounted
+		// "don't browse" by macOS) is not hidden.
+		hidden: st.Flags&unix.MNT_DONTBROWSE != 0 && cString(st.Mntonname[:]) == path,
+		device: cString(st.Mntfromname[:]),
 	}, nil
 }
 
