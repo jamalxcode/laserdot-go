@@ -906,7 +906,9 @@ index; the question shows within 6 s; the drive list has its own daemon connecti
 system disk image. Decided: what Finder hides (don't-browse mounts, dot names, Recovery) is not a drive to offer.
 Then "I got a spinning beach ball when I selected the large 8 TB drive … now the ball is gone": the window read the
 sleeping drive while drawing (file icons). Decided: nothing on the main thread touches a file; icons start as the
-type's icon and the file's own replaces it once read.
+type's icon and the file's own replaces it once read. The same cause showed while scrolling ("scrolling the
+displayed content is slow with over 4 seconds beachball spins then a little move up"): every row coming into view
+asked the sleeping drive for its icon. Released as 0.9.50.
 
 ## Chat conventions
 

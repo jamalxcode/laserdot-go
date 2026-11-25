@@ -40,6 +40,10 @@ for `>` commands, after a trailing space, or while moving through the results.
 
 1. Long jobs never freeze the window: they run off the main thread, on their own connection to the engine, with
    no time limit.
+1a. **Drawing never touches a file** (0.9.50; the owner's beachball when scrolling results from an 8 TB drive): an
+   icon is first the type's (from the name), the file's own replaces it once read in the background; kind text
+   comes from the name; thumbnails, frames and drive checks are read off the main thread. A sleeping disk takes
+   seconds to wake, and the window must keep answering meanwhile.
 2. A long job can be **stopped**, keeping what it found, and **continued** later without starting over.
 3. Closing a window stops its job the same way.
 4. **Quit always works**, within seconds, whatever the engine is doing.

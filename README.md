@@ -140,7 +140,8 @@ downloads.
 
 **Choices under the search.** After a search, the rows under the hint show what your results have to choose from,
 with counts, top down from broad to detailed, each family in a band of its own shade: **where** (the drive — This
-Mac or each attached drive — and the folders the results are in) · **what** (Videos, Documents, Folders…, and the
+Mac or each attached drive, plus every connected drive not indexed yet, shown as "Name — Index…": click it to index
+it — and the folders the results are in) · **what** (Videos, Documents, Folders…, and the
 documents' types) · **size and date** · **picture** (resolution, portrait or landscape, HDR, codec) · **length and
 sound**, chapters · **photo** (camera, location, screenshots and Live Photos) · **music** (artist, album, genre) ·
 **about the file** (author, the app it was made with, a data file's columns and rows). Only what your
@@ -215,8 +216,10 @@ Finder**):
 
 **External drives** keep their own index on the drive, in a hidden `/Volumes/<drive>/.laserdot/` folder
 (`index.db`, `volume.json`), with paths relative to the drive — so it works on any Mac. Laserdot asks before indexing
-a drive (not a disk image you opened to install an app — those are left alone, though you can still index one from
-the Drives list) and can encrypt the index with a passphrase that is never written down (unless you tick **Remember in my
+a drive (not a disk image you opened to install an app, nor macOS's own hidden mounts — Recovery, Time Machine
+snapshots, update images, whatever Finder hides — though you can still index an installer image from the Drives
+list). The question shows within seconds, even for a huge or sleeping drive, and a drive you passed over stays
+reachable: it shows among the Drive choices as "Name — Index…" and can encrypt the index with a passphrase that is never written down (unless you tick **Remember in my
 Keychain**: then macOS's Keychain keeps it and the drive unlocks by itself). A big drive is searchable while it is
 being indexed (top folders, recently changed ones and the folders you search in come first), uses little memory
 whatever its size, and if you unplug or eject it halfway, it picks up where it stopped next time. **Drives ▸ your
