@@ -57,6 +57,9 @@ struct ScrubThumb: View {
         .onDisappear { prefetch?.cancel() }
         .accessibilityHidden(true)
         .task(id: "\(path)|\(Int(size / 64))") {
+            // Not for a tile only passing by while scrolling.
+            try? await Task.sleep(nanoseconds: 200_000_000)
+            if Task.isCancelled { return }
             poster = await VideoFrames.poster(path, edge: size)
         }
     }

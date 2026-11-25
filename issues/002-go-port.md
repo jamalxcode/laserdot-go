@@ -151,6 +151,10 @@ Binding unless revisited deliberately; each is also in the spec.
   0.9.51: `DrivesModel.offer(mount:choose:)` uses the list on screen and never returns silently; drive indexing jobs
   run `alongside` (global queue, `running` list; `busy` shows the last running job); `promptIndex(started:)` chooses the
   drive (`volume:` pill) two seconds after its index starts.
+  0.9.52: `AsyncGate` (LIFO slots) and `ProcessBox` (ends ffmpeg/ffprobe on cancel) in VideoFrames; Quick Look 3,
+  AVFoundation 2 (only `playable` formats), ffmpeg 2; `ThumbnailCache.thumbnail(for:size:iconFallback:)` async and
+  cancellable (`QLThumbnailGenerator.cancel`); FileIcon and ScrubThumb wait 200 ms; `Hit.durationMs` from the index
+  feeds `VideoFrames.noteDurations` (no ffprobe); `fileIcon` only for apps and extension-less names, on one queue.
 - **Rich metadata (0.9.49):** `media.Tags` gains Description/Author/Copyright/Software/Chapters, `Exif` Lat/Lon,
   `Record.Data` (columns, types, rows); record encoding v2 (v1 decodes). New `docs.go` (PDF, Office, CSV/TSV/JSON/
   XLSX) behind `parserDoc`; `media.SameReader` keeps the update engine from reusing a probe across readers (a video

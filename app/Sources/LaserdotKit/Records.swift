@@ -24,6 +24,9 @@ public struct Hit: Hashable, Sendable {
     public var content: Bool
     /// A zip found by the names of files inside it (paths inside the zip).
     public var inside: [String] = []
+    /// A video's or song's length from the index (ms), so a frame can be
+    /// picked without asking the file first.
+    public var durationMs: UInt64?
 
     init(_ h: Wire.Hit) {
         var badges: [String] = []
@@ -52,6 +55,7 @@ public struct Hit: Hashable, Sendable {
         volume = h.volume
         content = h.content
         inside = h.inside
+        durationMs = h.media?.durationMs
     }
 }
 

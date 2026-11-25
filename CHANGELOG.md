@@ -3,6 +3,13 @@
 What's new in each version, in plain words. `app/scripts/bundle.sh` copies the section for the version it builds
 into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 
+## 0.9.52
+
+- Faster results with big videos. Pictures and video frames load only for the rows you stop at (not for every row
+  you scroll past), a few at a time with what's on screen first, and a row you scroll away from stops its work.
+  Videos macOS can't read itself go straight to the bundled ffmpeg, which no longer asks each file its length first
+  (the index already knows it), and only apps and folders are asked for an icon of their own.
+
 ## 0.9.51
 
 - Clicking a drive that isn't indexed yet ("T5 EVO — Index…") always does something now. It asks to index the drive

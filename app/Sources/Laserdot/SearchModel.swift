@@ -610,6 +610,7 @@ final class SearchModel: ObservableObject {
         coaching = []
         switch outcome {
         case .success(let r):
+            VideoFrames.noteDurations(r.hits)
             allHits = r.hits
             (results, sections) = arranged(r.hits)
             total = r.total

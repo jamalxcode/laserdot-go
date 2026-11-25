@@ -915,6 +915,13 @@ text": the click was ignored while another drive job ran (or the engine was slow
 the click always answers — the question even while another drive is indexed (both at once), and once indexing starts
 the drive is chosen in the search box, since it is searchable while it is read.
 
+Then "I think the icon representation and preview is slowing down the search result view, especially with very
+large video files". Every row asked for a thumbnail the moment it appeared, rows scrolled past kept their requests
+(and the two ffmpeg slots), Quick Look and macOS's video reader had no limit, and each MKV cost an ffprobe run before
+ffmpeg. Decided (0.9.52): pictures wait 0.2 s (rows passing by ask nothing), at most three Quick Look, two macOS and
+two ffmpeg reads at a time with the newest first, cancelled with their row; lengths come from the index; formats
+macOS cannot read skip Quick Look; only apps and folders get their own icon read.
+
 ## Chat conventions
 
 - Answers in plain words and numbered steps; times in Kuwait time.

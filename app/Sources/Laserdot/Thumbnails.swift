@@ -33,45 +33,59 @@ final class ThumbnailCache {
         return NSWorkspace.shared.icon(for: type)
     }
 
-    /// Finder's icon for the file itself (custom icons, app icons), read off
-    /// the main thread once per path; `done` runs on the main thread.
+    /// Finder's icon for the file itself, read off the main thread once per
+    /// path, one at a time; `done` runs on the main thread. Only apps and
+    /// folders can have an icon of their own (custom folder icons, app
+    /// icons): other files keep their type's icon and the disk is not read.
+    private let iconQueue = DispatchQueue(label: "laserdot.icons", qos: .utility)
     func fileIcon(for path: String, done: @escaping (NSImage) -> Void) {
         if let img = icons.object(forKey: path as NSString) { return done(img) }
-        DispatchQueue.global(qos: .userInitiated).async { [icons] in
+        let ext = (path as NSString).pathExtension.lowercased()
+        guard ext.isEmpty || ext == "app" else { return }
+        iconQueue.async { [icons] in
             let img = NSWorkspace.shared.icon(forFile: path)
             icons.setObject(img, forKey: path as NSString)
             DispatchQueue.main.async { done(img) }
         }
     }
 
-    /// `done` runs on the main thread, with nil when macOS has no thumbnail.
-    func image(for path: String, size: CGFloat, iconFallback: Bool, done: @escaping (NSImage?) -> Void) {
+    /// Quick Look thumbnails, three at a time, newest first (AsyncGate): a
+    /// screen of huge videos on a spinning drive must not be read all at
+    /// once, and a row scrolled away gives up its turn (its task is
+    /// cancelled, and so is a request already running).
+    private let gate = AsyncGate(3)
+
+    func thumbnail(for path: String, size: CGFloat, iconFallback: Bool) async -> NSImage? {
         let key = "\(path)|\(Int(size))|\(iconFallback)" as NSString
-        if let img = cache.object(forKey: key) {
-            done(img)
-            return
-        }
-        let scale = NSScreen.main?.backingScaleFactor ?? 2
-        let request = QLThumbnailGenerator.Request(
-            fileAt: URL(fileURLWithPath: path), size: CGSize(width: size, height: size), scale: scale,
-            representationTypes: iconFallback ? .all : .thumbnail)
+        if let img = cache.object(forKey: key) { return img }
         let video = VideoFrames.isVideo(path)
-        QLThumbnailGenerator.shared.generateBestRepresentation(for: request) { [cache] rep, _ in
-            // A video macOS has no thumbnail for (MKV, WebM, AVI…): a frame
-            // from the bundled ffmpeg instead of the generic icon.
-            if video, rep == nil || rep?.type == .icon {
-                Task {
-                    var img = await VideoFrames.poster(path, edge: size)
-                    if img == nil { img = rep?.nsImage }
-                    if let img { cache.setObject(img, forKey: key) }
-                    await MainActor.run { done(img) }
-                }
-                return
+        var rep: QLThumbnailRepresentation?
+        // A video macOS cannot read itself (MKV, WebM, AVI…) goes straight
+        // to the bundled ffmpeg: Quick Look would only read it for nothing.
+        let quickLook = !video || VideoFrames.playable.contains((path as NSString).pathExtension.lowercased())
+        if quickLook {
+            await gate.enter()
+            if Task.isCancelled {
+                await gate.leave()
+                return nil
             }
-            let img = rep?.nsImage
-            if let img { cache.setObject(img, forKey: key) }
-            DispatchQueue.main.async { done(img) }
+            let scale = await MainActor.run { NSScreen.main?.backingScaleFactor ?? 2 }
+            let request = QLThumbnailGenerator.Request(
+                fileAt: URL(fileURLWithPath: path), size: CGSize(width: size, height: size), scale: scale,
+                representationTypes: iconFallback ? .all : .thumbnail)
+            rep = await withTaskCancellationHandler {
+                try? await QLThumbnailGenerator.shared.generateBestRepresentation(for: request)
+            } onCancel: {
+                QLThumbnailGenerator.shared.cancel(request)
+            }
+            await gate.leave()
         }
+        var img = rep?.nsImage
+        if video, rep == nil || rep?.type == .icon, !Task.isCancelled {
+            img = await VideoFrames.poster(path, edge: size) ?? img
+        }
+        if let img { cache.setObject(img, forKey: key) }
+        return img
     }
 }
 
@@ -96,21 +110,24 @@ struct FileIcon: View {
             .frame(width: size, height: size)
             // A new thumbnail when the path changes, or the size grows a step
             // (the grid's size slider); in between it is scaled.
-            .task(id: "\(path)|\(Int(size / 64))") { load() }
+            .task(id: "\(path)|\(Int(size / 64))") { await load() }
     }
 
-    private func load() {
+    private func load() async {
         let p = path
         ThumbnailCache.shared.fileIcon(for: p) { img in
             icon = img
             iconFor = p
         }
         guard thumbnail else { return }
+        // A row only passing by while scrolling asks for nothing.
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        if Task.isCancelled { return }
         let step = (size / 64).rounded(.up) * 64 // one cached size per step
-        ThumbnailCache.shared.image(for: p, size: max(size, step), iconFallback: large) { img in
-            image = img
-            loadedFor = p
-        }
+        let img = await ThumbnailCache.shared.thumbnail(for: p, size: max(size, step), iconFallback: large)
+        if Task.isCancelled { return }
+        image = img
+        loadedFor = p
     }
 }
 
