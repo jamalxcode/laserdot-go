@@ -934,7 +934,12 @@ selected, similar to Finder behavior if you want to select multiple files", and 
 click and select trash in the search results area, only the file I am hovering over gets deleted, not all the selected
 files". Decided: a selection box (in the list, the columns and the thumbnail grid) that starts anywhere but on a
 selected file, selects live, and adds with ⌘ or ⇧; a selected file still drags out. The right-click menu acts on the
-whole selection when the clicked file is part of it, with the count in its labels.
+whole selection when the clicked file is part of it, with the count in its labels. Released as 0.9.54 (13:47 Kuwait time, 25 Nov).
+
+Releases from this stretch, for the record: 0.9.49 (metadata), 0.9.50 (every drive in sight, hidden mounts, no
+beachball from sleeping drives), 0.9.51 (a drive click always answers, drives indexed side by side), 0.9.52
+(pictures only for rows that stay on screen), 0.9.53 (the drive list no longer stalls searches), 0.9.54 (select like
+Finder).
 
 ## Chat conventions
 

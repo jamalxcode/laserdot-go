@@ -190,7 +190,8 @@ pops up.
 
 **If something goes wrong** Laserdot recovers by itself: a bug in the search engine is caught and logged and the
 engine keeps running; if the engine stops or hangs it is restarted within a minute (one still loading a big index is
-given time); the choices under the search box never hold up typing; a drive that stops answering is
+given time); the choices under the search box never hold up typing; the window never waits on a disk (a sleeping
+8 TB drive wakes in the background while icons and thumbnails fill in); a drive that stops answering is
 skipped after 30 seconds; indexing waits for free space instead of failing halfway; and if Laserdot fails to start
 twice in a row it offers to start with a fresh index (your files are never touched).
 
@@ -222,7 +223,8 @@ list). The question shows within seconds, even for a huge or sleeping drive, and
 reachable: it shows among the Drive choices as "Name — Index…" and can encrypt the index with a passphrase that is never written down (unless you tick **Remember in my
 Keychain**: then macOS's Keychain keeps it and the drive unlocks by itself). A big drive is searchable while it is
 being indexed (top folders, recently changed ones and the folders you search in come first), uses little memory
-whatever its size, and if you unplug or eject it halfway, it picks up where it stopped next time. **Drives ▸ your
+whatever its size, and if you unplug or eject it halfway, it picks up where it stopped next time. Two drives can be
+indexed at the same time. **Drives ▸ your
 drive ▸ Stop Indexing** pauses it (the drive stays searchable with what was read); **Continue Indexing** goes on.
 Laserdot never keeps a drive from ejecting: its index file on the drive is open only while it works on it, and when
 you eject, Laserdot stops what it is doing there and lets go. When the drive

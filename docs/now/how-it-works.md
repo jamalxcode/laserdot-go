@@ -26,7 +26,10 @@ One page, kept current: what is true today. The history and the reasons are in
   checkpoints inside the drive's own index; it can be stopped and continued, and resumes after an unplug. The index
   file on a drive is open only during a job, so a drive can always be ejected; when macOS is about to eject one, the
   engine lets go first. A new drive is offered for indexing once — but not a disk image opened to install an app
-  (read-only, or with an app, an installer package or an Applications shortcut at its top).
+  (read-only, or with an app, an installer package or an Applications shortcut at its top), nor what Finder hides
+  (`MNT_DONTBROWSE`, dot names, Recovery). Every other mounted drive stays reachable from the Drive choices
+  ("Name — Index…", 0.9.50); the question shows within 6 s; several drives can be indexed at once (0.9.51), and a
+  drive chosen that way is put in the search as soon as its index starts.
 - **Keeping current**: FSEvents for changes, a folder-time check every 30 minutes while FSEvents misses nothing
   (every 5 otherwise), an hourly catch-up; returning
   APFS/HFS+ drives are checked by folder times, other drives and once a week in full.
@@ -86,8 +89,12 @@ One page, kept current: what is true today. The history and the reasons are in
   (`TimelineLogic.months`, last 120) and a click or drag adds `modified:YYYY-MM[..YYYY-MM]`, replacing a date filter.
 - **Rename several files** (`BatchRename`, `renameFiles`): ## becomes the number, extensions kept, all or nothing
   (through temporary names), one undo step.
-- **Video frames** (`VideoFrames`, 0.9.48): AVFoundation for what macOS reads, else the bundled ffmpeg (two at a time,
-  20 s each, ffprobe for the length); used for video thumbnails macOS has none for (MKV, WebM, AVI…) and for scrubbing.
+- **Video frames** (`VideoFrames`, 0.9.48): AVFoundation for what macOS plays (MP4, MOV…), else the bundled ffmpeg
+  (two at a time, 20 s each; the length from the index, ffprobe only when it is unknown); used for video thumbnails
+  macOS has none for (MKV, WebM, AVI…) and for scrubbing.
+- **Pictures in the results** (0.9.52): an icon is the type's until the file's own is read (apps and folders only, in
+  the background); thumbnails and frames start after a row has been on screen 0.2 s, a few at a time with the newest
+  first, and stop when the row leaves — so scrolling a drive full of big videos never waits on the disk.
 - **Grid**: videos scrub under the pointer (`ScrubThumb`, ten frames, all fetched once the pointer comes in, the last
   shown until the next arrives; the resting picture is a frame a tenth in); a picture the
   pointer rests on (0.6 s) shows 420 pt wide in a popover beside its tile (`PhotoPeek`, `SearchModel.peekPath`);
@@ -104,7 +111,11 @@ One page, kept current: what is true today. The history and the reasons are in
 - **Fresh results:** reopening the window runs the search again; after a file action the app sends `touched` with
   the folders it changed, and the engine lists them again at once (drives included).
 - **Opening** a result (Return, double-click, Open With, Show in Finder, Open in Terminal) hides the ⌥Space window.
-  Right-click on a result: Open, Quick Look, Show in Finder, Copy Path, Rename…, More Like This, Move to Trash, More.
+  Right-click on a result: Open, Quick Look, Show in Finder, Copy Path, Rename…, More Like This, Move to Trash, More;
+  on one of several selected results it acts on all of them ("Move 3 Items to Trash", 0.9.54).
+- **Selecting:** click, ⌘-click, ⇧-click, ⇧↑↓, and a box dragged over the results (list, columns, grid) selects what
+  it touches (⌘/⇧ adds; 0.9.54). The box starts anywhere but on a selected result; a selected result drags out to
+  Finder or another app.
 - **Freezes** of the app's window (2 s or more) are written to `~/Library/Logs/Laserdot/app-hangs.log` with what it
   showed (never a search or path); Save Diagnostics includes them. PDF previews are read off the main thread.
 - **Pills:** the query is one string; the field shows its typed words and its filter words as pills before them
@@ -136,8 +147,9 @@ One page, kept current: what is true today. The history and the reasons are in
 - Storage window: sizes from the index; apps and packages measured once and remembered; items can be moved to the
   Trash (confirmed, undoable).
 - A disk that stops answering (a sleeping network share) never holds the index lock: the drive list and the drive
-  checks look at disks without it, the app asks for that list one request at a time, and its "this folder changed"
-  notes go on their own queue, so searches keep working.
+  checks look at disks without it, the app asks for that list one request at a time on its own connection, and its
+  "this folder changed" notes go on their own queue, so searches keep working. Nothing the drive list does takes the
+  index lock for writing (0.9.53: it did, and searches hung on "Searching…" while a drive was being indexed).
 - Recovery: a bug in a request or a background job is caught, written to `laserdotd-crash.log` and the daemon carries
   on (it restarts itself if the bug left the index locked). The app's watchdog restarts a daemon that is gone or stops
   answering, but gives one that is still loading its index up to 3 minutes; the daemon opens its socket before it
