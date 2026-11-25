@@ -40,3 +40,19 @@ func TestEstimateCountsFilesFoldersBytes(t *testing.T) {
 		t.Errorf("files %d dirs %d bytes %d err %v", files, dirs, bytes, err)
 	}
 }
+
+func TestSameContainer(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		want bool
+	}{
+		{"/dev/disk3s1s1", "/dev/disk3s3", true},
+		{"/dev/disk3s1s1", "/dev/disk7s1", false},
+		{"/dev/disk3s1s1", "/dev/disk33s1", false},
+		{"map auto_home", "/dev/disk3s3", false},
+	} {
+		if got := sameContainer(c.a, c.b); got != c.want {
+			t.Errorf("%s %s: %v", c.a, c.b, got)
+		}
+	}
+}

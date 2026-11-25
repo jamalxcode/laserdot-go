@@ -279,7 +279,9 @@ extension SelfTestRunner {
         if !FileManager.default.fileExists(atPath: image) {
             Self.hdiutil(["create", "-type", "SPARSE", "-size", "64m", "-fs", "APFS", "-volname", Self.testDriveName, dir + "/drive"])
         }
-        Self.hdiutil(["attach", "-nobrowse", image])
+        // Browsable, like a real drive: "don't browse" mounts are macOS's own
+        // and are not offered.
+        Self.hdiutil(["attach", image])
         let deadline = Date().addingTimeInterval(15)
         while Date() < deadline {
             if (try? engine.drives())?.contains(where: { $0.mount == Self.testDriveMount }) == true { break }

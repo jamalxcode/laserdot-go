@@ -55,6 +55,12 @@ func (ld *Laserdot) Drives() []DriveInfo {
 	defer ld.mu.Unlock()
 	out := []DriveInfo{}
 	for i, v := range vols {
+		// macOS's own mounts (a disk image named by a long id, Recovery…)
+		// are not drives to offer (the owner: "I have no idea what drive
+		// this is") — unless it has an index or is being indexed.
+		if v.Hidden && !found[i].ok && attached[v.Mount] == "" && !ld.creating[v.Mount] {
+			continue
+		}
 		out = append(out, ld.driveInfoFrom(v, found[i]))
 	}
 	ld.mounted = ld.mounted[:0]

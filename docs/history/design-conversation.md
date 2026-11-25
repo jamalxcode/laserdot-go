@@ -901,7 +901,9 @@ I wanted to look into", with `df` showing five drives (Rapid, plex media, T5 EVO
 Rapid are only appearing"; then "the index dialog for 2tb appeared now, after several minutes". The Drive choices
 listed only indexed drives, and the app offered to index new drives one at a time, once, waiting on each count.
 Decided: unindexed (or locked, detached) drives show among the Drive choices with what they need, a click offers to
-index; the question shows within 6 s; the drive list has its own daemon connection.
+index; the question shows within 6 s; the drive list has its own daemon connection. Then a screenshot of "Index
+“5A742321-B17B-48B2-B639-92EAD8EE3CED”? 4 files (86 KB) … read-only": "I have no idea what drive this is" — a hidden
+system disk image. Decided: what Finder hides (don't-browse mounts, dot names, Recovery) is not a drive to offer.
 
 ## Chat conventions
 

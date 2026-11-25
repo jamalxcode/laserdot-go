@@ -178,4 +178,6 @@ and the rule it left behind. (The conversations behind them: [`design-conversati
 20s. **Leaving something out silently reads as a bug.** The Drive choices showed only drives with an index, so four
      mounted drives looked missing; the owner's `df` output made it plain. Show what exists and what it needs ("Index…")
      rather than filtering it away, and never let a one-time question be the only way in.
+     And the reverse, the same day: listing everything in /Volumes offered a hidden system disk image named by an id.
+     Show what a person would recognize — Finder's rule (`MNT_DONTBROWSE`) is the right line.
 21. **The user's screenshots are the best bug reports.** Most of the fixes above started as one.

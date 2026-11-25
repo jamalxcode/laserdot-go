@@ -171,3 +171,30 @@ func TestMountedDrivesWithNoIndexAreOffered(t *testing.T) {
 		}
 	}
 }
+
+// The owner, shown "Index 5A742321-B17B-…?" for 4 files: "I have no idea
+// what drive this is". macOS's own mounts (hidden: "don't browse", a dot
+// name, Recovery) are neither listed nor offered — unless indexed.
+func TestHiddenSystemMountsAreNotOffered(t *testing.T) {
+	m := newMac(t)
+	makeDrive(t, m.vols, "Daisy Backup")
+	hidden := makeDrive(t, m.vols, ".timemachine")
+	var names []string
+	for _, d := range m.ld.Drives() {
+		names = append(names, d.Name)
+	}
+	if !slices.Equal(names, []string{"Daisy Backup"}) {
+		t.Fatalf("only the real drive is listed: %v", names)
+	}
+	// Once it has an index (made by hand), it is listed like any drive.
+	if _, err := m.ld.CreateDriveIndex(hidden, DriveOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	names = nil
+	for _, d := range m.ld.Drives() {
+		names = append(names, d.Name)
+	}
+	if len(names) != 2 {
+		t.Errorf("an indexed hidden drive stays listed: %v", names)
+	}
+}

@@ -14,6 +14,8 @@ type fsInfo struct {
 	fsType      string
 	readOnly    bool
 	total, free uint64
+	hidden      bool   // macOS only (MNT_DONTBROWSE)
+	device      string // macOS only
 }
 
 // fsMagic names Linux file systems by their statfs f_type.

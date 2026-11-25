@@ -8,6 +8,9 @@ into the app (`WhatsNew.txt`), which Laserdot shows when it updates.
 - **Every mounted drive shows.** The Drive choices under a search listed only drives Laserdot had already indexed, so
   a drive you had not indexed yet — or had passed over when Laserdot asked — was nowhere to be seen. Now each one
   shows there too, marked "Index…" (or "Unlock…" / "Attach…"); click it to index it.
+- macOS's own hidden mounts are no longer mistaken for drives: no more "Index 5A742321-B17B-…?" for a system disk
+  image of 4 files. Laserdot now ignores what Finder hides (update and developer disk images, Time Machine snapshots,
+  the Recovery volume).
 - The question "Index this drive?" shows within a few seconds even for a big or sleeping drive (without the file
   count when counting takes longer), and the drive list no longer waits behind other work, so drives appear right
   after Laserdot starts.

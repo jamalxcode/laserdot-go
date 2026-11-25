@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -32,6 +33,11 @@ type Volume struct {
 	// StableInodes: inode numbers survive remounts. FAT and exFAT synthesize
 	// them per mount, so they cannot identify files across mounts.
 	StableInodes bool
+	// Hidden: not a drive a person would recognize, so not offered: macOS
+	// mounts it "don't browse" (an update or developer disk image, a Time
+	// Machine snapshot — Finder hides those too), its folder name starts
+	// with a dot, or it is the startup disk's Recovery volume.
+	Hidden bool
 }
 
 // VolumeAt returns facts about the volume mounted at (or containing) mount.
@@ -62,7 +68,30 @@ func VolumeAt(mount string) (Volume, error) {
 		FreeBytes:    st.free,
 		Dev:          devOf(info),
 		StableInodes: stable,
+		Hidden:       st.hidden || strings.HasPrefix(name, ".") || systemVolume(name, st.device),
 	}, nil
+}
+
+// systemVolume: a volume of the startup disk's own container that macOS
+// mounts in /Volumes (Recovery), not a drive.
+func systemVolume(name, device string) bool {
+	if device == "" || name != "Recovery" {
+		return false
+	}
+	root, err := statFS("/")
+	return err == nil && sameContainer(root.device, device)
+}
+
+// sameContainer: /dev/disk3s1s1 and /dev/disk3s3 are on disk3.
+func sameContainer(a, b string) bool {
+	disk := func(d string) string {
+		n := strings.TrimPrefix(d, "/dev/disk") // "3s1s1"
+		if i := strings.IndexByte(n, 's'); i >= 0 {
+			n = n[:i]
+		}
+		return n
+	}
+	return strings.HasPrefix(a, "/dev/disk") && disk(a) == disk(b)
 }
 
 // ListVolumes lists the volumes mounted in dir (/Volumes on macOS), sorted
